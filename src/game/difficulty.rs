@@ -8,22 +8,23 @@ pub const SCORE_PER_TIER: u32 = 2500;
 pub const MAX_TIER: u32 = 9;
 pub const SPARK_BURST_UNLOCK_TIER: u32 = 3;
 /// Score at which the corona boss mode is triggered.
-pub const BOSS_TRIGGER_SCORE: u32 = 50000;
+pub const BOSS_TRIGGER_SCORE: u32 = 35000;
 
 pub fn tier_for_score(score: u32) -> u32 {
     (score / SCORE_PER_TIER).min(MAX_TIER)
 }
 
 /// Linear speed ramp from BASE_SPEED at score 0 to SPEED_CAP at SCORE_AT_CAP.
-/// Beyond the cap, speed continues climbing slowly (CEO Room torture zone).
+/// Beyond the cap, speed continues climbing slowly (CEO Room torture zone)
+/// but capped well below the previous 1100 px/s ceiling so it stays playable.
 pub fn speed_for_score(score: u32) -> f32 {
     if score <= SCORE_AT_CAP {
         let t = score as f32 / SCORE_AT_CAP as f32;
         BASE_SPEED + (SPEED_CAP - BASE_SPEED) * t
     } else {
-        // Post-cap ramp: +1 px/s per 100 score, soft ceiling via clamp.
-        let extra = (score - SCORE_AT_CAP) as f32 * 0.01;
-        (SPEED_CAP + extra).min(1100.0)
+        // Gentler post-cap ramp: +1 px/s per 150 score, softer ceiling.
+        let extra = (score - SCORE_AT_CAP) as f32 * (1.0 / 150.0);
+        (SPEED_CAP + extra).min(820.0)
     }
 }
 
@@ -91,10 +92,9 @@ mod tests {
 
     #[test]
     fn accelerates_past_cap_in_ceo_room() {
-        // Post-cap (CEO Room torture zone) speed keeps climbing.
-        assert!(speed_for_score(40000) > SPEED_CAP);
-        // But has a soft ceiling.
-        assert!(speed_for_score(999_999) <= 1100.1);
+        // Post-cap speed keeps climbing but caps well below the old 1100.
+        assert!(speed_for_score(30000) > SPEED_CAP);
+        assert!(speed_for_score(999_999) <= 820.1);
     }
 
     #[test]
