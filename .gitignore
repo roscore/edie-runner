@@ -1,0 +1,6 @@
+/target
+**/*.rs.bk
+Cargo.lock.bak
+.DS_Store
+Thumbs.db
+web/edie_runner.wasm
