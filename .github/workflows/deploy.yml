@@ -1,0 +1,81 @@
+name: Deploy EDIE Runner to GitHub Pages
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install Python dependencies
+        run: pip install Pillow numpy
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: wasm32-unknown-unknown
+
+      - name: Cache cargo
+        uses: Swatinem/rust-cache@v2
+        with:
+          target-dir: target
+
+      - name: Generate art assets
+        run: python tools/generate_art.py
+
+      - name: Build wasm (release)
+        run: cargo build --release --target wasm32-unknown-unknown --bin edie_runner
+
+      - name: Copy assets to web/
+        run: |
+          mkdir -p web
+          cp target/wasm32-unknown-unknown/release/edie_runner.wasm web/edie_runner.wasm
+          cp assets/gen/*.png web/
+          cp assets/gen/*.wav web/ || true
+
+      - name: Install wasm-opt
+        run: |
+          VERSION=116
+          curl -sSL https://github.com/WebAssembly/binaryen/releases/download/version_${VERSION}/binaryen-version_${VERSION}-x86_64-linux.tar.gz | tar xz
+          sudo mv binaryen-version_${VERSION}/bin/wasm-opt /usr/local/bin/
+
+      - name: Optimize wasm
+        run: wasm-opt -Oz -o web/edie_runner.wasm web/edie_runner.wasm
+
+      - name: Setup Pages
+        uses: actions/configure-pages@v5
+
+      - name: Upload Pages artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: web
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
