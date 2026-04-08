@@ -109,6 +109,10 @@ impl Game {
     }
 
     pub fn update<S: Storage>(&mut self, real_dt: f32, storage: &mut S) {
+        // Effects always advance — even during Pause/GameOver — so visual
+        // tails (particles, popups, death shake) play out naturally.
+        self.world.effects.update(real_dt);
+
         if self.state != GameState::Playing {
             return;
         }

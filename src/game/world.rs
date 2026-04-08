@@ -121,7 +121,8 @@ impl World {
 
         self.elapsed += sim_dt;
         self.dash.update(real_dt);
-        self.effects.update(sim_dt);
+        // effects.update is driven from Game::update so it continues to
+        // advance even after death (for the 2-pulse shake).
         self.player.update(sim_dt);
         if self.hp_invuln > 0.0 {
             self.hp_invuln = (self.hp_invuln - real_dt).max(0.0);
@@ -216,8 +217,8 @@ impl World {
                 } else {
                     self.player.hit();
                     self.effects.hit_burst(PLAYER_X + PLAYER_W * 0.5, self.player.y + PLAYER_H * 0.5);
-                    // Single death shake - one short punch, not prolonged.
-                    self.effects.shake(8.0, 0.15);
+                    // Death: two distinct punches, no prolonged jitter.
+                    self.effects.trigger_death_shake();
                     self.effects.flash(0.5, 0.5);
                     self.effects.sfx(SfxCue::Hit);
                     return RunOutcome::Died;

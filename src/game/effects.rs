@@ -38,7 +38,20 @@ pub struct Effects {
     pub tier_banner: Option<TierBanner>,
     /// Queue of SFX cues drained by the main loop each frame.
     pub sfx_queue: Vec<SfxCue>,
+    /// Two-pulse death shake, separate from continuous shake.
+    pub death_shake: Option<DeathShake>,
 }
+
+#[derive(Debug, Clone, Copy)]
+pub struct DeathShake {
+    pub remaining: f32,
+    pub total: f32,
+    pub intensity: f32,
+}
+
+const DEATH_SHAKE_PULSE: f32 = 0.10;
+const DEATH_SHAKE_GAP: f32 = 0.08;
+const DEATH_SHAKE_TOTAL: f32 = DEATH_SHAKE_PULSE * 2.0 + DEATH_SHAKE_GAP; // 0.28s
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum SfxCue {
@@ -96,6 +109,24 @@ impl Effects {
                 self.tier_banner = None;
             }
         }
+
+        // Death shake decay
+        if let Some(ds) = &mut self.death_shake {
+            ds.remaining -= dt;
+            if ds.remaining <= 0.0 {
+                self.death_shake = None;
+            }
+        }
+    }
+
+    pub fn trigger_death_shake(&mut self) {
+        self.death_shake = Some(DeathShake {
+            remaining: DEATH_SHAKE_TOTAL,
+            total: DEATH_SHAKE_TOTAL,
+            intensity: 12.0,
+        });
+        // Cancel any in-progress continuous shake so it doesn't blend.
+        self.shake_remaining = 0.0;
     }
 
     pub fn push_tier_banner(&mut self, text: String, duration: f32) {
@@ -194,6 +225,30 @@ impl Effects {
 
     /// Returns (offset_x, offset_y) to add to camera during shake.
     pub fn shake_offset(&self, seed: f32) -> (f32, f32) {
+        // Death shake: two distinct decaying pulses, no jitter in the gap.
+        if let Some(ds) = &self.death_shake {
+            let elapsed = ds.total - ds.remaining;
+            // Figure out which pulse window we're in
+            let in_first = elapsed < DEATH_SHAKE_PULSE;
+            let in_second = elapsed >= DEATH_SHAKE_PULSE + DEATH_SHAKE_GAP
+                && elapsed < DEATH_SHAKE_PULSE * 2.0 + DEATH_SHAKE_GAP;
+            if in_first || in_second {
+                // Local progress within the pulse (0..1), decaying
+                let local = if in_first {
+                    elapsed / DEATH_SHAKE_PULSE
+                } else {
+                    (elapsed - DEATH_SHAKE_PULSE - DEATH_SHAKE_GAP) / DEATH_SHAKE_PULSE
+                };
+                let decay = (1.0 - local).powi(2);
+                // Direction: first pulse shoves one way, second pulse the other
+                let dir = if in_first { 1.0 } else { -1.0 };
+                let amp = ds.intensity * decay;
+                return (dir * amp, (-0.4) * dir * amp);
+            }
+            return (0.0, 0.0);
+        }
+
+        // Continuous shake for non-death hits
         if self.shake_remaining <= 0.0 {
             return (0.0, 0.0);
         }
