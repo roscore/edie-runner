@@ -97,6 +97,16 @@ impl Game {
             (GameState::Title, Action::OpenHelp) => {
                 self.state = GameState::Help;
             }
+            (GameState::Title, Action::DebugBoss)
+            | (GameState::GameOver, Action::DebugBoss) => {
+                // Dev shortcut: skip straight to the corona boss fight.
+                self.seed_counter = self.seed_counter.wrapping_add(1);
+                self.world = World::new(self.seed_counter, storage);
+                self.world.score.current = crate::game::difficulty::BOSS_TRIGGER_SCORE;
+                self.state = GameState::BossFight;
+                self.boss = Some(crate::game::boss::BossWorld::new());
+                self.countdown_remaining = 0.0;
+            }
             (GameState::Title, Action::OpenStory) => {
                 self.state = GameState::Story;
                 // story_start_time is set by main.rs from wall clock

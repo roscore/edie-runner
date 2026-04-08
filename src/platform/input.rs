@@ -16,6 +16,7 @@ pub enum Action {
     MoveRight,
     MoveLeftRelease,
     MoveRightRelease,
+    DebugBoss,
 }
 
 pub trait InputSource {
@@ -154,6 +155,9 @@ impl InputSource for MacroquadInput {
         }
         if is_key_pressed(KeyCode::Escape) {
             out.push(Action::Back);
+        }
+        if is_key_pressed(KeyCode::B) {
+            out.push(Action::DebugBoss);
         }
 
         self.jump_was_down = jump_now;

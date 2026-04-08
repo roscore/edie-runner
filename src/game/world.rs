@@ -112,7 +112,8 @@ impl World {
             | Action::MoveLeft
             | Action::MoveRight
             | Action::MoveLeftRelease
-            | Action::MoveRightRelease => { /* handled by state machine */ }
+            | Action::MoveRightRelease
+            | Action::DebugBoss => { /* handled by state machine */ }
         }
     }
 
