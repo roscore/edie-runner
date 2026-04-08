@@ -1,29 +1,42 @@
-//! Boss mode: green corona virus rain. Triggered at score >= BOSS_TRIGGER_SCORE.
-//!
-//! Mechanics:
-//! - Map "breaks" and the normal obstacle stream stops
-//! - Viruses fall vertically from above at random x positions
-//! - Player moves horizontally (Left/Right) across the screen bottom
-//! - Survive 60 seconds -> Ending
-//! - Hit a virus -> death
+//! Boss mode: central corona boss + falling virus rain + laser attacks.
+//! Triggered at score >= BOSS_TRIGGER_SCORE.
 
 use crate::game::player::{Aabb, GROUND_Y, PLAYER_H, PLAYER_W};
 use rand::rngs::SmallRng;
 use rand::Rng;
 
 pub const BOSS_DURATION: f32 = 60.0;
+pub const BOSS_INTRO_DURATION: f32 = 3.5;
 pub const VIRUS_W: f32 = 40.0;
 pub const VIRUS_H: f32 = 40.0;
-pub const PLAYER_SIDE_SPEED: f32 = 420.0;
-/// Left/right bounds for the player inside a 1280 logical window.
+pub const PLAYER_SIDE_SPEED: f32 = 440.0;
 pub const PLAYER_MIN_X: f32 = 40.0;
 pub const PLAYER_MAX_X: f32 = 1280.0 - PLAYER_W - 40.0;
+
+// Central boss
+pub const BOSS_X: f32 = 640.0;
+pub const BOSS_Y_BASE: f32 = 110.0;
+pub const BOSS_SIZE: f32 = 180.0;
+
+// Laser
+pub const LASER_COOLDOWN: f32 = 4.0;
+pub const LASER_WARN: f32 = 1.0;
+pub const LASER_FIRE: f32 = 0.7;
+pub const LASER_WIDTH: f32 = 96.0;
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum VirusColor {
+    Green,
+    Purple,
+}
 
 #[derive(Debug, Clone)]
 pub struct Virus {
     pub x: f32,
     pub y: f32,
+    pub vx: f32,
     pub vy: f32,
+    pub color: VirusColor,
     pub alive: bool,
 }
 
@@ -33,12 +46,35 @@ impl Virus {
     }
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum LaserPhase {
+    Warn,
+    Firing,
+}
+
+#[derive(Debug, Clone)]
+pub struct Laser {
+    pub target_x: f32,
+    pub phase: LaserPhase,
+    pub remaining: f32,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Facing {
+    Left,
+    Right,
+}
+
 pub struct BossWorld {
     pub remaining: f32,
     pub player_x: f32,
+    pub player_facing: Facing,
     pub viruses: Vec<Virus>,
     pub spawn_timer: f32,
     pub elapsed: f32,
+    pub boss_bob_t: f32,
+    pub laser: Option<Laser>,
+    pub laser_cooldown: f32,
 }
 
 impl BossWorld {
@@ -46,55 +82,122 @@ impl BossWorld {
         Self {
             remaining: BOSS_DURATION,
             player_x: 640.0 - PLAYER_W * 0.5,
+            player_facing: Facing::Right,
             viruses: Vec::new(),
-            spawn_timer: 0.3,
+            spawn_timer: 0.25,
             elapsed: 0.0,
+            boss_bob_t: 0.0,
+            laser: None,
+            laser_cooldown: 3.0, // first laser ~3s in
         }
     }
 
-    /// Returns true if time ran out (player survived -> Ending).
-    pub fn update(
-        &mut self,
-        dt: f32,
-        input_dx: f32, // -1, 0, or +1
-        rng: &mut SmallRng,
-    ) -> BossOutcome {
+    pub fn boss_center(&self) -> (f32, f32) {
+        let bob = (self.boss_bob_t * 2.2).sin() * 6.0;
+        (BOSS_X, BOSS_Y_BASE + bob)
+    }
+
+    pub fn update(&mut self, dt: f32, input_dx: f32, rng: &mut SmallRng) -> BossOutcome {
         self.elapsed += dt;
         self.remaining -= dt;
+        self.boss_bob_t += dt;
 
-        // Player horizontal movement
+        // Player horizontal movement + facing
+        if input_dx < 0.0 {
+            self.player_facing = Facing::Left;
+        } else if input_dx > 0.0 {
+            self.player_facing = Facing::Right;
+        }
         self.player_x += input_dx * PLAYER_SIDE_SPEED * dt;
         self.player_x = self.player_x.clamp(PLAYER_MIN_X, PLAYER_MAX_X);
 
-        // Spawn viruses at increasing density over time
+        let progress = (self.elapsed / BOSS_DURATION).clamp(0.0, 1.0);
+
+        // Virus spawn — denser + multiple simultaneous
         self.spawn_timer -= dt;
-        let spawn_interval = {
-            let progress = (self.elapsed / BOSS_DURATION).clamp(0.0, 1.0);
-            0.55 - progress * 0.38 // 0.55s at start, 0.17s at end
-        };
+        let spawn_interval = 0.42 - progress * 0.32; // 0.42s -> 0.10s
         if self.spawn_timer <= 0.0 {
-            let x = rng.gen_range(0.0..=(1280.0 - VIRUS_W));
-            let vy = rng.gen_range(160.0..260.0) + self.elapsed * 3.0;
-            self.viruses.push(Virus { x, y: -VIRUS_H, vy, alive: true });
-            self.spawn_timer = spawn_interval;
+            let count = if progress > 0.66 {
+                3
+            } else if progress > 0.33 {
+                2
+            } else {
+                1
+            };
+            for _ in 0..count {
+                let x = rng.gen_range(0.0..=(1280.0 - VIRUS_W));
+                let vy = rng.gen_range(200.0..320.0) + self.elapsed * 5.0;
+                let vx = rng.gen_range(-40.0..40.0);
+                let color = if rng.gen_bool(0.5) {
+                    VirusColor::Green
+                } else {
+                    VirusColor::Purple
+                };
+                self.viruses.push(Virus { x, y: -VIRUS_H, vy, vx, color, alive: true });
+            }
+            self.spawn_timer = spawn_interval.max(0.05);
         }
 
         // Advance viruses
         for v in &mut self.viruses {
+            v.x += v.vx * dt;
             v.y += v.vy * dt;
         }
-        self.viruses.retain(|v| v.alive && v.y < GROUND_Y + 20.0);
+        self.viruses
+            .retain(|v| v.alive && v.y < GROUND_Y + 40.0 && v.x > -80.0 && v.x < 1360.0);
 
-        // Collision: player occupies [player_x, player_x + PLAYER_W] x bottom band
+        // Laser update
+        if let Some(laser) = &mut self.laser {
+            laser.remaining -= dt;
+            if laser.remaining <= 0.0 {
+                match laser.phase {
+                    LaserPhase::Warn => {
+                        laser.phase = LaserPhase::Firing;
+                        laser.remaining = LASER_FIRE;
+                    }
+                    LaserPhase::Firing => {
+                        self.laser = None;
+                        // Tighter cooldown as fight progresses
+                        self.laser_cooldown = LASER_COOLDOWN - progress * 1.5;
+                    }
+                }
+            }
+        } else {
+            self.laser_cooldown -= dt;
+            if self.laser_cooldown <= 0.0 {
+                // Target where the player currently is
+                let target = self.player_x + PLAYER_W * 0.5;
+                self.laser = Some(Laser {
+                    target_x: target.clamp(60.0, 1220.0),
+                    phase: LaserPhase::Warn,
+                    remaining: LASER_WARN,
+                });
+            }
+        }
+
+        // Player hitbox (tight)
         let player_box = Aabb {
-            x: self.player_x + 8.0,
-            y: GROUND_Y - PLAYER_H + 8.0,
-            w: PLAYER_W - 16.0,
-            h: PLAYER_H - 16.0,
+            x: self.player_x + 10.0,
+            y: GROUND_Y - PLAYER_H + 12.0,
+            w: PLAYER_W - 20.0,
+            h: PLAYER_H - 20.0,
         };
+
+        // Virus collision
         for v in &self.viruses {
             if v.alive && v.hitbox().intersects(&player_box) {
                 return BossOutcome::Hit;
+            }
+        }
+
+        // Laser collision (only during Firing)
+        if let Some(laser) = &self.laser {
+            if matches!(laser.phase, LaserPhase::Firing) {
+                let lx_min = laser.target_x - LASER_WIDTH * 0.5;
+                let lx_max = laser.target_x + LASER_WIDTH * 0.5;
+                if player_box.x + player_box.w > lx_min && player_box.x < lx_max {
+                    return BossOutcome::Hit;
+                }
             }
         }
 

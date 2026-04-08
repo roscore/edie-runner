@@ -670,75 +670,102 @@ def make_stage_backgrounds() -> None:
     print("[bg] generating stage backgrounds")
 
     # ============================================================
-    # Stage 0: Department Store interior (Pangyo pop-up scene)
+    # Stage 0: Pangyo Department Store - luxury retail floor
+    # Big glass shop windows with mannequins + gold watches
     # ============================================================
     far = new_canvas(256, 100)
     d = ImageDraw.Draw(far)
-    # Ceiling / ambient glow
-    d.rectangle((0, 0, 256, 16), fill=(250, 236, 210, 255))
-    # Ceiling recessed lights
-    for lx in range(20, 256, 32):
-        d.rectangle((lx, 6, lx + 10, 9), fill=(255, 230, 140, 255))
-    # Shopfront wall
-    d.rectangle((0, 16, 256, 72), fill=(234, 216, 186, 255))
-    # Shop sign band
-    d.rectangle((0, 16, 256, 26), fill=(60, 50, 45, 255))
-    # Letter bars (big "STORE" letters as abstract color blocks)
-    letters = [
-        ((10, 30, 30, 230, 60, 80), "A"),
-        ((42, 60, 80, 220, 120, 70), "B"),
-        ((74, 230, 190, 60, 60, 60), "C"),
-        ((106, 60, 160, 220, 220, 60), "D"),
-        ((138, 220, 100, 150, 80, 80), "E"),
-        ((170, 100, 200, 180, 60, 70), "F"),
-        ((202, 220, 180, 60, 80, 60), "G"),
-        ((234, 60, 200, 160, 70, 60), "H"),
-    ]
-    for (lx, r, g, b, h, w), _ in letters:
-        d.rectangle((lx, 18, lx + 22, 24), fill=(r, g, b, 255))
-    # Glass storefront windows with mannequin silhouettes
-    for wx in (12, 84, 156, 228):
-        # Window frame
-        d.rectangle((wx, 30, wx + 56, 68), fill=(200, 190, 175, 255), outline=(80, 60, 40, 255), width=1)
-        # Glass
-        d.rectangle((wx + 3, 33, wx + 53, 65), fill=(225, 235, 240, 255))
-        # Mannequin silhouette inside
-        d.ellipse((wx + 24, 37, wx + 34, 47), fill=(170, 160, 150, 255))
-        d.rectangle((wx + 26, 46, wx + 32, 62), fill=(170, 160, 150, 255))
-        # Window price tag
-        d.rectangle((wx + 8, 56, wx + 20, 62), fill=(255, 230, 80, 255))
-    # Escalator balustrade running across the back
-    d.rectangle((0, 72, 256, 82), fill=(180, 180, 195, 255))
-    d.line((0, 72, 256, 72), fill=(100, 100, 115, 255))
-    # Escalator rail with diagonal step hint
-    for ex in range(0, 256, 12):
-        d.line((ex, 82, ex + 6, 76), fill=(140, 140, 160, 255))
-    # Floor edge
-    d.rectangle((0, 90, 256, 100), fill=(210, 195, 170, 255))
+    # Marble back wall
+    d.rectangle((0, 0, 256, 100), fill=(232, 222, 205, 255))
+    # Ceiling darker strip
+    d.rectangle((0, 0, 256, 8), fill=(200, 185, 155, 255))
+    # Warm ceiling spotlights
+    for lx in range(28, 256, 48):
+        d.ellipse((lx - 4, 2, lx + 4, 8), fill=(255, 235, 160, 255))
+        d.line((lx, 8, lx - 3, 14), fill=(255, 230, 140, 100))
+        d.line((lx, 8, lx + 3, 14), fill=(255, 230, 140, 100))
+    # TWO large shop windows, each ~120 wide
+    for wx_base in (8, 136):
+        wx = wx_base
+        ww = 112
+        wy = 14
+        wh = 74
+        # Thick wood frame
+        d.rectangle((wx, wy, wx + ww, wy + wh), fill=(90, 60, 35, 255), outline=EDIE_OUTLINE, width=2)
+        d.rectangle((wx + 2, wy + 2, wx + ww - 2, wy + wh - 2), fill=(120, 80, 45, 255))
+        # Glass interior
+        d.rectangle((wx + 5, wy + 5, wx + ww - 5, wy + wh - 5), fill=(220, 230, 238, 255))
+        # Glass reflection streaks
+        d.line((wx + 10, wy + 8, wx + 22, wy + 38), fill=(245, 250, 255, 255))
+        d.line((wx + ww - 18, wy + 12, wx + ww - 10, wy + 26), fill=(245, 250, 255, 255))
+        # Mannequin on the left of the window
+        mx = wx + 20
+        my = wy + 14
+        # Head
+        d.ellipse((mx, my, mx + 12, my + 14), fill=(220, 205, 180, 255), outline=EDIE_OUTLINE, width=1)
+        # Neck
+        d.rectangle((mx + 4, my + 13, mx + 8, my + 18), fill=(200, 185, 160, 255))
+        # Formal suit torso (charcoal)
+        d.polygon(
+            [(mx - 4, my + 18), (mx + 16, my + 18), (mx + 18, my + 44), (mx - 6, my + 44)],
+            fill=(50, 55, 65, 255),
+            outline=EDIE_OUTLINE,
+        )
+        # White shirt triangle
+        d.polygon([(mx + 4, my + 18), (mx + 8, my + 18), (mx + 6, my + 28)], fill=(240, 240, 245, 255))
+        # Red tie
+        d.polygon([(mx + 5, my + 22), (mx + 7, my + 22), (mx + 6, my + 34)], fill=(180, 40, 50, 255))
+        # Base stand
+        d.rectangle((mx - 2, my + 44, mx + 14, my + 46), fill=(110, 110, 120, 255))
+        # Gold watch display on the right side
+        gwx = wx + ww - 42
+        gwy = wy + 18
+        # Pedestal
+        d.rectangle((gwx, gwy + 22, gwx + 32, gwy + 32), fill=(140, 120, 90, 255), outline=EDIE_OUTLINE, width=1)
+        d.rectangle((gwx + 2, gwy + 24, gwx + 30, gwy + 30), fill=(200, 180, 140, 255))
+        # Watch 1 (gold)
+        d.ellipse((gwx + 4, gwy + 6, gwx + 16, gwy + 18), fill=(245, 200, 80, 255), outline=EDIE_OUTLINE, width=1)
+        d.ellipse((gwx + 6, gwy + 8, gwx + 14, gwy + 16), fill=(255, 235, 130, 255))
+        d.point((gwx + 10, gwy + 12), fill=(40, 40, 40, 255))
+        d.line((gwx + 10, gwy + 10, gwx + 10, gwy + 12), fill=(40, 40, 40, 255))
+        d.line((gwx + 10, gwy + 12, gwx + 13, gwy + 12), fill=(40, 40, 40, 255))
+        d.rectangle((gwx + 6, gwy + 16, gwx + 14, gwy + 22), fill=(200, 160, 50, 255))
+        # Watch 2 (rose gold)
+        d.ellipse((gwx + 18, gwy + 8, gwx + 30, gwy + 20), fill=(220, 150, 120, 255), outline=EDIE_OUTLINE, width=1)
+        d.ellipse((gwx + 20, gwy + 10, gwx + 28, gwy + 18), fill=(250, 200, 180, 255))
+        d.point((gwx + 24, gwy + 14), fill=(40, 40, 40, 255))
+        d.rectangle((gwx + 20, gwy + 18, gwx + 28, gwy + 23), fill=(180, 120, 90, 255))
+        # Price tag
+        d.rectangle((gwx + 10, gwy + 34, gwx + 22, gwy + 40), fill=(255, 250, 230, 255), outline=EDIE_OUTLINE, width=1)
+        # Window top luxury brand name bar
+        d.rectangle((wx + 10, wy - 2, wx + ww - 10, wy + 10), fill=(30, 30, 35, 255), outline=(200, 170, 80, 255), width=1)
+        # Letter dots as gold lettering
+        for gx in range(wx + 14, wx + ww - 14, 8):
+            d.rectangle((gx, wy + 2, gx + 4, wy + 7), fill=(230, 190, 80, 255))
+    # Between windows: marble pillar
+    d.rectangle((122, 0, 134, 100), fill=(210, 200, 180, 255))
+    d.rectangle((120, 0, 122, 100), fill=(180, 170, 150, 255))
+    d.rectangle((134, 0, 136, 100), fill=(180, 170, 150, 255))
+    # Pillar base
+    d.rectangle((118, 88, 138, 100), fill=(170, 155, 130, 255))
     save_png(far, "bg_store_far.png", palette_lock=False)
 
     mid = new_canvas(256, 60)
     d = ImageDraw.Draw(mid)
-    d.rectangle((0, 40, 256, 60), fill=(225, 210, 185, 255))
-    # Brand display cases / shelves
-    for i, dx in enumerate((8, 72, 136, 200)):
-        # Cabinet
-        d.rectangle((dx, 12, dx + 48, 42), fill=(240, 230, 210, 255), outline=(90, 70, 50, 255), width=1)
-        # Shelf lines
-        d.line((dx + 2, 22, dx + 46, 22), fill=(150, 120, 90, 255))
-        d.line((dx + 2, 32, dx + 46, 32), fill=(150, 120, 90, 255))
-        # Product silhouettes
-        colors = [(230, 80, 70, 255), (70, 130, 220, 255), (240, 200, 60, 255), (80, 200, 140, 255)]
-        for j, pc in enumerate(colors):
-            px = dx + 4 + j * 11
-            d.rectangle((px, 14, px + 8, 20), fill=pc)
-            d.rectangle((px, 24, px + 8, 30), fill=pc)
-        # Price dot
-        d.rectangle((dx + 2, 36, dx + 10, 40), fill=(255, 220, 60, 255))
-    # Potted plants between cabinets
-    for pt in (56, 120, 184, 248):
-        d.rectangle((pt, 35, pt + 8, 42), fill=(120, 80, 50, 255))
-        d.ellipse((pt - 4, 22, pt + 12, 38), fill=(70, 140, 80, 255), outline=EDIE_OUTLINE)
+    # Marble floor rim
+    d.rectangle((0, 44, 256, 60), fill=(225, 215, 195, 255))
+    d.line((0, 44, 256, 44), fill=(180, 165, 140, 255))
+    # Low velvet rope stanchions + ropes
+    for sx in (20, 88, 156, 224):
+        # Post
+        d.rectangle((sx, 26, sx + 4, 48), fill=(190, 155, 60, 255), outline=EDIE_OUTLINE, width=1)
+        d.ellipse((sx - 2, 22, sx + 6, 28), fill=(230, 190, 80, 255), outline=EDIE_OUTLINE, width=1)
+    # Velvet ropes between posts (red)
+    for a, b in ((22, 90), (90, 158), (158, 226)):
+        d.line((a + 4, 32, b - 2, 32), fill=(170, 30, 40, 255))
+        d.line((a + 4, 33, b - 2, 33), fill=(140, 20, 30, 255))
+        # Sag curve
+        d.point(((a + b) // 2, 35), fill=(170, 30, 40, 255))
     save_png(mid, "bg_store_mid.png", palette_lock=False)
 
     floor = new_canvas(256, 80)
@@ -906,23 +933,48 @@ def make_stage_backgrounds() -> None:
     d.rectangle((0, 14, 256, 40), fill=(180, 210, 235, 255))
     for bx in range(0, 256, 8):
         d.line((bx, 14, bx, 40), fill=(140, 170, 200, 255))
-    # AeiROBOT wall logo centered
+    # AeiROBOT wall logo centered - corrupted with virus intrusion
     d.rectangle((96, 48, 160, 74), fill=(30, 40, 60, 255), outline=EDIE_OUTLINE, width=2)
     d.rectangle((102, 54, 154, 68), fill=EDIE_ORANGE)
-    # "AEI" letters as color bars
+    # "AEI" letters with glitch offsets
     d.rectangle((106, 58, 110, 64), fill=EDIE_WHITE)
-    d.rectangle((114, 58, 118, 64), fill=EDIE_WHITE)
+    d.rectangle((114, 59, 118, 65), fill=EDIE_WHITE)  # 1px glitch
     d.rectangle((122, 58, 126, 64), fill=EDIE_WHITE)
-    # Cubicle dividers visible
+    # Red ERROR bar across logo
+    d.rectangle((96, 60, 160, 63), fill=(220, 50, 50, 255))
+    # Cubicle dividers
     d.rectangle((10, 72, 50, 96), fill=(200, 180, 150, 255), outline=EDIE_OUTLINE, width=1)
     d.rectangle((180, 72, 240, 96), fill=(200, 180, 150, 255), outline=EDIE_OUTLINE, width=1)
+    # Error warning triangles floating in the top
+    def _warn_tri(cx, cy):
+        d.polygon(
+            [(cx, cy - 6), (cx - 6, cy + 4), (cx + 6, cy + 4)],
+            fill=(230, 200, 40, 255),
+            outline=EDIE_OUTLINE,
+        )
+        d.rectangle((cx - 1, cy - 3, cx + 1, cy + 1), fill=EDIE_OUTLINE)
+        d.point((cx, cy + 2), fill=EDIE_OUTLINE)
+    _warn_tri(30, 24)
+    _warn_tri(72, 30)
+    _warn_tri(204, 26)
+    _warn_tri(244, 32)
+    # Red horizontal glitch strips (virus signal)
+    for gy in (18, 42, 64, 88):
+        for gx in range(0, 256, 16):
+            d.rectangle((gx, gy, gx + 8, gy + 1), fill=(230, 60, 60, 150))
+    # "ERROR" red tag box
+    d.rectangle((8, 52, 40, 62), fill=(180, 30, 30, 255), outline=EDIE_WHITE, width=1)
+    d.point((13, 56), fill=EDIE_WHITE)
+    d.point((20, 56), fill=EDIE_WHITE)
+    d.point((27, 56), fill=EDIE_WHITE)
+    d.point((34, 56), fill=EDIE_WHITE)
     save_png(far, "bg_office_far.png", palette_lock=False)
 
     mid = new_canvas(256, 60)
     d = ImageDraw.Draw(mid)
     d.rectangle((0, 44, 256, 60), fill=(210, 205, 195, 255))
-    # Desks with monitors
-    for dx in (16, 88, 160, 228):
+    # Desks with corrupted monitors
+    for i, dx in enumerate((16, 88, 160, 228)):
         # Desk top
         d.rectangle((dx - 22, 30, dx + 22, 40), fill=(160, 130, 90, 255), outline=EDIE_OUTLINE, width=1)
         # Desk legs
@@ -930,9 +982,25 @@ def make_stage_backgrounds() -> None:
         d.rectangle((dx + 17, 40, dx + 20, 50), fill=(110, 85, 55, 255))
         # Monitor stand
         d.rectangle((dx - 2, 22, dx + 2, 30), fill=(80, 80, 90, 255))
-        # Monitor
+        # Monitor (some have red error screens)
         d.rectangle((dx - 12, 10, dx + 12, 24), fill=(40, 50, 70, 255), outline=EDIE_OUTLINE, width=1)
-        d.rectangle((dx - 10, 12, dx + 10, 22), fill=(120, 200, 240, 255))
+        if i % 2 == 0:
+            # Corrupted red BSOD screen
+            d.rectangle((dx - 10, 12, dx + 10, 22), fill=(180, 30, 30, 255))
+            # "!!!" pixel warning
+            d.point((dx - 4, 16), fill=EDIE_WHITE)
+            d.point((dx - 4, 17), fill=EDIE_WHITE)
+            d.point((dx, 16), fill=EDIE_WHITE)
+            d.point((dx, 17), fill=EDIE_WHITE)
+            d.point((dx + 4, 16), fill=EDIE_WHITE)
+            d.point((dx + 4, 17), fill=EDIE_WHITE)
+            # Static lines
+            d.line((dx - 10, 19, dx + 10, 19), fill=(100, 20, 20, 255))
+        else:
+            # Glitched blue screen
+            d.rectangle((dx - 10, 12, dx + 10, 22), fill=(120, 200, 240, 255))
+            d.line((dx - 10, 15, dx + 10, 15), fill=(255, 80, 80, 255))
+            d.line((dx - 10, 18, dx + 10, 18), fill=(255, 80, 80, 255))
         # Chair back
         d.rectangle((dx - 8, 42, dx + 8, 55), fill=(60, 80, 120, 255), outline=EDIE_OUTLINE, width=1)
     save_png(mid, "bg_office_mid.png", palette_lock=False)
@@ -969,8 +1037,30 @@ def make_stage_backgrounds() -> None:
         cy = rng.randint(20, 60)
         col = rng.choice([(255, 230, 120, 255), (200, 220, 255, 255), (255, 180, 100, 255)])
         d.point((cx, cy), fill=col)
+    # Cracked glass pattern (virus breach)
+    d.line((80, 40, 128, 30), fill=(220, 220, 240, 200))
+    d.line((128, 30, 176, 60), fill=(220, 220, 240, 200))
+    d.line((128, 30, 100, 70), fill=(220, 220, 240, 200))
+    d.line((128, 30, 160, 75), fill=(220, 220, 240, 200))
     # Window divider
     d.line((128, 14, 128, 90), fill=(150, 110, 70, 255))
+    # Red ALERT band across top
+    d.rectangle((0, 0, 256, 6), fill=(180, 30, 30, 255))
+    d.rectangle((0, 2, 256, 3), fill=(255, 80, 80, 255))
+    # Warning triangles
+    for cx, cy in ((50, 28), (218, 28), (50, 82), (218, 82)):
+        d.polygon(
+            [(cx, cy - 5), (cx - 5, cy + 4), (cx + 5, cy + 4)],
+            fill=(230, 200, 40, 255),
+            outline=EDIE_OUTLINE,
+        )
+        d.rectangle((cx - 1, cy - 2, cx + 1, cy + 1), fill=EDIE_OUTLINE)
+    # Red glitch scan lines
+    for gy in (20, 45, 68):
+        for gx in range(0, 80, 10):
+            d.rectangle((gx, gy, gx + 5, gy + 1), fill=(220, 50, 50, 180))
+        for gx in range(180, 256, 10):
+            d.rectangle((gx, gy, gx + 5, gy + 1), fill=(220, 50, 50, 180))
     # CEO portrait frames (left/right of window)
     for fx in (20, 212):
         d.rectangle((fx, 30, fx + 40, 70), fill=(120, 85, 60, 255), outline=EDIE_OUTLINE, width=2)
@@ -1218,23 +1308,16 @@ def make_sfx() -> None:
     write_wav("sfx_heart.wav", heart)
 
 
-def make_virus() -> None:
-    """Green corona virus - falling projectile for boss mode."""
+def _virus_frames(core, core_d, core_hi):
+    import math
     w, h = 40, 40
     frames = []
     for f in range(4):
         im = new_canvas(w, h)
         d = ImageDraw.Draw(im)
         cx, cy = 20, 20
-        core = (60, 200, 80, 255)
-        core_d = (40, 140, 50, 255)
-        core_hi = (150, 240, 160, 255)
-        out = EDIE_OUTLINE
-        # Main body
-        d.ellipse((cx - 10, cy - 10, cx + 10, cy + 10), fill=core, outline=out, width=1)
+        d.ellipse((cx - 10, cy - 10, cx + 10, cy + 10), fill=core, outline=EDIE_OUTLINE, width=1)
         d.ellipse((cx - 7, cy - 7, cx + 4, cy + 4), fill=core_hi)
-        # Spike proteins (crown) — rotate per frame
-        import math
         for i in range(8):
             angle = (i / 8) * math.tau + (f * 0.2)
             sx1 = cx + int(math.cos(angle) * 10)
@@ -1243,13 +1326,79 @@ def make_virus() -> None:
             sy2 = cy + int(math.sin(angle) * 16)
             d.line((sx1, sy1, sx2, sy2), fill=core_d, width=2)
             d.rectangle((sx2 - 1, sy2 - 1, sx2 + 1, sy2 + 1), fill=core_d)
-        # Inner dots
         d.point((cx - 3, cy - 1), fill=core_d)
         d.point((cx + 2, cy + 3), fill=core_d)
         d.point((cx - 1, cy + 4), fill=core_d)
         frames.append(im)
-    sheet = tile_horizontal(frames)
-    save_png(sheet, "virus.png", palette_lock=False)
+    return frames
+
+
+def make_virus() -> None:
+    """Green + purple corona virus sprites for boss mode rain."""
+    green = _virus_frames(
+        (60, 200, 80, 255), (40, 140, 50, 255), (150, 240, 160, 255)
+    )
+    save_png(tile_horizontal(green), "virus_green.png", palette_lock=False)
+    purple = _virus_frames(
+        (157, 107, 255, 255), (90, 50, 180, 255), (211, 184, 255, 255)
+    )
+    save_png(tile_horizontal(purple), "virus_purple.png", palette_lock=False)
+
+
+def make_boss_virus() -> None:
+    """Giant central boss virus with yellow eyes — corona boss fight."""
+    import math
+    w, h = 180, 180
+    im = new_canvas(w, h)
+    d = ImageDraw.Draw(im)
+    cx, cy = 90, 90
+    core = (60, 200, 80, 255)
+    core_d = (30, 120, 40, 255)
+    core_hi = (120, 230, 140, 255)
+    out = EDIE_OUTLINE
+    # Outer glow
+    for r_off, a in ((82, 30), (72, 50), (62, 70)):
+        d.ellipse((cx - r_off, cy - r_off, cx + r_off, cy + r_off), fill=(100, 220, 120, a))
+    # Spike proteins (crown) — drawn before body so body covers roots
+    for i in range(18):
+        angle = (i / 18) * math.tau
+        sx1 = cx + int(math.cos(angle) * 54)
+        sy1 = cy + int(math.sin(angle) * 54)
+        sx2 = cx + int(math.cos(angle) * 86)
+        sy2 = cy + int(math.sin(angle) * 86)
+        d.line((sx1, sy1, sx2, sy2), fill=core_d, width=4)
+        d.ellipse((sx2 - 6, sy2 - 6, sx2 + 6, sy2 + 6), fill=core_d, outline=out, width=1)
+        d.ellipse((sx2 - 3, sy2 - 3, sx2 + 3, sy2 + 3), fill=(80, 180, 90, 255))
+    # Main body
+    d.ellipse((cx - 56, cy - 56, cx + 56, cy + 56), fill=core, outline=out, width=2)
+    # Inner highlight
+    d.ellipse((cx - 44, cy - 44, cx + 24, cy + 24), fill=core_hi)
+    d.ellipse((cx - 30, cy - 30, cx + 30, cy + 30), fill=core)
+    # Inner dots
+    for (dx, dy) in ((-20, 10), (22, -6), (-10, 28), (14, 24), (-30, -8)):
+        d.ellipse((cx + dx - 3, cy + dy - 3, cx + dx + 3, cy + dy + 3), fill=core_d)
+    # Yellow eyes (2 large menacing eyes)
+    eye_y = cy - 6
+    # Left eye
+    d.ellipse((cx - 34, eye_y - 16, cx - 6, eye_y + 12), fill=(255, 255, 255, 255), outline=out, width=2)
+    d.ellipse((cx - 30, eye_y - 12, cx - 10, eye_y + 8), fill=(255, 225, 50, 255))
+    d.ellipse((cx - 26, eye_y - 8, cx - 14, eye_y + 4), fill=(255, 175, 30, 255))
+    d.ellipse((cx - 24, eye_y - 6, cx - 16, eye_y + 2), fill=(0, 0, 0, 255))
+    d.rectangle((cx - 22, eye_y - 5, cx - 20, eye_y - 3), fill=(255, 255, 255, 255))
+    # Right eye
+    d.ellipse((cx + 6, eye_y - 16, cx + 34, eye_y + 12), fill=(255, 255, 255, 255), outline=out, width=2)
+    d.ellipse((cx + 10, eye_y - 12, cx + 30, eye_y + 8), fill=(255, 225, 50, 255))
+    d.ellipse((cx + 14, eye_y - 8, cx + 26, eye_y + 4), fill=(255, 175, 30, 255))
+    d.ellipse((cx + 16, eye_y - 6, cx + 24, eye_y + 2), fill=(0, 0, 0, 255))
+    d.rectangle((cx + 18, eye_y - 5, cx + 20, eye_y - 3), fill=(255, 255, 255, 255))
+    # Jagged mouth
+    for i, mx in enumerate(range(-26, 27, 7)):
+        top = cy + 20
+        if i % 2 == 0:
+            d.polygon([(cx + mx, top), (cx + mx + 4, top + 10), (cx + mx + 7, top)], fill=out)
+        else:
+            d.polygon([(cx + mx, top), (cx + mx + 4, top + 8), (cx + mx + 7, top)], fill=(40, 20, 20, 255))
+    save_png(im, "boss_virus.png", palette_lock=False)
 
 
 def make_heart_pickup() -> None:
@@ -1384,6 +1533,7 @@ def main() -> None:
     make_aurora()
     make_heart_pickup()
     make_virus()
+    make_boss_virus()
     print()
     make_background()
     make_stage_backgrounds()

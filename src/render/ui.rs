@@ -525,9 +525,9 @@ pub fn draw_overlay(
         }
     }
 
-    // "H = HELP   T = STORY   B = BOSS" hint on Title and GameOver
+    // Hint line on Title / GameOver (B key remains functional but hidden)
     if matches!(state, GameState::Title | GameState::GameOver) {
-        let hint = "H = HELP    T = STORY    B = BOSS (TEST)";
+        let hint = "H = HELP    T = STORY";
         let hint_size = 16.0 * cam.scale;
         let dim_hint = measure_text(hint, None, hint_size as u16, 1.0);
         let (hx, hy) = cam.to_screen(LOGICAL_W * 0.5, LOGICAL_H * 0.78);

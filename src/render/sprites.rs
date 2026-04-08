@@ -372,46 +372,345 @@ pub fn draw_aurora(s: &AuroraStone, assets: &AssetHandles, elapsed: f32, cam: &C
     );
 }
 
-pub fn draw_boss_mode(
-    boss: &crate::game::boss::BossWorld,
-    assets: &AssetHandles,
-    cam: &Camera,
-) {
-    // Dark overlay background for dramatic effect
+/// Boss entrance cinematic — 3.5s of building-breaks + flash + boss descent.
+/// `remaining` counts down from BOSS_INTRO_DURATION to 0.
+pub fn draw_boss_intro(remaining: f32, assets: &AssetHandles, cam: &Camera) {
+    use crate::game::boss::{BOSS_INTRO_DURATION, BOSS_SIZE, BOSS_X, BOSS_Y_BASE};
+    let total = BOSS_INTRO_DURATION;
+    let t = total - remaining; // 0 -> total
+    let p = (t / total).clamp(0.0, 1.0); // 0..1
+
+    // Phase 1 (0.0-1.2s): cracks spreading across the screen
+    // Phase 2 (1.2-1.8s): white flash peak
+    // Phase 3 (1.8-3.5s): boss descends from top, settles into position
+
+    // Dim overlay building up
+    let dim = (p * 0.7).min(0.7);
     let (x0, y0) = cam.to_screen(0.0, 0.0);
     draw_rectangle(
         x0,
         y0,
         cam.scaled(1280.0),
         cam.scaled(400.0),
-        Color::new(0.05, 0.08, 0.05, 0.85),
+        Color::new(0.02, 0.04, 0.02, dim),
     );
 
-    // Sickly green tint bands (map is broken)
-    for i in 0..6 {
-        let y = i as f32 * 70.0;
+    // Cracks spreading from center (accumulate over first ~1.2s)
+    let crack_progress = (t / 1.2).clamp(0.0, 1.0);
+    let crack_defs: &[(f32, f32, f32, f32)] = &[
+        (640.0, 200.0, -300.0, -180.0),
+        (640.0, 200.0, 320.0, -160.0),
+        (640.0, 200.0, -260.0, 180.0),
+        (640.0, 200.0, 290.0, 190.0),
+        (640.0, 200.0, -420.0, -20.0),
+        (640.0, 200.0, 420.0, 40.0),
+        (640.0, 200.0, -60.0, -220.0),
+        (640.0, 200.0, 80.0, 220.0),
+    ];
+    for (sx, sy, ex, ey) in crack_defs.iter().copied() {
+        let cx = sx + ex * crack_progress;
+        let cy = sy + ey * crack_progress;
+        let (x1, y1) = cam.to_screen(sx, sy);
+        let (x2, y2) = cam.to_screen(cx, cy);
+        draw_line(
+            x1,
+            y1,
+            x2,
+            y2,
+            3.0 * cam.scale,
+            Color::new(0.95, 0.95, 0.8, 0.85),
+        );
+        draw_line(
+            x1,
+            y1,
+            x2,
+            y2,
+            1.5 * cam.scale,
+            Color::new(1.0, 0.6, 0.2, 1.0),
+        );
+    }
+
+    // Falling debris particles (simple deterministic)
+    if t > 0.6 {
+        for i in 0..12i32 {
+            let seed = i as f32 * 7.13;
+            let fx = (seed * 53.0).sin() * 620.0 + 640.0;
+            let fall = ((t - 0.6).max(0.0) * 180.0) + seed * 40.0;
+            let fy = (fall % 380.0) + 20.0;
+            let (px, py) = cam.to_screen(fx, fy);
+            draw_rectangle(
+                px,
+                py,
+                cam.scaled(4.0),
+                cam.scaled(4.0),
+                Color::new(0.7, 0.7, 0.65, 0.9),
+            );
+        }
+    }
+
+    // Phase 2: white flash peak at t ~1.4
+    let flash_center = 1.4;
+    let flash_width = 0.5;
+    let flash_dist = (t - flash_center).abs();
+    if flash_dist < flash_width {
+        let flash_a = 1.0 - (flash_dist / flash_width);
+        draw_rectangle(
+            0.0,
+            0.0,
+            cam.screen_w,
+            cam.screen_h,
+            Color::new(1.0, 1.0, 0.95, flash_a.powi(2) * 0.9),
+        );
+    }
+
+    // Phase 3: boss descends
+    if t > 1.6 {
+        let descent_t = ((t - 1.6) / (total - 1.6)).clamp(0.0, 1.0);
+        // Ease out: starts fast, settles gently
+        let ease = 1.0 - (1.0 - descent_t).powi(3);
+        let start_y = -BOSS_SIZE;
+        let end_y = BOSS_Y_BASE - BOSS_SIZE * 0.5;
+        let boss_y = start_y + (end_y - start_y) * ease;
+        let boss_x = BOSS_X - BOSS_SIZE * 0.5;
+        let (sbx, sby) = cam.to_screen(boss_x, boss_y);
+        // Trail glow behind descending boss
+        for i in 1..4 {
+            let offset_y = i as f32 * -18.0;
+            let alpha = 0.25 - (i as f32 * 0.07);
+            draw_rectangle(
+                sbx,
+                sby + cam.scaled(offset_y),
+                cam.scaled(BOSS_SIZE),
+                cam.scaled(BOSS_SIZE * 0.3),
+                Color::new(0.4, 1.0, 0.5, alpha),
+            );
+        }
+        draw_texture_ex(
+            &assets.boss_virus,
+            sbx,
+            sby,
+            WHITE,
+            DrawTextureParams {
+                dest_size: Some(vec2(cam.scaled(BOSS_SIZE), cam.scaled(BOSS_SIZE))),
+                ..Default::default()
+            },
+        );
+    }
+
+    // "VIRUS INTRUSION" text appears around flash time
+    if t > 1.2 {
+        let alpha = ((t - 1.2) / 0.4).clamp(0.0, 1.0);
+        let txt = "VIRUS INTRUSION";
+        let size = 48.0 * cam.scale;
+        let dim_t = measure_text(txt, None, size as u16, 1.0);
+        let (cx, cy) = cam.to_screen(640.0, 260.0);
+        // Shadow
+        draw_text(
+            txt,
+            cx - dim_t.width * 0.5 + 3.0,
+            cy + 3.0,
+            size,
+            Color::new(0.0, 0.0, 0.0, alpha * 0.7),
+        );
+        draw_text(
+            txt,
+            cx - dim_t.width * 0.5,
+            cy,
+            size,
+            Color::new(0.95, 0.2, 0.2, alpha),
+        );
+    }
+}
+
+pub fn draw_boss_mode(
+    boss: &crate::game::boss::BossWorld,
+    assets: &AssetHandles,
+    cam: &Camera,
+) {
+    use crate::game::boss::{Facing, LaserPhase, VirusColor, BOSS_SIZE, LASER_WIDTH};
+
+    // Dark sickly overlay background
+    let (x0, y0) = cam.to_screen(0.0, 0.0);
+    draw_rectangle(
+        x0,
+        y0,
+        cam.scaled(1280.0),
+        cam.scaled(400.0),
+        Color::new(0.05, 0.10, 0.06, 0.92),
+    );
+
+    // Scan-line tint bands
+    for i in 0..8 {
+        let y = i as f32 * 52.0;
         let (bx, by) = cam.to_screen(0.0, y);
         draw_rectangle(
             bx,
             by,
             cam.scaled(1280.0),
             cam.scaled(2.0),
-            Color::new(0.2, 0.8, 0.3, 0.18),
+            Color::new(0.2, 0.85, 0.35, 0.14),
         );
     }
 
-    // Player EDIE (use run anim) at boss.player_x
+    // ======================================================
+    // Boss: giant corona virus, central, slight bob
+    // ======================================================
+    let (bx_c, by_c) = boss.boss_center();
+    let boss_x = bx_c - BOSS_SIZE * 0.5;
+    let boss_y = by_c - BOSS_SIZE * 0.5;
+    // Pulsing outer aura
+    let aura_scale = 1.0 + ((boss.boss_bob_t * 3.0).sin() * 0.05);
+    let aura_w = BOSS_SIZE * aura_scale * 1.15;
+    let aura_x = bx_c - aura_w * 0.5;
+    let aura_y = by_c - aura_w * 0.5;
+    let (sax, say) = cam.to_screen(aura_x, aura_y);
+    draw_rectangle(
+        sax,
+        say,
+        cam.scaled(aura_w),
+        cam.scaled(aura_w),
+        Color::new(0.2, 0.9, 0.3, 0.08),
+    );
+    // Main boss sprite
+    let (sbx, sby) = cam.to_screen(boss_x, boss_y);
+    draw_texture_ex(
+        &assets.boss_virus,
+        sbx,
+        sby,
+        WHITE,
+        DrawTextureParams {
+            dest_size: Some(vec2(cam.scaled(BOSS_SIZE), cam.scaled(BOSS_SIZE))),
+            ..Default::default()
+        },
+    );
+
+    // ======================================================
+    // Laser (warn / firing)
+    // ======================================================
+    if let Some(laser) = &boss.laser {
+        let lx_min = laser.target_x - LASER_WIDTH * 0.5;
+        let laser_top = boss_y + BOSS_SIZE * 0.9;
+        let laser_bottom = 400.0;
+        let laser_h = laser_bottom - laser_top;
+        let (sx, sy) = cam.to_screen(lx_min, laser_top);
+
+        match laser.phase {
+            LaserPhase::Warn => {
+                // Pulsing red warning beam (thin)
+                let pulse = ((boss.elapsed * 20.0).sin() * 0.5 + 0.5) * 0.45 + 0.25;
+                // Crosshair line
+                draw_rectangle(
+                    sx,
+                    sy,
+                    cam.scaled(LASER_WIDTH),
+                    cam.scaled(laser_h),
+                    Color::new(1.0, 0.15, 0.2, pulse * 0.5),
+                );
+                // Center line
+                let (mcx, _mcy) = cam.to_screen(laser.target_x - 1.0, laser_top);
+                draw_rectangle(
+                    mcx,
+                    sy,
+                    cam.scaled(2.0),
+                    cam.scaled(laser_h),
+                    Color::new(1.0, 0.2, 0.25, pulse),
+                );
+                // WARNING text under boss
+                let wtxt = "! WARNING !";
+                let wsize = 22.0 * cam.scale;
+                let wdim = measure_text(wtxt, None, wsize as u16, 1.0);
+                let (wx, wy) = cam.to_screen(laser.target_x, laser_top - 20.0);
+                draw_text(
+                    wtxt,
+                    wx - wdim.width * 0.5,
+                    wy,
+                    wsize,
+                    Color::new(1.0, 0.3, 0.3, pulse + 0.3),
+                );
+            }
+            LaserPhase::Firing => {
+                // Outer glow
+                let glow_w = LASER_WIDTH + 24.0;
+                let (gx, gy) = cam.to_screen(laser.target_x - glow_w * 0.5, laser_top);
+                draw_rectangle(
+                    gx,
+                    gy,
+                    cam.scaled(glow_w),
+                    cam.scaled(laser_h),
+                    Color::new(1.0, 0.8, 0.3, 0.25),
+                );
+                // Main beam (yellow-orange)
+                draw_rectangle(
+                    sx,
+                    sy,
+                    cam.scaled(LASER_WIDTH),
+                    cam.scaled(laser_h),
+                    Color::new(1.0, 0.82, 0.2, 0.85),
+                );
+                // Inner core (white)
+                let core_w = LASER_WIDTH * 0.35;
+                let (cx, cy) = cam.to_screen(laser.target_x - core_w * 0.5, laser_top);
+                draw_rectangle(
+                    cx,
+                    cy,
+                    cam.scaled(core_w),
+                    cam.scaled(laser_h),
+                    Color::new(1.0, 1.0, 1.0, 0.9),
+                );
+            }
+        }
+    }
+
+    // ======================================================
+    // Viruses (green + purple)
+    // ======================================================
+    let green_fw = (assets.virus_green.width() - 3.0) / 4.0;
+    let green_fh = assets.virus_green.height();
+    let purple_fw = (assets.virus_purple.width() - 3.0) / 4.0;
+    let purple_fh = assets.virus_purple.height();
+    let vf = ((boss.elapsed * 10.0) as usize) % 4;
+
+    for v in &boss.viruses {
+        if !v.alive {
+            continue;
+        }
+        let (vx, vy) = cam.to_screen(v.x, v.y);
+        let (tex, fw, fh) = match v.color {
+            VirusColor::Green => (&assets.virus_green, green_fw, green_fh),
+            VirusColor::Purple => (&assets.virus_purple, purple_fw, purple_fh),
+        };
+        draw_texture_ex(
+            tex,
+            vx,
+            vy,
+            WHITE,
+            DrawTextureParams {
+                dest_size: Some(vec2(cam.scaled(40.0), cam.scaled(40.0))),
+                source: Some(Rect {
+                    x: vf as f32 * (fw + 1.0),
+                    y: 0.0,
+                    w: fw,
+                    h: fh,
+                }),
+                ..Default::default()
+            },
+        );
+    }
+
+    // ======================================================
+    // Player EDIE at bottom, with facing flip
+    // ======================================================
     let vis_w = 56.0;
     let vis_h = 48.0;
     let player_y = 400.0 - vis_h - 16.0;
     let frame_w = (assets.edie_run_anim.width() - 6.0) / 7.0;
     let frame_h = assets.edie_run_anim.height();
     let frame_idx = ((boss.elapsed * 10.0) as usize) % 7;
-    let (px, py) = cam.to_screen(boss.player_x, player_y);
+    let (pxs, pys) = cam.to_screen(boss.player_x, player_y);
     draw_texture_ex(
         &assets.edie_run_anim,
-        px,
-        py,
+        pxs,
+        pys,
         WHITE,
         DrawTextureParams {
             dest_size: Some(vec2(cam.scaled(vis_w), cam.scaled(vis_h))),
@@ -421,90 +720,52 @@ pub fn draw_boss_mode(
                 w: frame_w,
                 h: frame_h,
             }),
+            flip_x: matches!(boss.player_facing, Facing::Left),
             ..Default::default()
         },
     );
 
-    // Viruses
-    let v_frame_w = (assets.virus.width() - 3.0) / 4.0;
-    let v_frame_h = assets.virus.height();
-    let vf = ((boss.elapsed * 10.0) as usize) % 4;
-    for v in &boss.viruses {
-        if !v.alive {
-            continue;
-        }
-        let (vx, vy) = cam.to_screen(v.x, v.y);
-        draw_texture_ex(
-            &assets.virus,
-            vx,
-            vy,
-            WHITE,
-            DrawTextureParams {
-                dest_size: Some(vec2(cam.scaled(40.0), cam.scaled(40.0))),
-                source: Some(Rect {
-                    x: vf as f32 * (v_frame_w + 1.0),
-                    y: 0.0,
-                    w: v_frame_w,
-                    h: v_frame_h,
-                }),
-                ..Default::default()
-            },
-        );
-    }
-
-    // Timer bar at top
+    // ======================================================
+    // HUD: timer bar, countdown text
+    // ======================================================
     let progress = (boss.remaining / crate::game::boss::BOSS_DURATION).clamp(0.0, 1.0);
     let bar_w = 800.0;
     let bar_x = 640.0 - bar_w * 0.5;
-    let bar_y = 30.0;
+    let bar_y = 32.0;
     let (bsx, bsy) = cam.to_screen(bar_x, bar_y);
     draw_rectangle(
         bsx,
         bsy,
         cam.scaled(bar_w),
-        cam.scaled(18.0),
-        Color::new(0.1, 0.1, 0.1, 0.85),
+        cam.scaled(16.0),
+        Color::new(0.1, 0.1, 0.1, 0.9),
     );
     draw_rectangle(
         bsx,
         bsy,
         cam.scaled(bar_w * progress),
-        cam.scaled(18.0),
+        cam.scaled(16.0),
         Color::new(0.2, 0.85, 0.35, 1.0),
     );
     draw_rectangle_lines(
         bsx,
         bsy,
         cam.scaled(bar_w),
-        cam.scaled(18.0),
+        cam.scaled(16.0),
         2.0,
-        Color::new(0.9, 0.9, 0.9, 1.0),
+        Color::new(0.9, 0.95, 0.85, 1.0),
     );
 
-    // Timer text
     let txt = format!("SURVIVE  {:>4.1}s", boss.remaining.max(0.0));
-    let size = 24.0 * cam.scale;
+    let size = 22.0 * cam.scale;
     let dim = measure_text(&txt, None, size as u16, 1.0);
-    let (tx, ty) = cam.to_screen(640.0, 18.0);
+    let (tx, ty) = cam.to_screen(640.0, 22.0);
     draw_text(
         &txt,
         tx - dim.width * 0.5,
         ty,
         size,
         Color::new(0.95, 0.95, 0.8, 1.0),
-    );
-
-    // Controls hint
-    let hint = "LEFT / RIGHT : DODGE";
-    let hsize = 16.0 * cam.scale;
-    let hdim = measure_text(hint, None, hsize as u16, 1.0);
-    let (hx, hy) = cam.to_screen(640.0, 70.0);
-    draw_text(
-        hint,
-        hx - hdim.width * 0.5,
-        hy,
-        hsize,
-        Color::new(0.85, 0.9, 0.75, 0.9),
     );
 }
 

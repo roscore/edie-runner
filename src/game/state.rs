@@ -200,9 +200,7 @@ impl Game {
 
         // Check boss trigger BEFORE world update.
         if self.world.score.current >= crate::game::difficulty::BOSS_TRIGGER_SCORE {
-            self.boss_intro_remaining = 1.2;
-            self.world.effects.flash(0.8, 1.2);
-            self.world.effects.trigger_death_shake();
+            self.boss_intro_remaining = crate::game::boss::BOSS_INTRO_DURATION;
             return;
         }
 

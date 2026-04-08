@@ -7,8 +7,8 @@ use edie_runner::platform::storage::InMemoryStorage;
 use edie_runner::platform::visibility::VisibilityTracker;
 use edie_runner::render::camera::Camera;
 use edie_runner::render::sprites::{
-    draw_aurora, draw_boss_mode, draw_countdown, draw_effects, draw_heart_pickup, draw_hit_flash,
-    draw_obstacle, draw_player, draw_tier_banner, draw_vignette,
+    draw_aurora, draw_boss_intro, draw_boss_mode, draw_countdown, draw_effects, draw_heart_pickup,
+    draw_hit_flash, draw_obstacle, draw_player, draw_tier_banner, draw_vignette,
 };
 use edie_runner::game::state::GameState;
 use edie_runner::platform::input::Action;
@@ -190,6 +190,11 @@ async fn main() {
             &cam,
         );
         draw_overlay(&game, &assets, wall_time, &cam);
+
+        // Boss intro cinematic
+        if game.boss_intro_remaining > 0.0 {
+            draw_boss_intro(game.boss_intro_remaining, &assets, &cam);
+        }
 
         // Boss fight overlay drawn on top of the normal world
         if matches!(game.state, GameState::BossFight) {
