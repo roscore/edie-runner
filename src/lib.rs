@@ -1,4 +1,6 @@
-//! EDIE Runner library entry point (re-exports for unit tests).
+//! EDIE Runner library entry point.
+
 pub mod game;
 pub mod platform;
+pub mod render;
 pub mod time;
