@@ -10,9 +10,12 @@ pub enum GameState {
     Playing,
     Paused,
     GameOver,
+    Help,
+    Story,
 }
 
 pub const RUN_HISTORY_LEN: usize = 5;
+pub const STORY_DURATION: f32 = 28.0;
 
 pub struct Game {
     pub state: GameState,
@@ -23,6 +26,8 @@ pub struct Game {
     /// Position (1-indexed) of the most recently completed run within the
     /// best-runs leaderboard, if it qualified. Used for the "NEW #N" badge.
     pub last_run_rank: Option<usize>,
+    /// Wall-clock time at which the current Story playback started.
+    pub story_start_time: f32,
 }
 
 impl Game {
@@ -33,6 +38,7 @@ impl Game {
             seed_counter: seed,
             run_history: Vec::new(),
             last_run_rank: None,
+            story_start_time: 0.0,
         }
     }
 
@@ -54,6 +60,21 @@ impl Game {
             (GameState::Title, Action::Confirm) | (GameState::Title, Action::Jump) => {
                 self.start_run(storage);
             }
+            (GameState::Title, Action::OpenHelp) => {
+                self.state = GameState::Help;
+            }
+            (GameState::Title, Action::OpenStory) => {
+                self.state = GameState::Story;
+                // story_start_time is set by main.rs from wall clock
+            }
+            (GameState::Help, _) => {
+                // Any key returns to title
+                self.state = GameState::Title;
+            }
+            (GameState::Story, _) => {
+                // Any key skips back to title
+                self.state = GameState::Title;
+            }
             (GameState::Playing, Action::Pause) => {
                 self.state = GameState::Paused;
             }
@@ -62,6 +83,12 @@ impl Game {
             }
             (GameState::GameOver, Action::Confirm) | (GameState::GameOver, Action::Jump) => {
                 self.start_run(storage);
+            }
+            (GameState::GameOver, Action::OpenHelp) => {
+                self.state = GameState::Help;
+            }
+            (GameState::GameOver, Action::OpenStory) => {
+                self.state = GameState::Story;
             }
             (GameState::Playing, _) => {
                 self.world.apply_action(action);

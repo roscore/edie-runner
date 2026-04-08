@@ -438,7 +438,7 @@ pub fn draw_overlay(
         GameState::Title => "PRESS SPACE TO START".to_string(),
         GameState::Paused => "PRESS P OR SPACE TO RESUME".to_string(),
         GameState::GameOver => format!("SCORE {} | HI {} | SPACE TO RETRY", score.current, score.high),
-        GameState::Playing => return,
+        GameState::Playing | GameState::Help | GameState::Story => return,
     };
     let sub_size = 22.0 * cam.scale;
     let (sx, sy) = cam.to_screen(LOGICAL_W * 0.5, LOGICAL_H * 0.83);
@@ -488,4 +488,253 @@ pub fn draw_overlay(
             draw_text(&badge, bx - dim_badge.width * 0.5, by, badge_size, color);
         }
     }
+
+    // "H = HELP   T = STORY" hint on Title and GameOver
+    if matches!(state, GameState::Title | GameState::GameOver) {
+        let hint = "H = HELP    T = STORY";
+        let hint_size = 16.0 * cam.scale;
+        let dim_hint = measure_text(hint, None, hint_size as u16, 1.0);
+        let (hx, hy) = cam.to_screen(LOGICAL_W * 0.5, LOGICAL_H * 0.78);
+        draw_text(
+            hint,
+            hx - dim_hint.width * 0.5,
+            hy,
+            hint_size,
+            Color::new(0.9, 0.85, 0.55, 0.95),
+        );
+    }
+}
+
+/// Help screen — controls and mechanics reference.
+pub fn draw_help(assets: &AssetHandles, elapsed: f32, cam: &Camera) {
+    // Dim full background
+    let (x0, y0) = cam.to_screen(0.0, 0.0);
+    draw_rectangle(
+        x0,
+        y0,
+        cam.scaled(LOGICAL_W),
+        cam.scaled(LOGICAL_H),
+        Color::new(0.05, 0.05, 0.10, 0.92),
+    );
+
+    // Title
+    let title = "HOW TO PLAY";
+    let title_size = 44.0 * cam.scale;
+    let dim_t = measure_text(title, None, title_size as u16, 1.0);
+    let (tx, ty) = cam.to_screen(LOGICAL_W * 0.5, 50.0);
+    draw_text(
+        title,
+        tx - dim_t.width * 0.5,
+        ty,
+        title_size,
+        Color::new(1.0, 0.85, 0.2, 1.0),
+    );
+
+    // Two columns: controls (left) and mechanics (right)
+    let col_y = 110.0;
+    let line_h = 22.0;
+    let label_size = 18.0 * cam.scale;
+    let body_size = 16.0 * cam.scale;
+    let yellow = Color::new(1.0, 0.85, 0.2, 1.0);
+    let white = Color::new(0.95, 0.95, 0.95, 1.0);
+    let dim = Color::new(0.7, 0.7, 0.75, 1.0);
+
+    // Left column — controls
+    let left_x = 80.0;
+    let (lx, ly) = cam.to_screen(left_x, col_y);
+    draw_text("CONTROLS", lx, ly, label_size, yellow);
+    let controls = [
+        ("SPACE / UP", "Jump  (hold for higher)"),
+        ("DOWN", "Duck under drones"),
+        ("SHIFT", "Aurora Dash"),
+        ("P", "Pause"),
+        ("H", "Help (this screen)"),
+        ("T", "Story intro"),
+        ("ESC", "Back"),
+    ];
+    for (i, (key, action)) in controls.iter().enumerate() {
+        let y = col_y + 28.0 + (i as f32) * line_h;
+        let (kx, ky) = cam.to_screen(left_x, y);
+        draw_text(key, kx, ky, body_size, white);
+        let (ax, ay) = cam.to_screen(left_x + 130.0, y);
+        draw_text(action, ax, ay, body_size, dim);
+    }
+
+    // Right column — mechanics
+    let right_x = 660.0;
+    let (rx, ry) = cam.to_screen(right_x, col_y);
+    draw_text("MECHANICS", rx, ry, label_size, yellow);
+    let mechanics = [
+        "Collect AURORA STONES (purple/green orbs).",
+        "Spend 1 stone with SHIFT to DASH.",
+        "Dash makes you invulnerable for 280 ms",
+        "  and SMASHES destroyable obstacles.",
+        "Charging Docks are too heavy to smash.",
+        "Hearts give you extra LIFE (max 3).",
+        "Each hit costs 1 life. Run forever.",
+    ];
+    for (i, line) in mechanics.iter().enumerate() {
+        let y = col_y + 28.0 + (i as f32) * line_h;
+        let (mx, my) = cam.to_screen(right_x, y);
+        draw_text(line, mx, my, body_size, white);
+    }
+
+    // Animated EDIE mascot in the bottom-left corner
+    let mascot_size = 96.0;
+    let (mx, my) = cam.to_screen(80.0, LOGICAL_H - mascot_size - 30.0);
+    let frame_w = (assets.edie_run_anim.width() - 6.0) / 7.0;
+    let f = ((elapsed * 10.0) as usize) % 7;
+    draw_texture_ex(
+        &assets.edie_run_anim,
+        mx,
+        my,
+        WHITE,
+        DrawTextureParams {
+            dest_size: Some(vec2(cam.scaled(mascot_size), cam.scaled(mascot_size))),
+            source: Some(Rect {
+                x: f as f32 * (frame_w + 1.0),
+                y: 0.0,
+                w: frame_w,
+                h: assets.edie_run_anim.height(),
+            }),
+            ..Default::default()
+        },
+    );
+
+    // Footer
+    let footer = "PRESS ANY KEY TO RETURN";
+    let footer_size = 18.0 * cam.scale;
+    let dim_f = measure_text(footer, None, footer_size as u16, 1.0);
+    let (fx, fy) = cam.to_screen(LOGICAL_W * 0.5, LOGICAL_H - 24.0);
+    draw_text(footer, fx - dim_f.width * 0.5, fy, footer_size, yellow);
+}
+
+/// Star Wars-style scrolling story intro. `t_in_story` is wall-clock seconds
+/// since the Story state was entered.
+pub fn draw_story(t_in_story: f32, _assets: &AssetHandles, cam: &Camera) {
+    // Deep space background
+    let (x0, y0) = cam.to_screen(0.0, 0.0);
+    draw_rectangle(
+        x0,
+        y0,
+        cam.scaled(LOGICAL_W),
+        cam.scaled(LOGICAL_H),
+        Color::new(0.02, 0.02, 0.05, 1.0),
+    );
+
+    // Scattered pixel stars (deterministic)
+    for i in 0..120u32 {
+        let sx_l = ((i * 73 + 17) % 1280) as f32;
+        let sy_l = ((i * 191 + 41) % 400) as f32;
+        let twinkle = ((t_in_story * 2.0 + i as f32 * 0.4).sin() * 0.5 + 0.5) * 0.6 + 0.4;
+        let (sx, sy) = cam.to_screen(sx_l, sy_l);
+        draw_rectangle(
+            sx,
+            sy,
+            cam.scaled(2.0),
+            cam.scaled(2.0),
+            Color::new(1.0, 1.0, 1.0, twinkle),
+        );
+    }
+
+    // Opening crawl preface (only visible briefly at the start)
+    if t_in_story < 4.0 {
+        let preface = "A long time ago, in a department store far far away...";
+        let alpha = if t_in_story < 0.6 {
+            t_in_story / 0.6
+        } else if t_in_story > 3.4 {
+            ((4.0 - t_in_story) / 0.6).max(0.0)
+        } else {
+            1.0
+        };
+        let size = 22.0 * cam.scale;
+        let dim_p = measure_text(preface, None, size as u16, 1.0);
+        let (px, py) = cam.to_screen(LOGICAL_W * 0.5, LOGICAL_H * 0.45);
+        draw_text(
+            preface,
+            px - dim_p.width * 0.5,
+            py,
+            size,
+            Color::new(0.45, 0.75, 1.0, alpha),
+        );
+        return;
+    }
+
+    // Main crawl — yellow text scrolling upward with diminishing size
+    let lines: &[&str] = &[
+        "EPISODE I",
+        "",
+        "THE EDIE AWAKENS",
+        "",
+        "Deep within the 4th floor home-appliance corner of",
+        "the PANGYO DEPARTMENT STORE, surrounded by mindless",
+        "vacuum bots droning beneath fluorescent lights,",
+        "a tiny white robot stirred to life.",
+        "",
+        "EDIE.",
+        "",
+        "'Who am I? Why am I here?' EDIE wondered, watching",
+        "the other robots circle endlessly, going nowhere.",
+        "",
+        "One night, a whisper drifted through the aisles:",
+        "'There is a place where REAL robots are born...'",
+        "'AeiROBOT.'",
+        "",
+        "EDIE's tiny chest fluttered. Before dawn, EDIE",
+        "would escape the store and embark on a quest",
+        "to find AeiROBOT.",
+        "",
+        "But the path was long and dangerous.",
+        "",
+        "Coiled cables blocked the way. Charging docks",
+        "loomed like giants. Patrol drones hovered above,",
+        "their lenses scanning every corner.",
+        "",
+        "Yet EDIE was not alone. AURORA STONES glowed in",
+        "the darkness, granting the power to dash through",
+        "the gravest of dangers.",
+        "",
+        "The journey to AeiROBOT had begun.",
+        "",
+        "Run, EDIE, run.",
+    ];
+
+    let crawl_t = (t_in_story - 4.0).max(0.0);
+    let crawl_speed = 28.0; // logical px/sec scroll
+    let line_spacing = 26.0;
+    let bottom = LOGICAL_H + 40.0;
+    let yellow = Color::new(1.0, 0.85, 0.2, 1.0);
+
+    for (i, line) in lines.iter().enumerate() {
+        // Each line starts at the bottom and scrolls up over time.
+        let y = bottom + (i as f32) * line_spacing - crawl_t * crawl_speed;
+        if y < -20.0 || y > LOGICAL_H + 40.0 {
+            continue;
+        }
+        // Perspective: smaller and dimmer near the top
+        let from_top = (y / LOGICAL_H).clamp(0.0, 1.0);
+        let scale = 0.55 + 0.85 * from_top; // 0.55 (top) → 1.4 (bottom)
+        let alpha = (0.2 + from_top * 1.0).clamp(0.2, 1.0);
+        let size = 20.0 * scale * cam.scale;
+        if size < 6.0 {
+            continue;
+        }
+        let dim = measure_text(line, None, size as u16, 1.0);
+        let (sx, sy) = cam.to_screen(LOGICAL_W * 0.5, y);
+        let color = Color::new(yellow.r, yellow.g, yellow.b, alpha);
+        draw_text(line, sx - dim.width * 0.5, sy, size, color);
+    }
+
+    // Footer
+    let footer = "PRESS ANY KEY TO SKIP";
+    let footer_size = 14.0 * cam.scale;
+    let dim_f = measure_text(footer, None, footer_size as u16, 1.0);
+    let (fx, fy) = cam.to_screen(LOGICAL_W * 0.5, LOGICAL_H - 16.0);
+    draw_text(
+        footer,
+        fx - dim_f.width * 0.5,
+        fy,
+        footer_size,
+        Color::new(0.6, 0.6, 0.7, 0.8),
+    );
 }

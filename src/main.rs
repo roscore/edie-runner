@@ -7,7 +7,9 @@ use edie_runner::platform::storage::InMemoryStorage;
 use edie_runner::platform::visibility::VisibilityTracker;
 use edie_runner::render::camera::Camera;
 use edie_runner::render::sprites::{draw_aurora, draw_heart_pickup, draw_obstacle, draw_player};
-use edie_runner::render::ui::{draw_background, draw_hud, draw_overlay};
+use edie_runner::game::state::GameState;
+use edie_runner::platform::input::Action;
+use edie_runner::render::ui::{draw_background, draw_help, draw_hud, draw_overlay, draw_story};
 use edie_runner::time::{FixedStep, DT};
 use macroquad::prelude::*;
 
@@ -77,7 +79,29 @@ async fn main() {
 
         let actions = input.poll();
         for a in actions {
+            // Stamp story start time when entering Story state.
+            let was_title_or_gameover = matches!(
+                game.state,
+                GameState::Title | GameState::GameOver
+            );
             game.handle(a, &mut storage);
+            if was_title_or_gameover && matches!(game.state, GameState::Story) {
+                game.story_start_time = get_time() as f32;
+            }
+            // Story auto-skip handled below in render section
+            if matches!(game.state, GameState::Story) && matches!(a, Action::Back) {
+                game.state = GameState::Title;
+            }
+        }
+
+        // Story auto-finish: return to Title after STORY_DURATION seconds.
+        if matches!(game.state, GameState::Story) {
+            let now = get_time() as f32;
+            if now - game.story_start_time
+                >= edie_runner::game::state::STORY_DURATION
+            {
+                game.state = GameState::Title;
+            }
         }
 
         let n = step.advance(frame_time);
@@ -120,6 +144,16 @@ async fn main() {
             &cam,
         );
         draw_overlay(&game, &assets, wall_time, &cam);
+
+        // Help / Story screens drawn on top of everything else
+        match game.state {
+            GameState::Help => draw_help(&assets, wall_time, &cam),
+            GameState::Story => {
+                let t = wall_time - game.story_start_time;
+                draw_story(t, &assets, &cam);
+            }
+            _ => {}
+        }
 
         next_frame().await;
     }

@@ -9,6 +9,9 @@ pub enum Action {
     Dash,
     Confirm,
     Pause,
+    OpenHelp,
+    OpenStory,
+    Back,
 }
 
 pub trait InputSource {
@@ -113,6 +116,15 @@ impl InputSource for MacroquadInput {
         }
         if is_key_pressed(KeyCode::P) {
             out.push(Action::Pause);
+        }
+        if is_key_pressed(KeyCode::H) {
+            out.push(Action::OpenHelp);
+        }
+        if is_key_pressed(KeyCode::T) {
+            out.push(Action::OpenStory);
+        }
+        if is_key_pressed(KeyCode::Escape) {
+            out.push(Action::Back);
         }
 
         self.jump_was_down = jump_now;

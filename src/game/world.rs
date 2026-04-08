@@ -74,7 +74,11 @@ impl World {
                     // accept
                 }
             }
-            Action::Confirm | Action::Pause => { /* handled by state machine */ }
+            Action::Confirm
+            | Action::Pause
+            | Action::OpenHelp
+            | Action::OpenStory
+            | Action::Back => { /* handled by state machine */ }
         }
     }
 
