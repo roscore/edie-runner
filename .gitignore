@@ -3,4 +3,8 @@
 Cargo.lock.bak
 .DS_Store
 Thumbs.db
+# wasm artifact is built by CI, not committed
 web/edie_runner.wasm
+# PNG / WAV must never be shipped to web/ — they are embedded in the wasm
+web/*.png
+web/*.wav

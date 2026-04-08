@@ -4,6 +4,7 @@ version = "0.1.0"
 edition = "2021"
 authors = ["helle"]
 description = "Endless runner starring EDIE the AeiROBOT mascot"
+build = "build.rs"
 
 [lib]
 name = "edie_runner"
@@ -27,3 +28,4 @@ opt-level = 3
 lto = true
 codegen-units = 1
 panic = "abort"
+strip = "symbols"

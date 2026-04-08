@@ -45,12 +45,12 @@ jobs:
       - name: Build wasm (release)
         run: cargo build --release --target wasm32-unknown-unknown --bin edie_runner
 
-      - name: Copy assets to web/
+      - name: Copy wasm to web/ (assets are embedded inside the wasm binary)
         run: |
           mkdir -p web
           cp target/wasm32-unknown-unknown/release/edie_runner.wasm web/edie_runner.wasm
-          cp assets/gen/*.png web/
-          cp assets/gen/*.wav web/ || true
+          # Defensive: scrub any PNG/WAV that might have leaked in
+          find web -maxdepth 1 \( -name '*.png' -o -name '*.wav' \) -delete || true
 
       - name: Install wasm-opt
         run: |
@@ -58,8 +58,8 @@ jobs:
           curl -sSL https://github.com/WebAssembly/binaryen/releases/download/version_${VERSION}/binaryen-version_${VERSION}-x86_64-linux.tar.gz | tar xz
           sudo mv binaryen-version_${VERSION}/bin/wasm-opt /usr/local/bin/
 
-      - name: Optimize wasm
-        run: wasm-opt -Oz -o web/edie_runner.wasm web/edie_runner.wasm
+      - name: Optimize + strip wasm
+        run: wasm-opt -Oz --strip-debug --strip-producers -o web/edie_runner.wasm web/edie_runner.wasm
 
       - name: Setup Pages
         uses: actions/configure-pages@v5

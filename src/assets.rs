@@ -1,7 +1,32 @@
-//! Texture asset registry. All paths are relative to the wasm host directory
-//! (i.e. the `web/` folder in production).
+//! Texture / audio asset registry.
+//!
+//! All assets are XOR-scrambled and embedded into the wasm binary at compile
+//! time by `build.rs`. At runtime, bytes are decrypted in memory and fed to
+//! macroquad via `Texture2D::from_file_with_format` / `load_sound_from_bytes`.
+//! There are no separate PNG/WAV files on the webserver — a network inspector
+//! will only see `edie_runner.wasm`.
 
 use macroquad::prelude::*;
+
+include!(concat!(env!("OUT_DIR"), "/asset_index.rs"));
+const ASSET_BLOB: &[u8] = include_bytes!(concat!(env!("OUT_DIR"), "/asset_blob.bin"));
+
+const KEY: &[u8] = b"EDIE_RUNNER_v1_AeiROBOT_virus_scramble_2026_PANGYO";
+
+fn unscramble(name: &str) -> Option<Vec<u8>> {
+    let (_, offset, len) = *ASSET_INDEX.iter().find(|(n, _, _)| *n == name)?;
+    let raw = &ASSET_BLOB[offset..offset + len];
+    let out: Vec<u8> = raw
+        .iter()
+        .enumerate()
+        .map(|(i, b)| {
+            let idx = offset + i;
+            let k = KEY[idx % KEY.len()];
+            b ^ k ^ ((idx as u8).wrapping_mul(31))
+        })
+        .collect();
+    Some(out)
+}
 
 pub struct AssetHandles {
     pub edie_run: Texture2D,
@@ -11,7 +36,6 @@ pub struct AssetHandles {
     pub edie_hit: Texture2D,
     pub edie_shadow: Texture2D,
 
-    // GIF-extracted animated sheets (from user-provided gifs).
     pub edie_run_anim: Texture2D,
     pub edie_title_idle: Texture2D,
     pub edie_sad_alt: Texture2D,
@@ -25,24 +49,24 @@ pub struct AssetHandles {
     pub obstacle_coffee: Texture2D,
     pub obstacle_cart: Texture2D,
     pub obstacle_cone: Texture2D,
-    pub obstacle_sign: Texture2D,    // 4 frames
-    pub obstacle_cat: Texture2D,     // 2 frames
+    pub obstacle_sign: Texture2D,
+    pub obstacle_cat: Texture2D,
     pub obstacle_car: Texture2D,
-    pub obstacle_deer: Texture2D,    // 2 frames
-    pub obstacle_balloon: Texture2D, // 4 frames
-    pub obstacle_vacuum: Texture2D,  // 4 frames
-    pub obstacle_amy: Texture2D,     // 4 frames
-    pub obstacle_alicem1: Texture2D, // 2 frames
-    pub obstacle_alice3: Texture2D,  // 2 frames
-    pub obstacle_alice4: Texture2D,  // 2 frames
-    pub obstacle_shadow: Texture2D,  // shared ground shadow
+    pub obstacle_deer: Texture2D,
+    pub obstacle_balloon: Texture2D,
+    pub obstacle_vacuum: Texture2D,
+    pub obstacle_amy: Texture2D,
+    pub obstacle_alicem1: Texture2D,
+    pub obstacle_alice3: Texture2D,
+    pub obstacle_alice4: Texture2D,
+    pub obstacle_shadow: Texture2D,
 
-    pub aurora_purple: Texture2D, // 6 frames horizontal
-    pub aurora_green: Texture2D,  // 6 frames horizontal
-    pub heart: Texture2D,         // 4 frames pulse
-    pub virus_green: Texture2D,   // 4 frames
-    pub virus_purple: Texture2D,  // 4 frames
-    pub boss_virus: Texture2D,    // giant central boss
+    pub aurora_purple: Texture2D,
+    pub aurora_green: Texture2D,
+    pub heart: Texture2D,
+    pub virus_green: Texture2D,
+    pub virus_purple: Texture2D,
+    pub boss_virus: Texture2D,
 
     pub bg_sky: Texture2D,
     pub bg_stars: Texture2D,
@@ -50,7 +74,6 @@ pub struct AssetHandles {
     pub bg_mid: Texture2D,
     pub bg_floor: Texture2D,
 
-    // Stage-specific background tiles (6 stages x 3 layers each)
     pub stage_store: StageBg,
     pub stage_street: StageBg,
     pub stage_highway: StageBg,
@@ -58,7 +81,6 @@ pub struct AssetHandles {
     pub stage_office: StageBg,
     pub stage_ceo: StageBg,
 
-    // SFX
     pub sfx_jump: macroquad::audio::Sound,
     pub sfx_hit: macroquad::audio::Sound,
     pub sfx_pickup: macroquad::audio::Sound,
@@ -80,110 +102,107 @@ pub struct LoadError {
 
 impl std::fmt::Display for LoadError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "Failed to load: {}", self.which)
+        write!(f, "Missing bundled asset: {}", self.which)
     }
 }
 
-async fn load_pixel(name: &str) -> Result<Texture2D, LoadError> {
-    match load_texture(name).await {
-        Ok(t) => {
-            t.set_filter(FilterMode::Nearest);
-            Ok(t)
-        }
-        Err(_) => Err(LoadError { which: name.to_string() }),
-    }
+fn tex(name: &str) -> Result<Texture2D, LoadError> {
+    let bytes = unscramble(name).ok_or_else(|| LoadError { which: name.to_string() })?;
+    let t = Texture2D::from_file_with_format(&bytes, None);
+    t.set_filter(FilterMode::Nearest);
+    Ok(t)
+}
+
+async fn snd(name: &str) -> Result<macroquad::audio::Sound, LoadError> {
+    let bytes = unscramble(name).ok_or_else(|| LoadError { which: name.to_string() })?;
+    macroquad::audio::load_sound_from_bytes(&bytes)
+        .await
+        .map_err(|_| LoadError { which: name.to_string() })
 }
 
 pub async fn load_all() -> Result<AssetHandles, LoadError> {
     Ok(AssetHandles {
-        edie_run: load_pixel("edie_run.png").await?,
-        edie_jump: load_pixel("edie_jump.png").await?,
-        edie_duck: load_pixel("edie_duck.png").await?,
-        edie_dash: load_pixel("edie_dash.png").await?,
-        edie_hit: load_pixel("edie_hit.png").await?,
-        edie_shadow: load_pixel("edie_shadow.png").await?,
+        edie_run: tex("edie_run.png")?,
+        edie_jump: tex("edie_jump.png")?,
+        edie_duck: tex("edie_duck.png")?,
+        edie_dash: tex("edie_dash.png")?,
+        edie_hit: tex("edie_hit.png")?,
+        edie_shadow: tex("edie_shadow.png")?,
 
-        edie_run_anim: load_pixel("edie_run_anim.png").await?,
-        edie_title_idle: load_pixel("edie_title_idle.png").await?,
-        edie_sad_alt: load_pixel("edie_sad_alt.png").await?,
-        edie_sleepy: load_pixel("edie_sleepy.png").await?,
-        edie_hit_anim: load_pixel("edie_hit_anim.png").await?,
-        edie_look: load_pixel("edie_look.png").await?,
-        edie_gameover_anim: load_pixel("edie_gameover_anim.png").await?,
-        edie_blink_alt: load_pixel("edie_blink_alt.png").await?,
-        edie_cheer_anim: load_pixel("edie_cheer_anim.png").await?,
+        edie_run_anim: tex("edie_run_anim.png")?,
+        edie_title_idle: tex("edie_title_idle.png")?,
+        edie_sad_alt: tex("edie_sad_alt.png")?,
+        edie_sleepy: tex("edie_sleepy.png")?,
+        edie_hit_anim: tex("edie_hit_anim.png")?,
+        edie_look: tex("edie_look.png")?,
+        edie_gameover_anim: tex("edie_gameover_anim.png")?,
+        edie_blink_alt: tex("edie_blink_alt.png")?,
+        edie_cheer_anim: tex("edie_cheer_anim.png")?,
 
-        obstacle_coffee: load_pixel("obstacle_coffee.png").await?,
-        obstacle_cart: load_pixel("obstacle_cart.png").await?,
-        obstacle_cone: load_pixel("obstacle_cone.png").await?,
-        obstacle_sign: load_pixel("obstacle_sign.png").await?,
-        obstacle_cat: load_pixel("obstacle_cat.png").await?,
-        obstacle_car: load_pixel("obstacle_car.png").await?,
-        obstacle_deer: load_pixel("obstacle_deer.png").await?,
-        obstacle_balloon: load_pixel("obstacle_balloon.png").await?,
-        obstacle_vacuum: load_pixel("obstacle_vacuum.png").await?,
-        obstacle_amy: load_pixel("obstacle_amy.png").await?,
-        obstacle_alicem1: load_pixel("obstacle_alicem1.png").await?,
-        obstacle_alice3: load_pixel("obstacle_alice3.png").await?,
-        obstacle_alice4: load_pixel("obstacle_alice4.png").await?,
-        obstacle_shadow: load_pixel("edie_shadow.png").await?,
+        obstacle_coffee: tex("obstacle_coffee.png")?,
+        obstacle_cart: tex("obstacle_cart.png")?,
+        obstacle_cone: tex("obstacle_cone.png")?,
+        obstacle_sign: tex("obstacle_sign.png")?,
+        obstacle_cat: tex("obstacle_cat.png")?,
+        obstacle_car: tex("obstacle_car.png")?,
+        obstacle_deer: tex("obstacle_deer.png")?,
+        obstacle_balloon: tex("obstacle_balloon.png")?,
+        obstacle_vacuum: tex("obstacle_vacuum.png")?,
+        obstacle_amy: tex("obstacle_amy.png")?,
+        obstacle_alicem1: tex("obstacle_alicem1.png")?,
+        obstacle_alice3: tex("obstacle_alice3.png")?,
+        obstacle_alice4: tex("obstacle_alice4.png")?,
+        obstacle_shadow: tex("edie_shadow.png")?,
 
-        aurora_purple: load_pixel("aurora_purple.png").await?,
-        aurora_green: load_pixel("aurora_green.png").await?,
-        heart: load_pixel("heart.png").await?,
-        virus_green: load_pixel("virus_green.png").await?,
-        virus_purple: load_pixel("virus_purple.png").await?,
-        boss_virus: load_pixel("boss_virus.png").await?,
+        aurora_purple: tex("aurora_purple.png")?,
+        aurora_green: tex("aurora_green.png")?,
+        heart: tex("heart.png")?,
+        virus_green: tex("virus_green.png")?,
+        virus_purple: tex("virus_purple.png")?,
+        boss_virus: tex("boss_virus.png")?,
 
-        bg_sky: load_pixel("bg_sky.png").await?,
-        bg_stars: load_pixel("bg_stars.png").await?,
-        bg_far: load_pixel("bg_far.png").await?,
-        bg_mid: load_pixel("bg_mid.png").await?,
-        bg_floor: load_pixel("bg_floor.png").await?,
+        bg_sky: tex("bg_sky.png")?,
+        bg_stars: tex("bg_stars.png")?,
+        bg_far: tex("bg_far.png")?,
+        bg_mid: tex("bg_mid.png")?,
+        bg_floor: tex("bg_floor.png")?,
 
         stage_store: StageBg {
-            far: load_pixel("bg_store_far.png").await?,
-            mid: load_pixel("bg_store_mid.png").await?,
-            floor: load_pixel("bg_store_floor.png").await?,
+            far: tex("bg_store_far.png")?,
+            mid: tex("bg_store_mid.png")?,
+            floor: tex("bg_store_floor.png")?,
         },
         stage_street: StageBg {
-            far: load_pixel("bg_street_far.png").await?,
-            mid: load_pixel("bg_street_mid.png").await?,
-            floor: load_pixel("bg_street_floor.png").await?,
+            far: tex("bg_street_far.png")?,
+            mid: tex("bg_street_mid.png")?,
+            floor: tex("bg_street_floor.png")?,
         },
         stage_highway: StageBg {
-            far: load_pixel("bg_highway_far.png").await?,
-            mid: load_pixel("bg_highway_mid.png").await?,
-            floor: load_pixel("bg_highway_floor.png").await?,
+            far: tex("bg_highway_far.png")?,
+            mid: tex("bg_highway_mid.png")?,
+            floor: tex("bg_highway_floor.png")?,
         },
         stage_ansan: StageBg {
-            far: load_pixel("bg_ansan_far.png").await?,
-            mid: load_pixel("bg_ansan_mid.png").await?,
-            floor: load_pixel("bg_ansan_floor.png").await?,
+            far: tex("bg_ansan_far.png")?,
+            mid: tex("bg_ansan_mid.png")?,
+            floor: tex("bg_ansan_floor.png")?,
         },
         stage_office: StageBg {
-            far: load_pixel("bg_office_far.png").await?,
-            mid: load_pixel("bg_office_mid.png").await?,
-            floor: load_pixel("bg_office_floor.png").await?,
+            far: tex("bg_office_far.png")?,
+            mid: tex("bg_office_mid.png")?,
+            floor: tex("bg_office_floor.png")?,
         },
         stage_ceo: StageBg {
-            far: load_pixel("bg_ceo_far.png").await?,
-            mid: load_pixel("bg_ceo_mid.png").await?,
-            floor: load_pixel("bg_ceo_floor.png").await?,
+            far: tex("bg_ceo_far.png")?,
+            mid: tex("bg_ceo_mid.png")?,
+            floor: tex("bg_ceo_floor.png")?,
         },
 
-        sfx_jump: load_sound("sfx_jump.wav").await?,
-        sfx_hit: load_sound("sfx_hit.wav").await?,
-        sfx_pickup: load_sound("sfx_pickup.wav").await?,
-        sfx_dash: load_sound("sfx_dash.wav").await?,
-        sfx_smash: load_sound("sfx_smash.wav").await?,
-        sfx_heart: load_sound("sfx_heart.wav").await?,
+        sfx_jump: snd("sfx_jump.wav").await?,
+        sfx_hit: snd("sfx_hit.wav").await?,
+        sfx_pickup: snd("sfx_pickup.wav").await?,
+        sfx_dash: snd("sfx_dash.wav").await?,
+        sfx_smash: snd("sfx_smash.wav").await?,
+        sfx_heart: snd("sfx_heart.wav").await?,
     })
-}
-
-async fn load_sound(name: &str) -> Result<macroquad::audio::Sound, LoadError> {
-    match macroquad::audio::load_sound(name).await {
-        Ok(s) => Ok(s),
-        Err(_) => Err(LoadError { which: name.to_string() }),
-    }
 }
