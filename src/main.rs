@@ -99,7 +99,7 @@ async fn main() {
                 draw_aurora(s, &assets, elapsed, &cam);
             }
         }
-        draw_player(&game.world.player, &assets, elapsed, &cam);
+        draw_player(&game.world.player, &game.world.dash, &assets, elapsed, &cam);
         draw_hud(&game.world.score, &game.world.dash, &assets, elapsed, &cam);
         // For Title/GameOver mascot animation, use wall-clock time so the
         // animation plays even when game.world.elapsed is 0 (fresh world).

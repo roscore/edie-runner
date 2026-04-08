@@ -1,6 +1,7 @@
 //! Phase 2 sprite drawing — textured.
 
 use crate::assets::AssetHandles;
+use crate::game::dash::DashState;
 use crate::game::obstacles::{Obstacle, ObstacleKind};
 use crate::game::pickups::{AuroraColor, AuroraStone};
 use crate::game::player::{Player, PlayerState, GROUND_Y, PLAYER_H, PLAYER_W, PLAYER_X};
@@ -32,12 +33,20 @@ pub const EDIE_RUN_FRAMES: usize = 7;
 pub const EDIE_RUN_FPS: f32 = 10.0;
 pub const EDIE_TITLE_FRAMES: usize = 7;
 pub const EDIE_TITLE_FPS: f32 = 6.0;
+pub const EDIE_SAD_FRAMES: usize = 7;
+pub const EDIE_SAD_FPS: f32 = 6.0;
+pub const EDIE_SLEEPY_FRAMES: usize = 7;
+pub const EDIE_SLEEPY_FPS: f32 = 5.0;
 pub const EDIE_HIT_FRAMES: usize = 17;
 pub const EDIE_HIT_FPS: f32 = 14.0;
+pub const EDIE_LOOK_FRAMES: usize = 11;
+pub const EDIE_LOOK_FPS: f32 = 7.0;
 pub const EDIE_GAMEOVER_FRAMES: usize = 11;
 pub const EDIE_GAMEOVER_FPS: f32 = 8.0;
+pub const EDIE_BLINK_FRAMES: usize = 7;
+pub const EDIE_BLINK_FPS: f32 = 7.0;
 pub const EDIE_CHEER_FRAMES: usize = 17;
-pub const EDIE_CHEER_FPS: f32 = 12.0;
+pub const EDIE_CHEER_FPS: f32 = 14.0;
 
 /// Draw one frame from a horizontally-laid-out sprite sheet that uses the
 /// generator's standard 1-px padding between frames.
@@ -130,7 +139,13 @@ fn draw_tex_frame(
 const EDIE_VIS_W: f32 = 56.0;
 const EDIE_VIS_H: f32 = 48.0;
 
-pub fn draw_player(player: &Player, assets: &AssetHandles, elapsed: f32, cam: &Camera) {
+pub fn draw_player(
+    player: &Player,
+    dash: &DashState,
+    assets: &AssetHandles,
+    elapsed: f32,
+    cam: &Camera,
+) {
     // Shadow first (under EDIE)
     let shadow_w = PLAYER_W * 0.85;
     let shadow_h = 6.0;
@@ -152,6 +167,24 @@ pub fn draw_player(player: &Player, assets: &AssetHandles, elapsed: f32, cam: &C
     let vis_h = EDIE_VIS_H;
     let logical_x = PLAYER_X + (PLAYER_W - vis_w) * 0.5;
     let mut logical_y = player.y + PLAYER_H - vis_h;
+
+    // Dash takes precedence: cheer animation any time EDIE is invulnerable,
+    // as long as we're not dead or ducking.
+    if dash.is_active() && !matches!(player.state, PlayerState::Hit | PlayerState::Ducking) {
+        draw_anim_sheet(
+            &assets.edie_cheer_anim,
+            EDIE_CHEER_FRAMES,
+            EDIE_CHEER_FPS,
+            elapsed,
+            logical_x,
+            logical_y,
+            vis_w,
+            vis_h,
+            cam,
+            WHITE,
+        );
+        return;
+    }
 
     match player.state {
         PlayerState::Running => {

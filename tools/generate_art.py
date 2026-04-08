@@ -436,15 +436,23 @@ def extract_gif_to_sheet(gif_name: str, out_name: str, target_h: int | None = No
 
 def process_gif_assets() -> None:
     print("[EDIE] extracting gif animations")
-    # Running cycle (7 frames): bright-eyed idle blink
+    # Running cycle (7f): bright-eyed idle blink
     extract_gif_to_sheet("1000027545.gif", "edie_run_anim.png")
-    # Title screen idle (7 frames): looking around curiously
+    # Title idle variant 1 (7f): looking around curiously
     extract_gif_to_sheet("1000027548.gif", "edie_title_idle.png")
-    # Hit / dazed (17 frames): includes X-eye dizzy frames
+    # Sad closed eyes (7f): GameOver alternate
+    extract_gif_to_sheet("1000027549.gif", "edie_sad_alt.png")
+    # Drowsy / sleepy (7f): Pause screen
+    extract_gif_to_sheet("1000027550.gif", "edie_sleepy.png")
+    # Hit / dazed (17f): X-eye dizzy
     extract_gif_to_sheet("1000027551.gif", "edie_hit_anim.png")
-    # Game over overlay (11 frames): sad teardrop emote
+    # Title idle variant 2 (11f): looking around
+    extract_gif_to_sheet("1000027552.gif", "edie_look.png")
+    # Game over overlay (11f): sad teardrop
     extract_gif_to_sheet("1000027553.gif", "edie_gameover_anim.png")
-    # Celebration (17 frames): happy closed-eye laugh
+    # Title idle variant 3 (7f): clean blink
+    extract_gif_to_sheet("1000027554.gif", "edie_blink_alt.png")
+    # Celebration / cheer (17f): happy laugh — Dash state
     extract_gif_to_sheet("1000027555.gif", "edie_cheer_anim.png")
 
 

@@ -8,7 +8,9 @@ use crate::game::score::Score;
 use crate::game::state::GameState;
 use crate::render::camera::{Camera, LOGICAL_H, LOGICAL_W};
 use crate::render::sprites::{
-    draw_anim_sheet, EDIE_GAMEOVER_FPS, EDIE_GAMEOVER_FRAMES, EDIE_TITLE_FPS, EDIE_TITLE_FRAMES,
+    draw_anim_sheet, EDIE_BLINK_FPS, EDIE_BLINK_FRAMES, EDIE_GAMEOVER_FPS, EDIE_GAMEOVER_FRAMES,
+    EDIE_LOOK_FPS, EDIE_LOOK_FRAMES, EDIE_SAD_FPS, EDIE_SAD_FRAMES, EDIE_SLEEPY_FPS,
+    EDIE_SLEEPY_FRAMES, EDIE_TITLE_FPS, EDIE_TITLE_FRAMES,
 };
 use macroquad::prelude::*;
 
@@ -240,16 +242,45 @@ pub fn draw_overlay(
         Color::new(0.0, 0.0, 0.0, dim),
     );
 
-    // Mascot animation for Title and GameOver — shown above the text.
+    // Mascot animation for Title / Paused / GameOver — shown above the text.
     let mascot_size = 160.0;
     let mascot_x = LOGICAL_W * 0.5 - mascot_size * 0.5;
     let mascot_y = LOGICAL_H * 0.15;
     match state {
         GameState::Title => {
+            // Rotate through three idle variants every ~4 seconds.
+            let variant = ((elapsed / 4.0) as usize) % 3;
+            let (tex, frames, fps) = match variant {
+                0 => (
+                    &assets.edie_title_idle,
+                    EDIE_TITLE_FRAMES,
+                    EDIE_TITLE_FPS,
+                ),
+                1 => (&assets.edie_look, EDIE_LOOK_FRAMES, EDIE_LOOK_FPS),
+                _ => (
+                    &assets.edie_blink_alt,
+                    EDIE_BLINK_FRAMES,
+                    EDIE_BLINK_FPS,
+                ),
+            };
             draw_anim_sheet(
-                &assets.edie_title_idle,
-                EDIE_TITLE_FRAMES,
-                EDIE_TITLE_FPS,
+                tex,
+                frames,
+                fps,
+                elapsed,
+                mascot_x,
+                mascot_y,
+                mascot_size,
+                mascot_size,
+                cam,
+                WHITE,
+            );
+        }
+        GameState::Paused => {
+            draw_anim_sheet(
+                &assets.edie_sleepy,
+                EDIE_SLEEPY_FRAMES,
+                EDIE_SLEEPY_FPS,
                 elapsed,
                 mascot_x,
                 mascot_y,
@@ -260,10 +291,21 @@ pub fn draw_overlay(
             );
         }
         GameState::GameOver => {
+            // Alternate between teardrop and sad closed-eye every 3 seconds.
+            let alt = ((elapsed / 3.0) as usize) % 2;
+            let (tex, frames, fps) = if alt == 0 {
+                (
+                    &assets.edie_gameover_anim,
+                    EDIE_GAMEOVER_FRAMES,
+                    EDIE_GAMEOVER_FPS,
+                )
+            } else {
+                (&assets.edie_sad_alt, EDIE_SAD_FRAMES, EDIE_SAD_FPS)
+            };
             draw_anim_sheet(
-                &assets.edie_gameover_anim,
-                EDIE_GAMEOVER_FRAMES,
-                EDIE_GAMEOVER_FPS,
+                tex,
+                frames,
+                fps,
                 elapsed,
                 mascot_x,
                 mascot_y,
