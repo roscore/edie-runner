@@ -7,9 +7,9 @@ use rand::Rng;
 
 pub const BOSS_DURATION: f32 = 60.0;
 pub const BOSS_INTRO_DURATION: f32 = 3.5;
-pub const VIRUS_W: f32 = 40.0;
-pub const VIRUS_H: f32 = 40.0;
-pub const PLAYER_SIDE_SPEED: f32 = 440.0;
+pub const VIRUS_W: f32 = 60.0;
+pub const VIRUS_H: f32 = 60.0;
+pub const PLAYER_SIDE_SPEED: f32 = 520.0;
 pub const PLAYER_MIN_X: f32 = 40.0;
 pub const PLAYER_MAX_X: f32 = 1280.0 - PLAYER_W - 40.0;
 
@@ -42,7 +42,7 @@ pub struct Virus {
 
 impl Virus {
     pub fn hitbox(&self) -> Aabb {
-        Aabb { x: self.x + 4.0, y: self.y + 4.0, w: VIRUS_W - 8.0, h: VIRUS_H - 8.0 }
+        Aabb { x: self.x + 8.0, y: self.y + 8.0, w: VIRUS_W - 16.0, h: VIRUS_H - 16.0 }
     }
 }
 
@@ -113,21 +113,22 @@ impl BossWorld {
 
         let progress = (self.elapsed / BOSS_DURATION).clamp(0.0, 1.0);
 
-        // Virus spawn — denser + multiple simultaneous
+        // Virus spawn — much denser, bigger, faster
         self.spawn_timer -= dt;
-        let spawn_interval = 0.42 - progress * 0.32; // 0.42s -> 0.10s
+        let spawn_interval = 0.30 - progress * 0.24; // 0.30s -> 0.06s
         if self.spawn_timer <= 0.0 {
             let count = if progress > 0.66 {
-                3
+                5
             } else if progress > 0.33 {
-                2
+                4
             } else {
-                1
+                2
             };
             for _ in 0..count {
                 let x = rng.gen_range(0.0..=(1280.0 - VIRUS_W));
-                let vy = rng.gen_range(200.0..320.0) + self.elapsed * 5.0;
-                let vx = rng.gen_range(-40.0..40.0);
+                // Faster fall speeds, escalate over time
+                let vy = rng.gen_range(320.0..480.0) + self.elapsed * 9.0;
+                let vx = rng.gen_range(-60.0..60.0);
                 let color = if rng.gen_bool(0.5) {
                     VirusColor::Green
                 } else {
@@ -135,7 +136,7 @@ impl BossWorld {
                 };
                 self.viruses.push(Virus { x, y: -VIRUS_H, vy, vx, color, alive: true });
             }
-            self.spawn_timer = spawn_interval.max(0.05);
+            self.spawn_timer = spawn_interval.max(0.04);
         }
 
         // Advance viruses

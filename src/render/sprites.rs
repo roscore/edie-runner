@@ -685,7 +685,10 @@ pub fn draw_boss_mode(
             vy,
             WHITE,
             DrawTextureParams {
-                dest_size: Some(vec2(cam.scaled(40.0), cam.scaled(40.0))),
+                dest_size: Some(vec2(
+                    cam.scaled(crate::game::boss::VIRUS_W),
+                    cam.scaled(crate::game::boss::VIRUS_H),
+                )),
                 source: Some(Rect {
                     x: vf as f32 * (fw + 1.0),
                     y: 0.0,
