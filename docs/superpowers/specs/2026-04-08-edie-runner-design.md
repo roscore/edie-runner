@@ -6,7 +6,7 @@
 
 ## 1. Overview
 
-A browser-playable endless runner written in Rust, compiled to WebAssembly, themed around **EDIE**, the ADrive robot. It is *inspired by* the Chrome offline T-Rex game but is **not a reskin**: it introduces a core resource-spending mechanic (Aurora Dash, §3.5), an ADrive lab world, and bespoke art produced specifically for the game.
+A browser-playable endless runner written in Rust, compiled to WebAssembly, themed around **EDIE**, the AeiROBOT robot. It is *inspired by* the Chrome offline T-Rex game but is **not a reskin**: it introduces a core resource-spending mechanic (Aurora Dash, §3.5), an AeiROBOT lab world, and bespoke art produced specifically for the game.
 
 **Success criteria**
 
@@ -32,11 +32,11 @@ A browser-playable endless runner written in Rust, compiled to WebAssembly, them
 
 ### 3.1 Core loop
 
-EDIE runs left→right at increasing speed across an ADrive lab floor. The player jumps over or ducks under obstacles and collects **Aurora Stones**. Holding cells lets the player **Dash** — a short invulnerable burst that destroys obstacles in its path. Hitting an obstacle without dashing ends the run.
+EDIE runs left→right at increasing speed across an AeiROBOT lab floor. The player jumps over or ducks under obstacles and collects **Aurora Stones**. Holding cells lets the player **Dash** — a short invulnerable burst that destroys obstacles in its path. Hitting an obstacle without dashing ends the run.
 
 ### 3.2 World theme & art direction
 
-Background is the inside of an ADrive dev lab — server racks (far layer), workbenches with oscilloscopes (mid), smooth floor (foreground). Distinct from "desert with cacti".
+Background is the inside of an AeiROBOT dev lab — server racks (far layer), workbenches with oscilloscopes (mid), smooth floor (foreground). Distinct from "desert with cacti".
 
 **Art direction: pixel art**, dictated by the EDIE reference art (`assets/source/edie_ref_*.png`):
 
@@ -71,7 +71,7 @@ States: `Running`, `Jumping`, `Falling`, `Ducking`, `Dashing`, `Hit`. Transition
 
 Jump arc target: at base speed (320 px/s) the player clears a 96 px tall obstacle and lands in time to clear another 48 px obstacle 192 px later. Verified by unit test.
 
-### 3.4 Obstacles (ADrive-themed)
+### 3.4 Obstacles (AeiROBOT-themed)
 
 | Name | Layer | Height | Counter | Destroyable by Dash |
 |---|---|---|---|---|

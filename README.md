@@ -1,6 +1,6 @@
 # EDIE Runner
 
-Endless runner starring **EDIE**, the ADrive robot. Runs in Chrome via WebAssembly.
+Endless runner starring **EDIE**, the AeiROBOT mascot. Runs in Chrome via WebAssembly.
 
 ## Phase 1 (Greybox)
 

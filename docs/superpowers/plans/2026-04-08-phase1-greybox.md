@@ -55,7 +55,7 @@ name = "edie_runner"
 version = "0.1.0"
 edition = "2021"
 authors = ["helle"]
-description = "Endless runner starring EDIE the ADrive robot"
+description = "Endless runner starring EDIE the AeiROBOT robot"
 
 [lib]
 name = "edie_runner"
@@ -3058,7 +3058,7 @@ Create `README.md`:
 ```markdown
 # EDIE Runner
 
-Endless runner starring EDIE, the ADrive robot. Runs in Chrome via WebAssembly.
+Endless runner starring EDIE, the AeiROBOT robot. Runs in Chrome via WebAssembly.
 
 ## Phase 1 (Greybox)
 
