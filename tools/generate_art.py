@@ -1946,12 +1946,40 @@ def extract_gif_to_sheet(gif_name: str, out_name: str, target_h: int | None = No
     print(f"    ({n} frames, frame size {frames[0].size})")
 
 
+def _process_static_edie() -> None:
+    """Convert the static 1000027542.png into an in-game running sprite and
+    the edie_ref_jump.png into the jumping sprite."""
+    src_run = SOURCE / "1000027542.png"
+    im = Image.open(src_run).convert("RGBA")
+    a = np.array(im)
+    alpha = a[:, :, 3]
+    rows = np.any(alpha > 128, axis=1)
+    cols = np.any(alpha > 128, axis=0)
+    y0, y1 = np.where(rows)[0][[0, -1]]
+    x0, x1 = np.where(cols)[0][[0, -1]]
+    cropped = im.crop((x0, y0, x1 + 1, y1 + 1))
+    cw, ch = cropped.size
+    target_h = 48
+    new_w = max(1, round(cw * target_h / ch))
+    small = cropped.resize((new_w, target_h), Image.LANCZOS)
+    quant = quantize_to_palette(np.array(small), EDIE_PALETTE)
+    save_png(Image.fromarray(quant, "RGBA"), "edie_static_run.png", palette_lock=True)
+
+    # Jump already exists as edie_jump.png from process_edie_refs,
+    # which already handles edie_ref_jump.png. Nothing extra to do.
+
+
 def process_gif_assets() -> None:
     print("[EDIE] extracting gif animations")
     # Running cycle (7f): bright-eyed idle blink - also used as boss-mode EDIE
     extract_gif_to_sheet("1000027545.gif", "edie_run_anim.png")
+    # Static in-game running sprite from user-supplied PNG (not animated)
+    _process_static_edie()
     # Full smile loop from 1000027555.gif (17 frames)
     extract_gif_to_sheet("1000027555.gif", "edie_happy_run.png")
+    # Highway sportscar animations
+    extract_gif_to_sheet("car0.gif", "obstacle_car_anim.png", target_h=36)
+    extract_gif_to_sheet("car1.gif", "obstacle_sportscar_anim.png", target_h=32)
     # Title idle variant 1 (7f): looking around curiously
     extract_gif_to_sheet("1000027548.gif", "edie_title_idle.png")
     # Sad closed eyes (7f): GameOver alternate

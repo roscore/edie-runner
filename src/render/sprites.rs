@@ -208,14 +208,11 @@ pub fn draw_player(
             );
         }
         PlayerState::Ducking => {
-            // Duck: render the happy cycle squashed shorter
+            // Duck: static sprite squashed shorter
             let duck_h = vis_h * 0.58;
             let duck_y = player.y + PLAYER_H - duck_h;
-            draw_anim_sheet(
-                &assets.edie_happy_run,
-                EDIE_HAPPY_FRAMES,
-                EDIE_HAPPY_FPS,
-                elapsed,
+            draw_tex_at(
+                &assets.edie_static_run,
                 logical_x,
                 duck_y,
                 vis_w,
@@ -225,11 +222,9 @@ pub fn draw_player(
             );
         }
         PlayerState::Jumping | PlayerState::Falling => {
-            draw_anim_sheet(
-                &assets.edie_happy_run,
-                EDIE_HAPPY_FRAMES,
-                EDIE_HAPPY_FPS,
-                elapsed,
+            // Use the dedicated jump reference sprite
+            draw_tex_at(
+                &assets.edie_jump,
                 logical_x,
                 logical_y,
                 vis_w,
@@ -239,13 +234,11 @@ pub fn draw_player(
             );
         }
         PlayerState::Running => {
+            // Static in-game running face (1000027542.png quantized)
             let bob = ((elapsed * 8.0).sin() * 1.0).round();
             logical_y += bob;
-            draw_anim_sheet(
-                &assets.edie_happy_run,
-                EDIE_HAPPY_FRAMES,
-                EDIE_HAPPY_FPS,
-                elapsed,
+            draw_tex_at(
+                &assets.edie_static_run,
                 logical_x,
                 logical_y,
                 vis_w,
@@ -346,7 +339,19 @@ pub fn draw_obstacle(
             );
         }
         ObstacleKind::Car => {
-            draw_tex_at(&assets.obstacle_car, o.x, o.y, w, h, cam, WHITE);
+            // Animated 17-frame GIF-sourced sprite (car0)
+            draw_anim_sheet(
+                &assets.obstacle_car_anim,
+                17,
+                12.0,
+                elapsed,
+                o.x,
+                o.y,
+                w,
+                h,
+                cam,
+                WHITE,
+            );
         }
         ObstacleKind::Truck => {
             draw_tex_at(&assets.obstacle_truck, o.x, o.y, w, h, cam, WHITE);
@@ -358,7 +363,19 @@ pub fn draw_obstacle(
             draw_tex_at(&assets.obstacle_taxi, o.x, o.y, w, h, cam, WHITE);
         }
         ObstacleKind::SportsCar => {
-            draw_tex_at(&assets.obstacle_sportscar, o.x, o.y, w, h, cam, WHITE);
+            // Animated 17-frame sky-blue sportscar (car1)
+            draw_anim_sheet(
+                &assets.obstacle_sportscar_anim,
+                17,
+                14.0,
+                elapsed,
+                o.x,
+                o.y,
+                w,
+                h,
+                cam,
+                WHITE,
+            );
         }
         ObstacleKind::Deer => {
             let f = frame_index(elapsed, 6.0, 2);
