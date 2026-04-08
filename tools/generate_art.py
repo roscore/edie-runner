@@ -550,6 +550,224 @@ def _pixel_dither(d, x0, y0, x1, y1, base, accent, step=4):
             d.point((x, y), fill=accent)
 
 
+def make_stage_backgrounds() -> None:
+    """Generate 5 parallax background sets for the 5 stages of the journey."""
+    print("[bg] generating stage backgrounds")
+
+    # ============================================================
+    # Stage 0: Department Store interior
+    # ============================================================
+    far = new_canvas(256, 100)
+    d = ImageDraw.Draw(far)
+    # Back wall with shop fronts
+    d.rectangle((0, 0, 256, 100), fill=(240, 224, 198, 255))
+    d.rectangle((0, 80, 256, 100), fill=(198, 170, 130, 255))
+    # Pillar silhouettes
+    for px in (20, 95, 170, 240):
+        d.rectangle((px, 0, px + 18, 100), fill=(175, 150, 115, 255))
+        d.rectangle((px + 2, 10, px + 16, 14), fill=(145, 120, 85, 255))
+    # Shop sign bars
+    for sx in (50, 130, 200):
+        d.rectangle((sx, 30, sx + 32, 38), fill=(220, 90, 60, 255))
+    save_png(far, "bg_store_far.png", palette_lock=False)
+
+    mid = new_canvas(256, 60)
+    d = ImageDraw.Draw(mid)
+    d.rectangle((0, 40, 256, 60), fill=(210, 190, 160, 255))
+    # Mannequin / display stands
+    for i, mx in enumerate((20, 80, 140, 200)):
+        d.rectangle((mx, 20, mx + 12, 40), fill=(160, 140, 110, 255))
+        d.ellipse((mx - 2, 10, mx + 14, 26), fill=(200, 180, 150, 255), outline=EDIE_OUTLINE)
+    save_png(mid, "bg_store_mid.png", palette_lock=False)
+
+    floor = new_canvas(256, 80)
+    d = ImageDraw.Draw(floor)
+    d.rectangle((0, 0, 256, 80), fill=(195, 175, 145, 255))  # light mall floor
+    d.rectangle((0, 0, 256, 3), fill=(130, 105, 75, 255))
+    # Marble tile pattern
+    for tx in range(0, 256, 32):
+        d.line((tx, 3, tx, 80), fill=(170, 148, 118, 255))
+    for ty in range(8, 80, 16):
+        d.line((0, ty, 256, ty), fill=(170, 148, 118, 255))
+    save_png(floor, "bg_store_floor.png", palette_lock=False)
+
+    # ============================================================
+    # Stage 1: Pangyo Street (day)
+    # ============================================================
+    far = new_canvas(256, 100)
+    d = ImageDraw.Draw(far)
+    # Building silhouettes (tech office towers)
+    building_palette = [(180, 180, 200, 255), (165, 170, 190, 255), (195, 195, 215, 255)]
+    x = 0
+    buildings = [(28, 75, 0), (22, 90, 1), (34, 60, 2), (20, 82, 0), (30, 95, 1), (26, 72, 2), (24, 85, 0), (32, 68, 1), (28, 90, 2)]
+    for ww, hh, pi in buildings:
+        d.rectangle((x, 100 - hh, x + ww, 100), fill=building_palette[pi])
+        # Windows
+        for wy in range(100 - hh + 6, 100 - 4, 5):
+            for wx in range(x + 3, x + ww - 2, 5):
+                d.point((wx, wy), fill=(90, 110, 140, 255))
+        x += ww
+    save_png(far, "bg_street_far.png", palette_lock=False)
+
+    mid = new_canvas(256, 60)
+    d = ImageDraw.Draw(mid)
+    d.rectangle((0, 40, 256, 60), fill=(120, 130, 115, 255))  # grass strip
+    # Street lamps
+    for lx in (20, 100, 180, 240):
+        d.rectangle((lx, 10, lx + 3, 45), fill=(60, 60, 70, 255))
+        d.rectangle((lx - 2, 10, lx + 5, 14), fill=(200, 200, 120, 255))
+    # Benches
+    for bx in (50, 140, 220):
+        d.rectangle((bx, 35, bx + 20, 40), fill=(120, 80, 40, 255), outline=EDIE_OUTLINE, width=1)
+        d.line((bx + 2, 40, bx + 2, 48), fill=(100, 70, 35, 255))
+        d.line((bx + 17, 40, bx + 17, 48), fill=(100, 70, 35, 255))
+    save_png(mid, "bg_street_mid.png", palette_lock=False)
+
+    floor = new_canvas(256, 80)
+    d = ImageDraw.Draw(floor)
+    d.rectangle((0, 0, 256, 80), fill=(145, 140, 130, 255))  # sidewalk grey
+    d.rectangle((0, 0, 256, 3), fill=(90, 85, 75, 255))
+    # Paving stone pattern
+    for ty in range(6, 80, 12):
+        d.line((0, ty, 256, ty), fill=(110, 105, 95, 255))
+        for tx in range(0, 256, 24):
+            offset = 12 if (ty // 12) % 2 == 0 else 0
+            d.line((tx + offset, ty, tx + offset, ty + 12), fill=(110, 105, 95, 255))
+    save_png(floor, "bg_street_floor.png", palette_lock=False)
+
+    # ============================================================
+    # Stage 2: Highway
+    # ============================================================
+    far = new_canvas(256, 100)
+    d = ImageDraw.Draw(far)
+    # Distant mountains / overpass
+    d.rectangle((0, 60, 256, 100), fill=(170, 185, 190, 255))
+    for ox, oh in ((10, 20), (55, 35), (110, 28), (160, 42), (210, 25)):
+        d.polygon([(ox, 60), (ox + 20, 60 - oh), (ox + 40, 60)], fill=(140, 155, 165, 255))
+    # Highway sign posts
+    for sx in (40, 130, 210):
+        d.rectangle((sx, 55, sx + 3, 100), fill=(100, 100, 110, 255))
+        d.rectangle((sx - 8, 45, sx + 24, 60), fill=(60, 130, 80, 255), outline=EDIE_OUTLINE, width=1)
+        d.rectangle((sx - 5, 48, sx + 21, 57), fill=(240, 240, 240, 255))
+    save_png(far, "bg_highway_far.png", palette_lock=False)
+
+    mid = new_canvas(256, 60)
+    d = ImageDraw.Draw(mid)
+    # Guardrail
+    d.rectangle((0, 48, 256, 56), fill=(180, 180, 190, 255))
+    d.rectangle((0, 44, 256, 48), fill=(140, 140, 150, 255))
+    for px in range(8, 256, 24):
+        d.rectangle((px, 46, px + 4, 60), fill=(100, 100, 110, 255))
+    # Passing car silhouettes
+    for cx, cc in ((30, (200, 70, 60, 255)), (150, (70, 110, 180, 255))):
+        d.rectangle((cx, 30, cx + 36, 45), fill=cc, outline=EDIE_OUTLINE, width=1)
+        d.rectangle((cx + 4, 24, cx + 32, 32), fill=cc)
+        d.ellipse((cx + 3, 41, cx + 11, 49), fill=(40, 40, 46, 255), outline=EDIE_OUTLINE, width=1)
+        d.ellipse((cx + 25, 41, cx + 33, 49), fill=(40, 40, 46, 255), outline=EDIE_OUTLINE, width=1)
+    save_png(mid, "bg_highway_mid.png", palette_lock=False)
+
+    floor = new_canvas(256, 80)
+    d = ImageDraw.Draw(floor)
+    d.rectangle((0, 0, 256, 80), fill=(65, 65, 72, 255))  # asphalt
+    d.rectangle((0, 0, 256, 4), fill=(240, 230, 80, 255))  # yellow edge line
+    # Dashed lane markings
+    for mx in range(10, 256, 32):
+        d.rectangle((mx, 38, mx + 18, 44), fill=(240, 240, 240, 255))
+    # Asphalt speckle
+    for ty in range(10, 80, 6):
+        for tx in range((ty // 6) * 3 % 8, 256, 8):
+            d.point((tx, ty), fill=(90, 90, 98, 255))
+    save_png(floor, "bg_highway_floor.png", palette_lock=False)
+
+    # ============================================================
+    # Stage 3: Ansan / Hanyang University ERICA campus
+    # ============================================================
+    far = new_canvas(256, 100)
+    d = ImageDraw.Draw(far)
+    # University building row (red brick + glass)
+    d.rectangle((10, 30, 110, 100), fill=(170, 90, 70, 255))
+    d.rectangle((10, 30, 110, 34), fill=(130, 65, 50, 255))
+    # Windows grid
+    for wy in range(40, 95, 10):
+        for wx in range(18, 104, 12):
+            d.rectangle((wx, wy, wx + 6, wy + 5), fill=(220, 220, 240, 255))
+    # Central tower
+    d.rectangle((120, 15, 170, 100), fill=(200, 200, 215, 255))
+    for wy in range(25, 95, 8):
+        d.rectangle((128, wy, 162, wy + 4), fill=(110, 140, 180, 255))
+    # Right wing
+    d.rectangle((180, 40, 256, 100), fill=(160, 85, 65, 255))
+    for wy in range(48, 95, 10):
+        for wx in range(186, 252, 12):
+            d.rectangle((wx, wy, wx + 6, wy + 5), fill=(220, 220, 240, 255))
+    save_png(far, "bg_ansan_far.png", palette_lock=False)
+
+    mid = new_canvas(256, 60)
+    d = ImageDraw.Draw(mid)
+    d.rectangle((0, 40, 256, 60), fill=(80, 130, 70, 255))  # green lawn
+    # Trees
+    for tx in (30, 80, 140, 200):
+        d.rectangle((tx + 4, 25, tx + 8, 45), fill=(90, 60, 40, 255))
+        d.ellipse((tx - 4, 5, tx + 16, 30), fill=(60, 130, 70, 255), outline=EDIE_OUTLINE)
+        d.ellipse((tx - 2, 8, tx + 14, 26), fill=(80, 150, 80, 255))
+    # Stone path marker
+    for bx in (110, 170):
+        d.rectangle((bx, 35, bx + 6, 50), fill=(180, 180, 175, 255))
+    save_png(mid, "bg_ansan_mid.png", palette_lock=False)
+
+    floor = new_canvas(256, 80)
+    d = ImageDraw.Draw(floor)
+    d.rectangle((0, 0, 256, 80), fill=(175, 165, 140, 255))  # tan path
+    d.rectangle((0, 0, 256, 3), fill=(130, 120, 95, 255))
+    # Cobble dots
+    for ty in range(8, 80, 6):
+        for tx in range((ty // 6) * 4 % 12, 256, 12):
+            d.rectangle((tx, ty, tx + 2, ty + 1), fill=(140, 130, 105, 255))
+    save_png(floor, "bg_ansan_floor.png", palette_lock=False)
+
+    # ============================================================
+    # Stage 4: AeiROBOT HQ interior (sleek future tech)
+    # ============================================================
+    far = new_canvas(256, 100)
+    d = ImageDraw.Draw(far)
+    # Glass wall with LED accent strips
+    d.rectangle((0, 0, 256, 100), fill=(40, 50, 75, 255))
+    d.rectangle((0, 0, 256, 100), fill=(40, 50, 75, 255))
+    # Vertical light columns
+    for cx in range(16, 256, 32):
+        d.rectangle((cx, 10, cx + 4, 100), fill=(80, 120, 160, 255))
+        d.rectangle((cx + 1, 12, cx + 3, 98), fill=(120, 200, 240, 255))
+    # AeiROBOT logo panel
+    d.rectangle((96, 20, 160, 50), fill=(20, 25, 40, 255), outline=(200, 220, 240, 255), width=2)
+    d.rectangle((104, 28, 152, 42), fill=EDIE_ORANGE)
+    d.rectangle((108, 32, 148, 38), fill=(255, 200, 120, 255))
+    save_png(far, "bg_hq_far.png", palette_lock=False)
+
+    mid = new_canvas(256, 60)
+    d = ImageDraw.Draw(mid)
+    d.rectangle((0, 40, 256, 60), fill=(60, 75, 100, 255))
+    # Robot assembly pods
+    for px in (30, 120, 210):
+        d.rectangle((px - 12, 20, px + 12, 45), fill=(90, 110, 140, 255), outline=EDIE_OUTLINE, width=1)
+        d.rectangle((px - 8, 24, px + 8, 40), fill=(150, 200, 240, 255))
+        d.rectangle((px - 2, 12, px + 2, 20), fill=(120, 130, 150, 255))
+        d.point((px, 30), fill=EDIE_ORANGE)
+    save_png(mid, "bg_hq_mid.png", palette_lock=False)
+
+    floor = new_canvas(256, 80)
+    d = ImageDraw.Draw(floor)
+    d.rectangle((0, 0, 256, 80), fill=(30, 40, 60, 255))  # dark high-tech floor
+    d.rectangle((0, 0, 256, 4), fill=(100, 180, 220, 255))
+    # Hex grid pattern
+    for ty in range(6, 80, 10):
+        off = 12 if (ty // 10) % 2 == 0 else 0
+        for tx in range(off, 256, 24):
+            d.rectangle((tx, ty, tx + 3, ty + 3), fill=(60, 90, 130, 255))
+    # Center glow line
+    d.line((0, 40, 256, 40), fill=(80, 140, 180, 255))
+    save_png(floor, "bg_hq_floor.png", palette_lock=False)
+
+
 def make_background() -> None:
     print("[bg] generating layers")
 
@@ -662,6 +880,95 @@ def make_background() -> None:
         for py in (16, 40, 64):
             d.rectangle((px + 14, py, px + 15, py + 1), fill=rivet)
     save_png(floor, "bg_floor.png", palette_lock=False)
+
+
+def make_sfx() -> None:
+    """Generate a handful of simple WAV sound effects via numpy synth."""
+    print("[sfx] generating sound effects")
+    import struct
+    import wave
+
+    SR = 22050
+
+    def write_wav(name: str, samples: np.ndarray) -> None:
+        samples = np.clip(samples, -1.0, 1.0)
+        pcm = (samples * 32000).astype(np.int16)
+        out = GEN / name
+        with wave.open(str(out), "w") as w:
+            w.setnchannels(1)
+            w.setsampwidth(2)
+            w.setframerate(SR)
+            w.writeframes(pcm.tobytes())
+        print(f"  OK {name} {len(pcm)/SR:.2f}s")
+
+    def env(n: int, attack: float = 0.01, decay: float = 0.3) -> np.ndarray:
+        t = np.arange(n) / SR
+        a = np.clip(t / attack, 0, 1)
+        d = np.exp(-t / decay)
+        return a * d
+
+    # Jump: short upward chirp
+    dur = 0.18
+    n = int(dur * SR)
+    t = np.arange(n) / SR
+    freq = 320 + 700 * t / dur
+    jump = 0.35 * np.sin(2 * np.pi * np.cumsum(freq) / SR) * env(n, 0.005, 0.15)
+    write_wav("sfx_jump.wav", jump)
+
+    # Hit: low thud with noise
+    dur = 0.25
+    n = int(dur * SR)
+    t = np.arange(n) / SR
+    hit = (
+        0.5 * np.sin(2 * np.pi * 80 * t) * env(n, 0.005, 0.12)
+        + 0.35 * (np.random.RandomState(1).uniform(-1, 1, n)) * env(n, 0.002, 0.08)
+    )
+    write_wav("sfx_hit.wav", hit)
+
+    # Pickup: bright two-tone ding
+    dur = 0.22
+    n = int(dur * SR)
+    t = np.arange(n) / SR
+    pickup = (
+        0.32 * np.sin(2 * np.pi * 880 * t) * env(n, 0.002, 0.18)
+        + 0.22 * np.sin(2 * np.pi * 1320 * t) * env(n, 0.005, 0.12)
+    )
+    write_wav("sfx_pickup.wav", pickup)
+
+    # Dash: whoosh (band-limited noise sweeping up)
+    dur = 0.32
+    n = int(dur * SR)
+    t = np.arange(n) / SR
+    noise = np.random.RandomState(2).uniform(-1, 1, n)
+    # Simple one-pole lowpass with time-varying alpha
+    dash = np.zeros(n)
+    y = 0.0
+    for i in range(n):
+        alpha = 0.02 + 0.15 * (i / n)
+        y = y * (1 - alpha) + noise[i] * alpha
+        dash[i] = y
+    dash *= env(n, 0.002, 0.22) * 0.6
+    write_wav("sfx_dash.wav", dash)
+
+    # Smash: short crunch
+    dur = 0.22
+    n = int(dur * SR)
+    t = np.arange(n) / SR
+    smash = (
+        0.45 * np.sin(2 * np.pi * 180 * t) * env(n, 0.002, 0.08)
+        + 0.5 * np.random.RandomState(3).uniform(-1, 1, n) * env(n, 0.001, 0.06)
+    )
+    write_wav("sfx_smash.wav", smash)
+
+    # Heart pickup: warm chime
+    dur = 0.3
+    n = int(dur * SR)
+    t = np.arange(n) / SR
+    heart = (
+        0.3 * np.sin(2 * np.pi * 660 * t) * env(n, 0.01, 0.25)
+        + 0.2 * np.sin(2 * np.pi * 990 * t) * env(n, 0.02, 0.2)
+    )
+    write_wav("sfx_heart.wav", heart)
 
 
 def make_heart_pickup() -> None:
@@ -794,6 +1101,9 @@ def main() -> None:
     make_heart_pickup()
     print()
     make_background()
+    make_stage_backgrounds()
+    print()
+    make_sfx()
     print()
     print("Done.")
 

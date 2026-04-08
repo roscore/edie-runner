@@ -42,6 +42,27 @@ pub struct AssetHandles {
     pub bg_far: Texture2D,
     pub bg_mid: Texture2D,
     pub bg_floor: Texture2D,
+
+    // Stage-specific background tiles (5 stages x 3 layers each)
+    pub stage_store: StageBg,
+    pub stage_street: StageBg,
+    pub stage_highway: StageBg,
+    pub stage_ansan: StageBg,
+    pub stage_hq: StageBg,
+
+    // SFX
+    pub sfx_jump: macroquad::audio::Sound,
+    pub sfx_hit: macroquad::audio::Sound,
+    pub sfx_pickup: macroquad::audio::Sound,
+    pub sfx_dash: macroquad::audio::Sound,
+    pub sfx_smash: macroquad::audio::Sound,
+    pub sfx_heart: macroquad::audio::Sound,
+}
+
+pub struct StageBg {
+    pub far: Texture2D,
+    pub mid: Texture2D,
+    pub floor: Texture2D,
 }
 
 #[derive(Debug)]
@@ -104,5 +125,45 @@ pub async fn load_all() -> Result<AssetHandles, LoadError> {
         bg_far: load_pixel("bg_far.png").await?,
         bg_mid: load_pixel("bg_mid.png").await?,
         bg_floor: load_pixel("bg_floor.png").await?,
+
+        stage_store: StageBg {
+            far: load_pixel("bg_store_far.png").await?,
+            mid: load_pixel("bg_store_mid.png").await?,
+            floor: load_pixel("bg_store_floor.png").await?,
+        },
+        stage_street: StageBg {
+            far: load_pixel("bg_street_far.png").await?,
+            mid: load_pixel("bg_street_mid.png").await?,
+            floor: load_pixel("bg_street_floor.png").await?,
+        },
+        stage_highway: StageBg {
+            far: load_pixel("bg_highway_far.png").await?,
+            mid: load_pixel("bg_highway_mid.png").await?,
+            floor: load_pixel("bg_highway_floor.png").await?,
+        },
+        stage_ansan: StageBg {
+            far: load_pixel("bg_ansan_far.png").await?,
+            mid: load_pixel("bg_ansan_mid.png").await?,
+            floor: load_pixel("bg_ansan_floor.png").await?,
+        },
+        stage_hq: StageBg {
+            far: load_pixel("bg_hq_far.png").await?,
+            mid: load_pixel("bg_hq_mid.png").await?,
+            floor: load_pixel("bg_hq_floor.png").await?,
+        },
+
+        sfx_jump: load_sound("sfx_jump.wav").await?,
+        sfx_hit: load_sound("sfx_hit.wav").await?,
+        sfx_pickup: load_sound("sfx_pickup.wav").await?,
+        sfx_dash: load_sound("sfx_dash.wav").await?,
+        sfx_smash: load_sound("sfx_smash.wav").await?,
+        sfx_heart: load_sound("sfx_heart.wav").await?,
     })
+}
+
+async fn load_sound(name: &str) -> Result<macroquad::audio::Sound, LoadError> {
+    match macroquad::audio::load_sound(name).await {
+        Ok(s) => Ok(s),
+        Err(_) => Err(LoadError { which: name.to_string() }),
+    }
 }

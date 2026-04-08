@@ -1,4 +1,4 @@
-//! Phase 2 sprite drawing — textured.
+//! Phase 2 sprite drawing - textured.
 
 use crate::assets::AssetHandles;
 use crate::game::dash::DashState;
@@ -392,7 +392,7 @@ pub fn draw_hit_flash(effects: &crate::game::effects::Effects, cam: &Camera) {
     );
 }
 
-/// Tier-change banner — top-of-screen pulse when crossing a difficulty tier.
+/// Tier-change banner - top-of-screen pulse when crossing a difficulty tier.
 pub fn draw_tier_banner(effects: &crate::game::effects::Effects, cam: &Camera) {
     let banner = match &effects.tier_banner {
         Some(b) => b,
@@ -485,7 +485,7 @@ pub fn draw_countdown(remaining: f32, cam: &Camera) {
     );
 }
 
-/// Speed-tier vignette — darkens edges as speed climbs.
+/// Speed-tier vignette - darkens edges as speed climbs.
 pub fn draw_vignette(speed: f32, cam: &Camera) {
     const BASE: f32 = 320.0;
     const CAP: f32 = 640.0;

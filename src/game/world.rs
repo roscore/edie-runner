@@ -2,8 +2,8 @@
 
 use crate::game::background::Background;
 use crate::game::dash::{DashRequest, DashState};
-use crate::game::difficulty::{speed_for_score, tier_for_score};
-use crate::game::effects::Effects;
+use crate::game::difficulty::{speed_for_score, stage_for_tier, tier_for_score, Stage};
+use crate::game::effects::{Effects, SfxCue};
 use crate::game::obstacles::{ObstacleField, ObstacleKind};
 use crate::game::pickups::PickupField;
 use crate::game::player::{Player, PlayerState, GROUND_Y, PLAYER_H, PLAYER_W, PLAYER_X};
@@ -24,14 +24,14 @@ pub const HP_INVULN_TIME: f32 = 1.0;
 
 fn tier_banner_label(tier: u32) -> String {
     match tier {
-        1 => "TIER 1 — STREETS OF PANGYO".to_string(),
-        2 => "TIER 2 — VACUUM BOTS".to_string(),
-        3 => "TIER 3 — AMY TAKES FLIGHT".to_string(),
-        4 => "TIER 4 — ALICE-M1 ROLLS IN".to_string(),
-        5 => "TIER 5 — ALICE3 ONLINE".to_string(),
-        6 => "TIER 6 — ALICE4 ENGAGED".to_string(),
-        7 => "TIER 7 — AEIROBOT ZONE".to_string(),
-        8 => "TIER 8 — MAXIMUM CHAOS".to_string(),
+        1 => "PANGYO STREET - SIDEWALK PATROL".to_string(),
+        2 => "PANGYO STREET - VACUUM BOTS".to_string(),
+        3 => "HIGHWAY - AMY TAKES FLIGHT".to_string(),
+        4 => "HIGHWAY - ALICE-M1 ROLLS IN".to_string(),
+        5 => "HANYANG ERICA - ALICE3 ONLINE".to_string(),
+        6 => "HANYANG ERICA - ALICE4 ENGAGED".to_string(),
+        7 => "AEIROBOT HQ - HOME STRETCH".to_string(),
+        8 => "AEIROBOT HQ - MAXIMUM CHAOS".to_string(),
         _ => format!("TIER {}", tier),
     }
 }
@@ -46,13 +46,13 @@ pub struct World {
     pub effects: Effects,
     pub rng: SmallRng,
     pub elapsed: f32,
-    /// Fractional score accumulator (px scrolled / 4) — flushed when ≥1.
+    /// Fractional score accumulator (px scrolled / 4) - flushed when >= 1.
     score_accum: f32,
     pub hp: u32,
     pub hp_invuln: f32,
     /// Tracks whether player was airborne on previous tick, for landing detection.
     was_airborne: bool,
-    /// Last observed difficulty tier — used to trigger tier banners on change.
+    /// Last observed difficulty tier - used to trigger tier banners on change.
     last_tier: u32,
 }
 
@@ -84,17 +84,23 @@ impl World {
         speed_for_score(self.score.current) * self.dash.speed_mult()
     }
 
+    pub fn current_stage(&self) -> Stage {
+        stage_for_tier(tier_for_score(self.score.current))
+    }
+
     pub fn apply_action(&mut self, action: Action) {
         match action {
             Action::Jump => {
-                self.player.try_jump();
+                if self.player.try_jump() {
+                    self.effects.sfx(SfxCue::Jump);
+                }
             }
             Action::JumpRelease => self.player.release_jump(),
             Action::Duck => self.player.try_duck(),
             Action::DuckRelease => self.player.release_duck(),
             Action::Dash => {
                 if let DashRequest::Started = self.dash.try_start() {
-                    // accept
+                    self.effects.sfx(SfxCue::Dash);
                 }
             }
             Action::Confirm
@@ -144,7 +150,7 @@ impl World {
             self.score_accum -= whole as f32;
         }
 
-        // Tier change banner — triggers on crossing a difficulty threshold.
+        // Tier change banner - triggers on crossing a difficulty threshold.
         let current_tier = tier_for_score(self.score.current);
         if current_tier > self.last_tier {
             let label = tier_banner_label(current_tier);
@@ -165,6 +171,9 @@ impl World {
             let s = &self.pickups.stones[i];
             self.effects.score_popup(s.x, s.y, 50, (0.62, 0.42, 1.00));
         }
+        if !collected.is_empty() {
+            self.effects.sfx(SfxCue::Pickup);
+        }
 
         // Heart pickups
         let heart_indices = self.pickups.heart_collisions_with(&player_box);
@@ -177,6 +186,9 @@ impl World {
             self.score.add(75);
             self.effects.score_popup(h.x, h.y, 75, (0.95, 0.3, 0.35));
         }
+        if !heart_indices.is_empty() {
+            self.effects.sfx(SfxCue::Heart);
+        }
 
         if let Some(idx) = self.obstacles.first_collision(&player_box) {
             let kind = self.obstacles.obstacles[idx].kind;
@@ -188,6 +200,7 @@ impl World {
                 self.effects.smash_burst(ox + 16.0, oy + 16.0);
                 self.effects.score_popup(ox, oy, 25, (1.0, 0.82, 0.2));
                 self.effects.shake(4.0, 0.12);
+                self.effects.sfx(SfxCue::Smash);
                 if matches!(kind, ObstacleKind::Amy) {
                     self.dash.trigger_slowmo();
                 }
@@ -199,11 +212,14 @@ impl World {
                     self.effects.hit_burst(ox + 16.0, oy + 16.0);
                     self.effects.shake(8.0, 0.2);
                     self.effects.flash(0.35, 0.3);
+                    self.effects.sfx(SfxCue::Hit);
                 } else {
                     self.player.hit();
                     self.effects.hit_burst(PLAYER_X + PLAYER_W * 0.5, self.player.y + PLAYER_H * 0.5);
-                    self.effects.shake(14.0, 0.35);
+                    // Single death shake - one short punch, not prolonged.
+                    self.effects.shake(8.0, 0.15);
                     self.effects.flash(0.5, 0.5);
+                    self.effects.sfx(SfxCue::Hit);
                     return RunOutcome::Died;
                 }
             }

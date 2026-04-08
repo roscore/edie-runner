@@ -1,4 +1,4 @@
-//! Visual effects — particles, score popups, screen shake, hit flash.
+//! Visual effects - particles, score popups, screen shake, hit flash.
 //! Purely visual, no gameplay impact.
 
 #[derive(Debug, Clone, Copy)]
@@ -36,6 +36,18 @@ pub struct Effects {
     pub hit_flash: f32,
     pub flash_max: f32,
     pub tier_banner: Option<TierBanner>,
+    /// Queue of SFX cues drained by the main loop each frame.
+    pub sfx_queue: Vec<SfxCue>,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum SfxCue {
+    Jump,
+    Hit,
+    Pickup,
+    Dash,
+    Smash,
+    Heart,
 }
 
 #[derive(Debug, Clone)]
@@ -92,6 +104,10 @@ impl Effects {
             remaining: duration,
             total: duration,
         });
+    }
+
+    pub fn sfx(&mut self, cue: SfxCue) {
+        self.sfx_queue.push(cue);
     }
 
     /// Spawn a burst of dust particles at the given position.

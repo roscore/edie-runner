@@ -13,7 +13,7 @@ pub enum ObstacleKind {
     TrafficCone,
     SignBoard,
     Cat,
-    // AeiROBOT robots — appear as we approach AeiROBOT HQ
+    // AeiROBOT robots - appear as we approach AeiROBOT HQ
     VacuumBot, // generic intro robot
     Amy,       // small flying robot (replaces drone role)
     AliceM1,   // mobile ground robot
@@ -28,7 +28,7 @@ impl ObstacleKind {
     }
 
     /// True if this obstacle is a robot. Used for the "approaching AeiROBOT"
-    /// scaling — higher tiers spawn more robots.
+    /// scaling - higher tiers spawn more robots.
     pub fn is_robot(&self) -> bool {
         matches!(
             self,
@@ -132,7 +132,7 @@ impl ObstacleField {
             pool.push(ObstacleKind::TrafficCone);
         }
 
-        // Tier 2: vacuum bots — entering the tech district
+        // Tier 2: vacuum bots - entering the tech district
         if tier >= 2 {
             pool.push(ObstacleKind::VacuumBot);
             pool.push(ObstacleKind::VacuumBot);
@@ -158,7 +158,7 @@ impl ObstacleField {
             pool.push(ObstacleKind::Amy);
         }
 
-        // Tier 6: Alice4 (newer humanoid) — AeiROBOT zone in full effect
+        // Tier 6: Alice4 (newer humanoid) - AeiROBOT zone in full effect
         if tier >= 6 {
             pool.push(ObstacleKind::Alice4);
             pool.push(ObstacleKind::Alice3);
@@ -226,22 +226,6 @@ mod tests {
         }
     }
 
-    #[test]
-    fn higher_tiers_spawn_more_robots() {
-        let field = ObstacleField::new();
-        let mut rng = SmallRng::seed_from_u64(99);
-        let count_robots = |score: u32, samples: usize, rng: &mut SmallRng| {
-            (0..samples)
-                .filter(|_| field.random_kind(score, rng).is_robot())
-                .count()
-        };
-        let low = count_robots(0, 1000, &mut rng);
-        let high = count_robots(7 * 500, 1000, &mut rng);
-        assert!(
-            high > low * 2,
-            "tier 7 should produce far more robots than tier 0 (low={low}, high={high})"
-        );
-    }
 
     #[test]
     fn min_gap_grows_with_speed() {
@@ -250,8 +234,9 @@ mod tests {
 
     #[test]
     fn spawn_respects_min_spacing_at_every_tier() {
+        use crate::game::difficulty::SCORE_PER_TIER;
         for tier in 0..=8u32 {
-            let score = tier * 500;
+            let score = tier * SCORE_PER_TIER;
             let speed = speed_for_score(score);
             let mut field = ObstacleField::new();
             let mut rng = SmallRng::seed_from_u64(42 + tier as u64);
@@ -274,6 +259,7 @@ mod tests {
 
     #[test]
     fn signboard_only_at_tier_3_plus() {
+        use crate::game::difficulty::SCORE_PER_TIER;
         let mut rng = SmallRng::seed_from_u64(7);
         let field = ObstacleField::new();
         for _ in 0..200 {
@@ -282,7 +268,7 @@ mod tests {
         }
         let mut saw = false;
         for _ in 0..2000 {
-            if field.random_kind(SPARK_BURST_UNLOCK_TIER * 500, &mut rng)
+            if field.random_kind(SPARK_BURST_UNLOCK_TIER * SCORE_PER_TIER, &mut rng)
                 == ObstacleKind::SignBoard
             {
                 saw = true;
@@ -290,5 +276,20 @@ mod tests {
             }
         }
         assert!(saw);
+    }
+
+    #[test]
+    fn higher_tiers_spawn_more_robots_v2() {
+        use crate::game::difficulty::SCORE_PER_TIER;
+        let field = ObstacleField::new();
+        let mut rng = SmallRng::seed_from_u64(99);
+        let count_robots = |score: u32, samples: usize, rng: &mut SmallRng| {
+            (0..samples)
+                .filter(|_| field.random_kind(score, rng).is_robot())
+                .count()
+        };
+        let low = count_robots(0, 1000, &mut rng);
+        let high = count_robots(7 * SCORE_PER_TIER, 1000, &mut rng);
+        assert!(high > low * 2, "low={low}, high={high}");
     }
 }

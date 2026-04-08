@@ -16,50 +16,58 @@ use crate::render::sprites::{
 use macroquad::prelude::*;
 
 /// Day/night tint for a given world time.
-/// Cycle period = 60 seconds. Returns (tint_color, star_alpha 0..1).
+/// Cycle period = 120 seconds (2 minutes). Smooth 9-keyframe curve that
+/// transitions noon -> afternoon -> golden -> sunset -> dusk -> night ->
+/// deep night -> pre-dawn -> morning -> noon.
 pub fn day_night_tint(t: f32) -> (Color, f32) {
-    let cycle = 60.0;
+    let cycle = 120.0;
     let phase = (t % cycle) / cycle; // 0..1
-    // Keyframes (phase, r, g, b, star_alpha)
-    let frames: [(f32, f32, f32, f32, f32); 6] = [
-        (0.00, 1.00, 1.00, 1.00, 0.0), // day
-        (0.30, 1.00, 1.00, 1.00, 0.0), // day
-        (0.40, 1.00, 0.78, 0.55, 0.1), // sunset orange
-        (0.55, 0.40, 0.42, 0.65, 0.95), // night blue
-        (0.75, 0.55, 0.55, 0.78, 0.7), // late night
-        (0.85, 1.00, 0.80, 0.85, 0.2), // dawn pink
+    // (phase, r, g, b, star_alpha)
+    let frames: [(f32, f32, f32, f32, f32); 10] = [
+        (0.00, 1.00, 1.00, 1.00, 0.00), // noon
+        (0.22, 1.00, 0.98, 0.92, 0.00), // afternoon
+        (0.32, 1.00, 0.88, 0.70, 0.03), // golden hour
+        (0.42, 1.00, 0.68, 0.45, 0.15), // sunset
+        (0.52, 0.62, 0.50, 0.70, 0.45), // dusk
+        (0.62, 0.40, 0.42, 0.72, 0.85), // night blue
+        (0.78, 0.38, 0.40, 0.70, 0.95), // deep night
+        (0.88, 0.60, 0.50, 0.75, 0.55), // pre-dawn
+        (0.94, 0.95, 0.78, 0.80, 0.18), // dawn pink
+        (0.98, 1.00, 0.94, 0.88, 0.03), // early morning
     ];
-    let mut a = &frames[0];
+    // Find the segment containing `phase`, or wrap around after the last frame.
+    let n = frames.len();
+    let mut a = &frames[n - 1];
     let mut b = &frames[0];
+    let mut span = 1.0 - a.0 + b.0; // wraparound span
+    let mut local = ((phase - a.0).rem_euclid(1.0)) / span;
     for w in frames.windows(2) {
         if phase >= w[0].0 && phase < w[1].0 {
             a = &w[0];
             b = &w[1];
+            span = b.0 - a.0;
+            local = (phase - a.0) / span;
             break;
         }
     }
-    if phase >= frames[frames.len() - 1].0 {
-        a = &frames[frames.len() - 1];
-        // wrap to first frame
-        b = &frames[0];
-    }
-    let span = if b.0 > a.0 { b.0 - a.0 } else { 1.0 - a.0 + b.0 };
-    let local = if b.0 > a.0 {
-        (phase - a.0) / span
-    } else {
-        ((phase - a.0).rem_euclid(1.0)) / span
-    };
     let lerp = |x: f32, y: f32| x + (y - x) * local;
     (
         Color::new(lerp(a.1, b.1), lerp(a.2, b.2), lerp(a.3, b.3), 1.0),
-        lerp(a.4, b.4),
+        lerp(a.4, b.4).clamp(0.0, 1.0),
     )
 }
 
-pub fn draw_background(bg: &Background, assets: &AssetHandles, t: f32, cam: &Camera) {
+pub fn draw_background(
+    bg: &Background,
+    assets: &AssetHandles,
+    stage: crate::game::difficulty::Stage,
+    t: f32,
+    cam: &Camera,
+) {
+    use crate::game::difficulty::Stage;
     let (tint, star_alpha) = day_night_tint(t);
 
-    // Sky
+    // Sky (only meaningful for outdoor stages; indoor stages hide it behind far layer)
     let (sx, sy) = cam.to_screen(0.0, 0.0);
     draw_texture_ex(
         &assets.bg_sky,
@@ -72,8 +80,9 @@ pub fn draw_background(bg: &Background, assets: &AssetHandles, t: f32, cam: &Cam
         },
     );
 
-    // Stars overlay (visible at night)
-    if star_alpha > 0.01 {
+    // Stars overlay (only for outdoor stages at night)
+    let outdoor = !matches!(stage, Stage::DepartmentStore | Stage::AeiRobotHQ);
+    if outdoor && star_alpha > 0.01 {
         let star_tint = Color::new(1.0, 1.0, 1.0, star_alpha);
         draw_texture_ex(
             &assets.bg_stars,
@@ -87,7 +96,19 @@ pub fn draw_background(bg: &Background, assets: &AssetHandles, t: f32, cam: &Cam
         );
     }
 
-    // Far servers (parallax)
+    // Resolve stage-specific tiles
+    let stage_bg = match stage {
+        Stage::DepartmentStore => &assets.stage_store,
+        Stage::PangyoStreet => &assets.stage_street,
+        Stage::Highway => &assets.stage_highway,
+        Stage::Ansan => &assets.stage_ansan,
+        Stage::AeiRobotHQ => &assets.stage_hq,
+    };
+
+    // Indoor stages get a flat tint (ignore day/night)
+    let stage_tint = if outdoor { tint } else { WHITE };
+
+    // Far layer
     let far_tile_w = 256.0;
     let far_y = 200.0;
     let far_h = 100.0;
@@ -95,10 +116,10 @@ pub fn draw_background(bg: &Background, assets: &AssetHandles, t: f32, cam: &Cam
     while x < LOGICAL_W {
         let (px, py) = cam.to_screen(x, far_y);
         draw_texture_ex(
-            &assets.bg_far,
+            &stage_bg.far,
             px,
             py,
-            tint,
+            stage_tint,
             DrawTextureParams {
                 dest_size: Some(vec2(cam.scaled(far_tile_w), cam.scaled(far_h))),
                 ..Default::default()
@@ -107,7 +128,7 @@ pub fn draw_background(bg: &Background, assets: &AssetHandles, t: f32, cam: &Cam
         x += far_tile_w;
     }
 
-    // Mid workbenches
+    // Mid layer
     let mid_tile_w = 256.0;
     let mid_y = 270.0;
     let mid_h = 60.0;
@@ -115,10 +136,10 @@ pub fn draw_background(bg: &Background, assets: &AssetHandles, t: f32, cam: &Cam
     while x < LOGICAL_W {
         let (px, py) = cam.to_screen(x, mid_y);
         draw_texture_ex(
-            &assets.bg_mid,
+            &stage_bg.mid,
             px,
             py,
-            tint,
+            stage_tint,
             DrawTextureParams {
                 dest_size: Some(vec2(cam.scaled(mid_tile_w), cam.scaled(mid_h))),
                 ..Default::default()
@@ -127,13 +148,17 @@ pub fn draw_background(bg: &Background, assets: &AssetHandles, t: f32, cam: &Cam
         x += mid_tile_w;
     }
 
-    // Floor (slight tint, less affected so it stays readable)
-    let floor_tint = Color::new(
-        0.4 + 0.6 * tint.r,
-        0.4 + 0.6 * tint.g,
-        0.4 + 0.6 * tint.b,
-        1.0,
-    );
+    // Floor — slightly desaturated tint for readability
+    let floor_tint = if outdoor {
+        Color::new(
+            0.4 + 0.6 * tint.r,
+            0.4 + 0.6 * tint.g,
+            0.4 + 0.6 * tint.b,
+            1.0,
+        )
+    } else {
+        WHITE
+    };
     let floor_tile_w = 256.0;
     let floor_y = 320.0;
     let floor_h = 80.0;
@@ -141,7 +166,7 @@ pub fn draw_background(bg: &Background, assets: &AssetHandles, t: f32, cam: &Cam
     while x < LOGICAL_W {
         let (px, py) = cam.to_screen(x, floor_y);
         draw_texture_ex(
-            &assets.bg_floor,
+            &stage_bg.floor,
             px,
             py,
             floor_tint,
@@ -209,7 +234,7 @@ pub fn draw_hud(
         }
     }
 
-    // Aurora gauge (top-left, below hearts) — three pulsing slots using the real
+    // Aurora gauge (top-left, below hearts) - three pulsing slots using the real
     // aurora sprite for filled slots, a dim outline ring for empty slots, and a
     // thin dash-status bar below.
     let slot_size = 42.0;
@@ -237,7 +262,7 @@ pub fn draw_hud(
         let (sx, sy) = cam.to_screen(lx, ly);
         let filled = i < dash.aurora;
 
-        // Slot frame — rounded square background
+        // Slot frame - rounded square background
         draw_rectangle(
             sx - cam.scaled(2.0),
             sy - cam.scaled(2.0),
@@ -267,7 +292,7 @@ pub fn draw_hud(
                 },
             );
         } else {
-            // Empty slot — faded core
+            // Empty slot - faded core
             draw_rectangle(
                 sx + cam.scaled(slot_size * 0.3),
                 sy + cam.scaled(slot_size * 0.3),
@@ -347,7 +372,7 @@ pub fn draw_overlay(
         Color::new(0.0, 0.0, 0.0, dim),
     );
 
-    // Mascot animation for Title / Paused / GameOver — shown above the text.
+    // Mascot animation for Title / Paused / GameOver - shown above the text.
     let mascot_size = 160.0;
     let mascot_x = LOGICAL_W * 0.5 - mascot_size * 0.5;
     let mascot_y = LOGICAL_H * 0.15;
@@ -445,7 +470,7 @@ pub fn draw_overlay(
     let dim_sub = measure_text(&sub, None, sub_size as u16, 1.0);
     draw_text(&sub, sx - dim_sub.width * 0.5, sy, sub_size, WHITE);
 
-    // Run history dashboard — Title and GameOver
+    // Run history dashboard - Title and GameOver
     if matches!(state, GameState::Title | GameState::GameOver) {
         let best = game.best_runs();
         if !best.is_empty() {
@@ -505,7 +530,7 @@ pub fn draw_overlay(
     }
 }
 
-/// Help screen — controls and mechanics reference.
+/// Help screen - controls and mechanics reference.
 pub fn draw_help(assets: &AssetHandles, elapsed: f32, cam: &Camera) {
     // Dim full background
     let (x0, y0) = cam.to_screen(0.0, 0.0);
@@ -539,7 +564,7 @@ pub fn draw_help(assets: &AssetHandles, elapsed: f32, cam: &Camera) {
     let white = Color::new(0.95, 0.95, 0.95, 1.0);
     let dim = Color::new(0.7, 0.7, 0.75, 1.0);
 
-    // Left column — controls
+    // Left column - controls
     let left_x = 80.0;
     let (lx, ly) = cam.to_screen(left_x, col_y);
     draw_text("CONTROLS", lx, ly, label_size, yellow);
@@ -560,15 +585,15 @@ pub fn draw_help(assets: &AssetHandles, elapsed: f32, cam: &Camera) {
         draw_text(action, ax, ay, body_size, dim);
     }
 
-    // Right column — mechanics
+    // Right column - mechanics
     let right_x = 660.0;
     let (rx, ry) = cam.to_screen(right_x, col_y);
     draw_text("MECHANICS", rx, ry, label_size, yellow);
     let mechanics = [
         "Collect AURORA STONES (purple/green orbs).",
         "Spend 1 stone with SHIFT to DASH.",
-        "Dash makes you invulnerable for 280 ms",
-        "  and SMASHES ANY obstacle in your path.",
+        "Dash grants 400ms invulnerability and",
+        "  SMASHES ANY obstacle in your path.",
         "Collect HEARTS for extra LIFE (max 3).",
         "Each hit costs 1 life. Dash or die.",
         "Cross TIER thresholds to face new foes.",
@@ -660,7 +685,7 @@ pub fn draw_story(t_in_story: f32, _assets: &AssetHandles, cam: &Camera) {
         return;
     }
 
-    // Main crawl — yellow text scrolling upward with diminishing size
+    // Main crawl - yellow text scrolling upward with diminishing size
     let lines: &[&str] = &[
         "EPISODE I",
         "",
@@ -677,7 +702,7 @@ pub fn draw_story(t_in_story: f32, _assets: &AssetHandles, cam: &Camera) {
         "Every day, EDIE watched them go.",
         "",
         "But when the pop-up closed and the crew packed up,",
-        "EDIE was accidentally left behind —",
+        "EDIE was accidentally left behind -",
         "forgotten on an empty shelf in a dim room.",
         "",
         "With the lights off and the doors locked,",

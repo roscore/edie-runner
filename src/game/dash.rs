@@ -1,9 +1,9 @@
 //! Dash: short invulnerable burst that smashes destroyable obstacles.
 //! See spec §3.5.
 
-pub const DASH_DURATION: f32 = 0.280;
+pub const DASH_DURATION: f32 = 0.400;
 pub const DASH_COOLDOWN: f32 = 0.400;
-pub const DASH_SPEED_MULT: f32 = 1.60;
+pub const DASH_SPEED_MULT: f32 = 1.45;
 pub const DASH_COST: u32 = 1;
 pub const SLOWMO_DURATION: f32 = 0.200;
 pub const SLOWMO_SCALE: f32 = 0.60;
@@ -105,13 +105,14 @@ mod tests {
     }
 
     #[test]
-    fn dash_invulnerable_for_280ms_then_cooldown() {
+    fn dash_invulnerable_for_duration_then_cooldown() {
         let mut d = DashState::new();
         d.add_aurora(1);
         d.try_start();
         assert!(d.is_invulnerable());
 
-        let steps = (DASH_DURATION / DT).round() as u32;
+        // Tick a hair past DASH_DURATION to ensure the state transition fires.
+        let steps = ((DASH_DURATION / DT).round() as u32) + 2;
         for _ in 0..steps {
             d.update(DT);
         }

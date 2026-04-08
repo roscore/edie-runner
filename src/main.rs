@@ -1,4 +1,4 @@
-//! EDIE Runner — macroquad entry point. See spec §4.2 for the loop shape.
+//! EDIE Runner - macroquad entry point. See spec §4.2 for the loop shape.
 
 use edie_runner::assets::{load_all, AssetHandles};
 use edie_runner::game::state::Game;
@@ -30,7 +30,7 @@ fn window_conf() -> Conf {
 async fn show_loading_then_load() -> Result<AssetHandles, String> {
     // Single render of the loading screen, then synchronously await assets.
     clear_background(Color::new(0.96, 0.94, 0.89, 1.0));
-    let msg = "Loading EDIE…";
+    let msg = "Loading EDIE...";
     let size = 32.0;
     let dims = measure_text(msg, None, size as u16, 1.0);
     draw_text(
@@ -57,7 +57,7 @@ async fn main() {
     let assets = match show_loading_then_load().await {
         Ok(a) => a,
         Err(msg) => {
-            // Render the failure forever — never enter the game loop.
+            // Render the failure forever - never enter the game loop.
             loop {
                 clear_background(Color::new(0.96, 0.94, 0.89, 1.0));
                 let dims = measure_text(&msg, None, 28, 1.0);
@@ -118,7 +118,23 @@ async fn main() {
         let (shake_ox, shake_oy) = game.world.effects.shake_offset(wall_time);
         let cam = Camera::new(screen_width(), screen_height())
             .with_shake(shake_ox * screen_width() / 1280.0, shake_oy * screen_width() / 1280.0);
-        draw_background(&game.world.background, &assets, wall_time, &cam);
+        draw_background(&game.world.background, &assets, game.world.current_stage(), wall_time, &cam);
+
+        // Drain SFX queue and play cued sounds.
+        if !game.world.effects.sfx_queue.is_empty() {
+            let cues: Vec<_> = game.world.effects.sfx_queue.drain(..).collect();
+            for cue in cues {
+                let sound = match cue {
+                    edie_runner::game::effects::SfxCue::Jump => &assets.sfx_jump,
+                    edie_runner::game::effects::SfxCue::Hit => &assets.sfx_hit,
+                    edie_runner::game::effects::SfxCue::Pickup => &assets.sfx_pickup,
+                    edie_runner::game::effects::SfxCue::Dash => &assets.sfx_dash,
+                    edie_runner::game::effects::SfxCue::Smash => &assets.sfx_smash,
+                    edie_runner::game::effects::SfxCue::Heart => &assets.sfx_heart,
+                };
+                macroquad::audio::play_sound_once(sound);
+            }
+        }
         let elapsed = game.world.elapsed;
         let speed_for_telegraph = game.world.current_speed();
         for o in &game.world.obstacles.obstacles {
