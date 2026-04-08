@@ -2,7 +2,7 @@
 
 use edie_runner::game::state::Game;
 use edie_runner::platform::input::{InputSource, MacroquadInput};
-use edie_runner::platform::storage::QuadStorage;
+use edie_runner::platform::storage::InMemoryStorage;
 use edie_runner::platform::visibility::VisibilityTracker;
 use edie_runner::render::camera::Camera;
 use edie_runner::render::sprites::{draw_aurora, draw_obstacle, draw_player};
@@ -23,7 +23,9 @@ fn window_conf() -> Conf {
 
 #[macroquad::main(window_conf)]
 async fn main() {
-    let mut storage = QuadStorage::new();
+    // Phase 1: use in-memory storage. quad-storage plugin has a version
+    // mismatch with the JS bundle; will revisit for Phase 2/3.
+    let mut storage = InMemoryStorage::new();
     let mut input = MacroquadInput::new();
     let mut visibility = VisibilityTracker::new();
     let mut step = FixedStep::new();
