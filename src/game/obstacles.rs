@@ -23,8 +23,8 @@ pub enum ObstacleKind {
 
 impl ObstacleKind {
     pub fn destroyable_by_dash(&self) -> bool {
-        // The bipedal humanoids (Alice3, Alice4) are too heavy to dash-smash.
-        !matches!(self, ObstacleKind::Alice3 | ObstacleKind::Alice4)
+        // EDIE's Aurora Dash smashes everything in its path.
+        true
     }
 
     /// True if this obstacle is a robot. Used for the "approaching AeiROBOT"
@@ -209,14 +209,21 @@ mod tests {
 
     #[test]
     fn destroyable_flags() {
-        assert!(!ObstacleKind::Alice3.destroyable_by_dash());
-        assert!(!ObstacleKind::Alice4.destroyable_by_dash());
-        assert!(ObstacleKind::CoffeeCup.destroyable_by_dash());
-        assert!(ObstacleKind::ShoppingCart.destroyable_by_dash());
-        assert!(ObstacleKind::Amy.destroyable_by_dash());
-        assert!(ObstacleKind::Cat.destroyable_by_dash());
-        assert!(ObstacleKind::VacuumBot.destroyable_by_dash());
-        assert!(ObstacleKind::AliceM1.destroyable_by_dash());
+        // Aurora Dash smashes ALL obstacles now.
+        for kind in [
+            ObstacleKind::CoffeeCup,
+            ObstacleKind::ShoppingCart,
+            ObstacleKind::TrafficCone,
+            ObstacleKind::SignBoard,
+            ObstacleKind::Cat,
+            ObstacleKind::VacuumBot,
+            ObstacleKind::Amy,
+            ObstacleKind::AliceM1,
+            ObstacleKind::Alice3,
+            ObstacleKind::Alice4,
+        ] {
+            assert!(kind.destroyable_by_dash(), "{:?} should be destroyable", kind);
+        }
     }
 
     #[test]

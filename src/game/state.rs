@@ -16,6 +16,7 @@ pub enum GameState {
 
 pub const RUN_HISTORY_LEN: usize = 5;
 pub const STORY_DURATION: f32 = 28.0;
+pub const COUNTDOWN_DURATION: f32 = 3.5;
 
 pub struct Game {
     pub state: GameState,
@@ -28,6 +29,8 @@ pub struct Game {
     pub last_run_rank: Option<usize>,
     /// Wall-clock time at which the current Story playback started.
     pub story_start_time: f32,
+    /// When > 0, gameplay is frozen showing a 3-2-1-GO overlay.
+    pub countdown_remaining: f32,
 }
 
 impl Game {
@@ -39,6 +42,7 @@ impl Game {
             run_history: Vec::new(),
             last_run_rank: None,
             story_start_time: 0.0,
+            countdown_remaining: 0.0,
         }
     }
 
@@ -101,10 +105,15 @@ impl Game {
         self.seed_counter = self.seed_counter.wrapping_add(1);
         self.world = World::new(self.seed_counter, storage);
         self.state = GameState::Playing;
+        self.countdown_remaining = COUNTDOWN_DURATION;
     }
 
     pub fn update<S: Storage>(&mut self, real_dt: f32, storage: &mut S) {
         if self.state != GameState::Playing {
+            return;
+        }
+        if self.countdown_remaining > 0.0 {
+            self.countdown_remaining = (self.countdown_remaining - real_dt).max(0.0);
             return;
         }
         match self.world.update(real_dt) {
@@ -176,6 +185,8 @@ mod tests {
         let mut s = InMemoryStorage::new();
         let mut g = Game::new(1, &s);
         g.handle(Action::Confirm, &mut s);
+        // Skip countdown for the test
+        g.countdown_remaining = 0.0;
         let pbox = g.world.player.hitbox();
         let mut o = crate::game::obstacles::Obstacle::new(
             crate::game::obstacles::ObstacleKind::CoffeeCup,

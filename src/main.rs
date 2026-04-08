@@ -7,8 +7,8 @@ use edie_runner::platform::storage::InMemoryStorage;
 use edie_runner::platform::visibility::VisibilityTracker;
 use edie_runner::render::camera::Camera;
 use edie_runner::render::sprites::{
-    draw_aurora, draw_effects, draw_heart_pickup, draw_hit_flash, draw_obstacle, draw_player,
-    draw_vignette,
+    draw_aurora, draw_countdown, draw_effects, draw_heart_pickup, draw_hit_flash, draw_obstacle,
+    draw_player, draw_tier_banner, draw_vignette,
 };
 use edie_runner::game::state::GameState;
 use edie_runner::platform::input::Action;
@@ -144,10 +144,16 @@ async fn main() {
         }
         // Particles + score popups on top of world, under HUD
         draw_effects(&game.world.effects, &cam);
+        // Tier banner
+        draw_tier_banner(&game.world.effects, &cam);
         // Speed-tier vignette
         draw_vignette(game.world.current_speed(), &cam);
         // Hit flash
         draw_hit_flash(&game.world.effects, &cam);
+        // Countdown overlay (only during Playing with pending countdown)
+        if matches!(game.state, GameState::Playing) && game.countdown_remaining > 0.0 {
+            draw_countdown(game.countdown_remaining, &cam);
+        }
         draw_hud(
             &game.world.score,
             &game.world.dash,

@@ -392,6 +392,99 @@ pub fn draw_hit_flash(effects: &crate::game::effects::Effects, cam: &Camera) {
     );
 }
 
+/// Tier-change banner — top-of-screen pulse when crossing a difficulty tier.
+pub fn draw_tier_banner(effects: &crate::game::effects::Effects, cam: &Camera) {
+    let banner = match &effects.tier_banner {
+        Some(b) => b,
+        None => return,
+    };
+    let alpha = ((banner.remaining / banner.total) * 2.0).min(1.0);
+    let pulse = 0.7 + 0.3 * (banner.remaining * 6.0).sin().abs();
+
+    let (sx, sy) = cam.to_screen(640.0, 100.0);
+    let size = 34.0 * cam.scale;
+    let dim = measure_text(&banner.text, None, size as u16, 1.0);
+
+    // Background pill
+    let pad_x = 24.0 * cam.scale;
+    let pad_y = 10.0 * cam.scale;
+    draw_rectangle(
+        sx - dim.width * 0.5 - pad_x,
+        sy - dim.height - pad_y,
+        dim.width + pad_x * 2.0,
+        dim.height + pad_y * 2.0,
+        Color::new(0.05, 0.05, 0.08, alpha * 0.85),
+    );
+    draw_rectangle_lines(
+        sx - dim.width * 0.5 - pad_x,
+        sy - dim.height - pad_y,
+        dim.width + pad_x * 2.0,
+        dim.height + pad_y * 2.0,
+        3.0,
+        Color::new(1.0, 0.82, 0.2, alpha * pulse),
+    );
+    draw_text(
+        &banner.text,
+        sx - dim.width * 0.5,
+        sy,
+        size,
+        Color::new(1.0, 0.85, 0.2, alpha),
+    );
+}
+
+/// 3-2-1-GO countdown overlay at the start of a run.
+pub fn draw_countdown(remaining: f32, cam: &Camera) {
+    if remaining <= 0.0 {
+        return;
+    }
+    let label = if remaining > 2.5 {
+        "3"
+    } else if remaining > 1.5 {
+        "2"
+    } else if remaining > 0.5 {
+        "1"
+    } else {
+        "GO!"
+    };
+
+    // Fade background slightly during countdown
+    draw_rectangle(
+        0.0,
+        0.0,
+        cam.screen_w,
+        cam.screen_h,
+        Color::new(0.0, 0.0, 0.0, 0.3),
+    );
+
+    // Giant pulsing number
+    let frac_in_second = remaining.fract();
+    let scale_boost = (1.0 - frac_in_second).max(0.0); // starts big, shrinks
+    let base_size = if label == "GO!" { 140.0 } else { 180.0 };
+    let size = (base_size + scale_boost * 40.0) * cam.scale;
+    let color = if label == "GO!" {
+        Color::new(0.18, 0.77, 0.71, 1.0)
+    } else {
+        Color::new(1.0, 0.85, 0.2, 1.0)
+    };
+    let dim = measure_text(label, None, size as u16, 1.0);
+    let (sx, sy) = cam.to_screen(640.0, 200.0);
+    // Drop shadow
+    draw_text(
+        label,
+        sx - dim.width * 0.5 + 4.0,
+        sy + dim.height * 0.5 + 4.0,
+        size,
+        Color::new(0.0, 0.0, 0.0, 0.7),
+    );
+    draw_text(
+        label,
+        sx - dim.width * 0.5,
+        sy + dim.height * 0.5,
+        size,
+        color,
+    );
+}
+
 /// Speed-tier vignette — darkens edges as speed climbs.
 pub fn draw_vignette(speed: f32, cam: &Camera) {
     const BASE: f32 = 320.0;

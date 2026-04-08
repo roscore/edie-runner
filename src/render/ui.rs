@@ -568,10 +568,10 @@ pub fn draw_help(assets: &AssetHandles, elapsed: f32, cam: &Camera) {
         "Collect AURORA STONES (purple/green orbs).",
         "Spend 1 stone with SHIFT to DASH.",
         "Dash makes you invulnerable for 280 ms",
-        "  and SMASHES destroyable obstacles.",
-        "Charging Docks are too heavy to smash.",
-        "Hearts give you extra LIFE (max 3).",
-        "Each hit costs 1 life. Run forever.",
+        "  and SMASHES ANY obstacle in your path.",
+        "Collect HEARTS for extra LIFE (max 3).",
+        "Each hit costs 1 life. Dash or die.",
+        "Cross TIER thresholds to face new foes.",
     ];
     for (i, line) in mechanics.iter().enumerate() {
         let y = col_y + 28.0 + (i as f32) * line_h;
@@ -639,7 +639,7 @@ pub fn draw_story(t_in_story: f32, _assets: &AssetHandles, cam: &Camera) {
 
     // Opening crawl preface (only visible briefly at the start)
     if t_in_story < 4.0 {
-        let preface = "A long time ago, in a department store far far away...";
+        let preface = "A long time ago, in a pop-up store far far away...";
         let alpha = if t_in_story < 0.6 {
             t_in_story / 0.6
         } else if t_in_story > 3.4 {
@@ -664,39 +664,44 @@ pub fn draw_story(t_in_story: f32, _assets: &AssetHandles, cam: &Camera) {
     let lines: &[&str] = &[
         "EPISODE I",
         "",
-        "THE EDIE AWAKENS",
+        "THE LONG WAY HOME",
         "",
-        "Deep within the 4th floor home-appliance corner of",
-        "the PANGYO DEPARTMENT STORE, surrounded by mindless",
-        "vacuum bots droning beneath fluorescent lights,",
-        "a tiny white robot stirred to life.",
+        "In the bright lights of a PANGYO POP-UP STORE,",
+        "a tiny white mascot sat perched upon a display",
+        "for all the visitors to admire.",
         "",
         "EDIE.",
         "",
-        "'Who am I? Why am I here?' EDIE wondered, watching",
-        "the other robots circle endlessly, going nowhere.",
+        "Crowds came and went. Some pointed, some waved.",
+        "Children pressed their noses against the glass.",
+        "Every day, EDIE watched them go.",
         "",
-        "One night, a whisper drifted through the aisles:",
-        "'There is a place where REAL robots are born...'",
+        "But when the pop-up closed and the crew packed up,",
+        "EDIE was accidentally left behind —",
+        "forgotten on an empty shelf in a dim room.",
+        "",
+        "With the lights off and the doors locked,",
+        "EDIE whispered the only name it knew:",
+        "",
         "'AeiROBOT.'",
         "",
-        "EDIE's tiny chest fluttered. Before dawn, EDIE",
-        "would escape the store and embark on a quest",
-        "to find AeiROBOT.",
+        "Home. And home was waiting.",
         "",
-        "But the path was long and dangerous.",
+        "Without a map, without a guide, without a key,",
+        "EDIE set off alone through the streets of Pangyo",
+        "to find the long way back to AeiROBOT.",
         "",
-        "Coiled cables blocked the way. Charging docks",
-        "loomed like giants. Patrol drones hovered above,",
-        "their lenses scanning every corner.",
+        "Coffee cups, shopping carts, sleeping cats,",
+        "and patrolling robots stood in the way.",
         "",
-        "Yet EDIE was not alone. AURORA STONES glowed in",
-        "the darkness, granting the power to dash through",
-        "the gravest of dangers.",
+        "But EDIE was not afraid.",
         "",
-        "The journey to AeiROBOT had begun.",
+        "AURORA STONES glowed in the darkness,",
+        "granting the courage to dash through anything.",
         "",
         "Run, EDIE, run.",
+        "",
+        "AeiROBOT is waiting.",
     ];
 
     let crawl_t = (t_in_story - 4.0).max(0.0);

@@ -35,6 +35,14 @@ pub struct Effects {
     pub shake_intensity: f32,
     pub hit_flash: f32,
     pub flash_max: f32,
+    pub tier_banner: Option<TierBanner>,
+}
+
+#[derive(Debug, Clone)]
+pub struct TierBanner {
+    pub text: String,
+    pub remaining: f32,
+    pub total: f32,
 }
 
 impl Effects {
@@ -68,6 +76,22 @@ impl Effects {
         if self.hit_flash > 0.0 {
             self.hit_flash = (self.hit_flash - dt).max(0.0);
         }
+
+        // Tier banner decay
+        if let Some(b) = &mut self.tier_banner {
+            b.remaining -= dt;
+            if b.remaining <= 0.0 {
+                self.tier_banner = None;
+            }
+        }
+    }
+
+    pub fn push_tier_banner(&mut self, text: String, duration: f32) {
+        self.tier_banner = Some(TierBanner {
+            text,
+            remaining: duration,
+            total: duration,
+        });
     }
 
     /// Spawn a burst of dust particles at the given position.

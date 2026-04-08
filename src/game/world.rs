@@ -2,7 +2,7 @@
 
 use crate::game::background::Background;
 use crate::game::dash::{DashRequest, DashState};
-use crate::game::difficulty::speed_for_score;
+use crate::game::difficulty::{speed_for_score, tier_for_score};
 use crate::game::effects::Effects;
 use crate::game::obstacles::{ObstacleField, ObstacleKind};
 use crate::game::pickups::PickupField;
@@ -22,6 +22,20 @@ pub enum RunOutcome {
 pub const MAX_HP: u32 = 3;
 pub const HP_INVULN_TIME: f32 = 1.0;
 
+fn tier_banner_label(tier: u32) -> String {
+    match tier {
+        1 => "TIER 1 — STREETS OF PANGYO".to_string(),
+        2 => "TIER 2 — VACUUM BOTS".to_string(),
+        3 => "TIER 3 — AMY TAKES FLIGHT".to_string(),
+        4 => "TIER 4 — ALICE-M1 ROLLS IN".to_string(),
+        5 => "TIER 5 — ALICE3 ONLINE".to_string(),
+        6 => "TIER 6 — ALICE4 ENGAGED".to_string(),
+        7 => "TIER 7 — AEIROBOT ZONE".to_string(),
+        8 => "TIER 8 — MAXIMUM CHAOS".to_string(),
+        _ => format!("TIER {}", tier),
+    }
+}
+
 pub struct World {
     pub player: Player,
     pub obstacles: ObstacleField,
@@ -38,6 +52,8 @@ pub struct World {
     pub hp_invuln: f32,
     /// Tracks whether player was airborne on previous tick, for landing detection.
     was_airborne: bool,
+    /// Last observed difficulty tier — used to trigger tier banners on change.
+    last_tier: u32,
 }
 
 impl World {
@@ -56,6 +72,7 @@ impl World {
             hp_invuln: 0.0,
             effects: Effects::new(),
             was_airborne: false,
+            last_tier: 0,
         }
     }
 
@@ -125,6 +142,14 @@ impl World {
             let whole = self.score_accum.floor() as u32;
             self.score.add(whole);
             self.score_accum -= whole as f32;
+        }
+
+        // Tier change banner — triggers on crossing a difficulty threshold.
+        let current_tier = tier_for_score(self.score.current);
+        if current_tier > self.last_tier {
+            let label = tier_banner_label(current_tier);
+            self.effects.push_tier_banner(label, 2.0);
+            self.last_tier = current_tier;
         }
 
         let player_box = self.player.hitbox();
@@ -266,7 +291,8 @@ mod tests {
     }
 
     #[test]
-    fn dash_does_not_smash_charging_dock() {
+    fn dash_smashes_heavy_humanoids() {
+        // Post-update: dash smashes everything, including Alice3/Alice4.
         let mut w = fresh_world();
         w.dash.add_aurora(1);
         w.dash.try_start();
@@ -279,6 +305,6 @@ mod tests {
         w.obstacles.obstacles.push(o);
         let outcome = w.update(DT);
         assert_eq!(outcome, RunOutcome::Continuing);
-        assert!(w.obstacles.obstacles[0].alive);
+        assert!(!w.obstacles.obstacles[0].alive);
     }
 }
