@@ -27,6 +27,56 @@ const DOCK_FRAME_W: f32 = 32.0;
 const DOCK_FRAME_H: f32 = 64.0;
 const DOCK_FPS: f32 = 2.0;
 
+// GIF-based EDIE animation frame counts (match generate_art.py)
+pub const EDIE_RUN_FRAMES: usize = 7;
+pub const EDIE_RUN_FPS: f32 = 10.0;
+pub const EDIE_TITLE_FRAMES: usize = 7;
+pub const EDIE_TITLE_FPS: f32 = 6.0;
+pub const EDIE_HIT_FRAMES: usize = 17;
+pub const EDIE_HIT_FPS: f32 = 14.0;
+pub const EDIE_GAMEOVER_FRAMES: usize = 11;
+pub const EDIE_GAMEOVER_FPS: f32 = 8.0;
+pub const EDIE_CHEER_FRAMES: usize = 17;
+pub const EDIE_CHEER_FPS: f32 = 12.0;
+
+/// Draw one frame from a horizontally-laid-out sprite sheet that uses the
+/// generator's standard 1-px padding between frames.
+pub fn draw_anim_sheet(
+    tex: &Texture2D,
+    frame_count: usize,
+    fps: f32,
+    elapsed: f32,
+    logical_x: f32,
+    logical_y: f32,
+    dest_w: f32,
+    dest_h: f32,
+    cam: &Camera,
+    tint: Color,
+) {
+    let sheet_w = tex.width();
+    let frame_h = tex.height();
+    let frame_w = (sheet_w - (frame_count - 1) as f32) / frame_count as f32;
+    let idx = ((elapsed * fps) as usize) % frame_count.max(1);
+    let (sx, sy) = cam.to_screen(logical_x, logical_y);
+    let src = Rect {
+        x: idx as f32 * (frame_w + 1.0),
+        y: 0.0,
+        w: frame_w,
+        h: frame_h,
+    };
+    draw_texture_ex(
+        tex,
+        sx,
+        sy,
+        tint,
+        DrawTextureParams {
+            dest_size: Some(vec2(cam.scaled(dest_w), cam.scaled(dest_h))),
+            source: Some(src),
+            ..Default::default()
+        },
+    );
+}
+
 fn frame_index(elapsed: f32, fps: f32, count: usize) -> usize {
     ((elapsed * fps) as usize) % count
 }
@@ -76,6 +126,10 @@ fn draw_tex_frame(
     );
 }
 
+/// EDIE visual box (matches new gif-extracted sprite scale).
+const EDIE_VIS_W: f32 = 56.0;
+const EDIE_VIS_H: f32 = 48.0;
+
 pub fn draw_player(player: &Player, assets: &AssetHandles, elapsed: f32, cam: &Camera) {
     // Shadow first (under EDIE)
     let shadow_w = PLAYER_W * 0.85;
@@ -94,28 +148,56 @@ pub fn draw_player(player: &Player, assets: &AssetHandles, elapsed: f32, cam: &C
         Color::new(1.0, 1.0, 1.0, 0.8),
     );
 
-    let tex = match player.state {
-        PlayerState::Hit => &assets.edie_hit,
-        PlayerState::Ducking => &assets.edie_duck,
-        PlayerState::Jumping | PlayerState::Falling => &assets.edie_jump,
-        _ => &assets.edie_run,
-    };
+    let vis_w = EDIE_VIS_W;
+    let vis_h = EDIE_VIS_H;
+    let logical_x = PLAYER_X + (PLAYER_W - vis_w) * 0.5;
+    let mut logical_y = player.y + PLAYER_H - vis_h;
 
-    let tex_w = tex.width();
-    let tex_h = tex.height();
-
-    // Bottom-center the texture inside the physics box.
-    let mut logical_x = PLAYER_X + (PLAYER_W - tex_w) * 0.5;
-    let mut logical_y = player.y + PLAYER_H - tex_h;
-
-    // Tiny vertical bob in Running state.
-    if matches!(player.state, PlayerState::Running) {
-        let bob = ((elapsed * 8.0).sin() * 1.0).round();
-        logical_y += bob;
+    match player.state {
+        PlayerState::Running => {
+            // Tiny bob for liveliness
+            let bob = ((elapsed * 8.0).sin() * 1.0).round();
+            logical_y += bob;
+            draw_anim_sheet(
+                &assets.edie_run_anim,
+                EDIE_RUN_FRAMES,
+                EDIE_RUN_FPS,
+                elapsed,
+                logical_x,
+                logical_y,
+                vis_w,
+                vis_h,
+                cam,
+                WHITE,
+            );
+        }
+        PlayerState::Hit => {
+            draw_anim_sheet(
+                &assets.edie_hit_anim,
+                EDIE_HIT_FRAMES,
+                EDIE_HIT_FPS,
+                elapsed,
+                logical_x,
+                logical_y,
+                vis_w,
+                vis_h,
+                cam,
+                WHITE,
+            );
+        }
+        PlayerState::Ducking => {
+            // Duck: render shorter sprite, bottom-aligned
+            let duck_h = vis_h * 0.55;
+            let duck_y = player.y + PLAYER_H - duck_h;
+            let tex = &assets.edie_duck;
+            draw_tex_at(tex, logical_x, duck_y, vis_w, duck_h, cam, WHITE);
+        }
+        PlayerState::Jumping | PlayerState::Falling => {
+            let tex = &assets.edie_jump;
+            // Centered at the visual box
+            draw_tex_at(tex, logical_x, logical_y, vis_w, vis_h, cam, WHITE);
+        }
     }
-
-    let _ = &mut logical_x;
-    draw_tex_at(tex, logical_x, logical_y, tex_w, tex_h, cam, WHITE);
 }
 
 pub fn draw_obstacle(o: &Obstacle, assets: &AssetHandles, elapsed: f32, cam: &Camera) {

@@ -393,6 +393,61 @@ def make_background() -> None:
 # ============================================================
 # main
 # ============================================================
+def extract_gif_to_sheet(gif_name: str, out_name: str, target_h: int | None = None) -> None:
+    """Extract every frame of a GIF into a horizontal sprite sheet.
+
+    Frames are cropped to the union bounding box of all non-transparent
+    content, then tiled with 1 px transparent padding between frames.
+    """
+    p = SOURCE / gif_name
+    im = Image.open(p)
+    n = getattr(im, "n_frames", 1)
+    frames: list[Image.Image] = []
+    # Union bbox across all frames
+    union = None
+    for i in range(n):
+        im.seek(i)
+        fr = im.convert("RGBA")
+        bbox = fr.getbbox()
+        if bbox is None:
+            continue
+        if union is None:
+            union = bbox
+        else:
+            union = (
+                min(union[0], bbox[0]),
+                min(union[1], bbox[1]),
+                max(union[2], bbox[2]),
+                max(union[3], bbox[3]),
+            )
+    if union is None:
+        raise SystemExit(f"{gif_name}: empty frames")
+    for i in range(n):
+        im.seek(i)
+        fr = im.convert("RGBA").crop(union)
+        if target_h is not None and fr.height != target_h:
+            new_w = max(1, round(fr.width * target_h / fr.height))
+            fr = fr.resize((new_w, target_h), Image.NEAREST)
+        frames.append(fr)
+    sheet = tile_horizontal(frames)
+    save_png(sheet, out_name, palette_lock=False)
+    print(f"    ({n} frames, frame size {frames[0].size})")
+
+
+def process_gif_assets() -> None:
+    print("[EDIE] extracting gif animations")
+    # Running cycle (7 frames): bright-eyed idle blink
+    extract_gif_to_sheet("1000027545.gif", "edie_run_anim.png")
+    # Title screen idle (7 frames): looking around curiously
+    extract_gif_to_sheet("1000027548.gif", "edie_title_idle.png")
+    # Hit / dazed (17 frames): includes X-eye dizzy frames
+    extract_gif_to_sheet("1000027551.gif", "edie_hit_anim.png")
+    # Game over overlay (11 frames): sad teardrop emote
+    extract_gif_to_sheet("1000027553.gif", "edie_gameover_anim.png")
+    # Celebration (17 frames): happy closed-eye laugh
+    extract_gif_to_sheet("1000027555.gif", "edie_cheer_anim.png")
+
+
 def main() -> None:
     print(f"== EDIE Runner art generator ==")
     print(f"Source: {SOURCE}")
@@ -400,6 +455,8 @@ def main() -> None:
     print()
     run_im, jump_im = process_edie_refs(target_h=48)
     derive_edie_states(run_im)
+    print()
+    process_gif_assets()
     print()
     print("[obstacles]")
     make_coiled_cable()

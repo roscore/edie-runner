@@ -7,6 +7,9 @@ use crate::game::pickups::MAX_AURORA;
 use crate::game::score::Score;
 use crate::game::state::GameState;
 use crate::render::camera::{Camera, LOGICAL_H, LOGICAL_W};
+use crate::render::sprites::{
+    draw_anim_sheet, EDIE_GAMEOVER_FPS, EDIE_GAMEOVER_FRAMES, EDIE_TITLE_FPS, EDIE_TITLE_FRAMES,
+};
 use macroquad::prelude::*;
 
 pub fn draw_background(bg: &Background, assets: &AssetHandles, cam: &Camera) {
@@ -217,7 +220,13 @@ pub fn draw_hud(
     );
 }
 
-pub fn draw_overlay(state: GameState, score: &Score, cam: &Camera) {
+pub fn draw_overlay(
+    state: GameState,
+    score: &Score,
+    assets: &AssetHandles,
+    elapsed: f32,
+    cam: &Camera,
+) {
     let dim = match state {
         GameState::Title | GameState::Paused | GameState::GameOver => 0.45,
         _ => return,
@@ -231,14 +240,50 @@ pub fn draw_overlay(state: GameState, score: &Score, cam: &Camera) {
         Color::new(0.0, 0.0, 0.0, dim),
     );
 
-    let (cx, cy) = cam.to_screen(LOGICAL_W * 0.5, LOGICAL_H * 0.4);
+    // Mascot animation for Title and GameOver — shown above the text.
+    let mascot_size = 160.0;
+    let mascot_x = LOGICAL_W * 0.5 - mascot_size * 0.5;
+    let mascot_y = LOGICAL_H * 0.15;
+    match state {
+        GameState::Title => {
+            draw_anim_sheet(
+                &assets.edie_title_idle,
+                EDIE_TITLE_FRAMES,
+                EDIE_TITLE_FPS,
+                elapsed,
+                mascot_x,
+                mascot_y,
+                mascot_size,
+                mascot_size,
+                cam,
+                WHITE,
+            );
+        }
+        GameState::GameOver => {
+            draw_anim_sheet(
+                &assets.edie_gameover_anim,
+                EDIE_GAMEOVER_FRAMES,
+                EDIE_GAMEOVER_FPS,
+                elapsed,
+                mascot_x,
+                mascot_y,
+                mascot_size,
+                mascot_size,
+                cam,
+                WHITE,
+            );
+        }
+        _ => {}
+    }
+
+    let (cx, cy) = cam.to_screen(LOGICAL_W * 0.5, LOGICAL_H * 0.70);
     let title = match state {
         GameState::Title => "EDIE RUNNER",
         GameState::Paused => "PAUSED",
         GameState::GameOver => "GAME OVER",
         _ => "",
     };
-    let size = 64.0 * cam.scale;
+    let size = 56.0 * cam.scale;
     let dim_text = measure_text(title, None, size as u16, 1.0);
     draw_text(title, cx - dim_text.width * 0.5, cy, size, WHITE);
 
@@ -248,8 +293,8 @@ pub fn draw_overlay(state: GameState, score: &Score, cam: &Camera) {
         GameState::GameOver => format!("SCORE {} | HI {} | SPACE TO RETRY", score.current, score.high),
         GameState::Playing => return,
     };
-    let sub_size = 24.0 * cam.scale;
-    let (sx, sy) = cam.to_screen(LOGICAL_W * 0.5, LOGICAL_H * 0.6);
+    let sub_size = 22.0 * cam.scale;
+    let (sx, sy) = cam.to_screen(LOGICAL_W * 0.5, LOGICAL_H * 0.88);
     let dim_sub = measure_text(&sub, None, sub_size as u16, 1.0);
     draw_text(&sub, sx - dim_sub.width * 0.5, sy, sub_size, WHITE);
 }

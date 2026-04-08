@@ -101,7 +101,10 @@ async fn main() {
         }
         draw_player(&game.world.player, &assets, elapsed, &cam);
         draw_hud(&game.world.score, &game.world.dash, &assets, elapsed, &cam);
-        draw_overlay(game.state, &game.world.score, &cam);
+        // For Title/GameOver mascot animation, use wall-clock time so the
+        // animation plays even when game.world.elapsed is 0 (fresh world).
+        let overlay_time = get_time() as f32;
+        draw_overlay(game.state, &game.world.score, &assets, overlay_time, &cam);
 
         next_frame().await;
     }

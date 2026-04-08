@@ -16,7 +16,7 @@ pub const PLAYER_X: f32 = 200.0;
 
 /// Visible EDIE sprite body (the round blob occupying the bottom of the
 /// physics box). Collision uses this tighter box, not PLAYER_W/PLAYER_H.
-pub const SPRITE_BODY_W: f32 = 44.0;
+pub const SPRITE_BODY_W: f32 = 52.0;
 pub const SPRITE_BODY_H: f32 = 44.0;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

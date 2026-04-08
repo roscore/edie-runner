@@ -11,6 +11,13 @@ pub struct AssetHandles {
     pub edie_hit: Texture2D,
     pub edie_shadow: Texture2D,
 
+    // GIF-extracted animated sheets (from user-provided gifs).
+    pub edie_run_anim: Texture2D,
+    pub edie_title_idle: Texture2D,
+    pub edie_hit_anim: Texture2D,
+    pub edie_gameover_anim: Texture2D,
+    pub edie_cheer_anim: Texture2D,
+
     pub obstacle_cable: Texture2D,
     pub obstacle_dock: Texture2D,
     pub obstacle_cart: Texture2D,
@@ -56,6 +63,12 @@ pub async fn load_all() -> Result<AssetHandles, LoadError> {
         edie_dash: load_pixel("edie_dash.png").await?,
         edie_hit: load_pixel("edie_hit.png").await?,
         edie_shadow: load_pixel("edie_shadow.png").await?,
+
+        edie_run_anim: load_pixel("edie_run_anim.png").await?,
+        edie_title_idle: load_pixel("edie_title_idle.png").await?,
+        edie_hit_anim: load_pixel("edie_hit_anim.png").await?,
+        edie_gameover_anim: load_pixel("edie_gameover_anim.png").await?,
+        edie_cheer_anim: load_pixel("edie_cheer_anim.png").await?,
 
         obstacle_cable: load_pixel("obstacle_cable.png").await?,
         obstacle_dock: load_pixel("obstacle_dock.png").await?,
