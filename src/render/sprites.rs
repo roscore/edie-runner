@@ -188,13 +188,14 @@ pub fn draw_player(
 
     match player.state {
         PlayerState::Running => {
-            // Tiny bob for liveliness
+            // Tiny bob for liveliness. Use the happy/cheering face
+            // as the playable default (run_anim 7545 had a grumpy look).
             let bob = ((elapsed * 8.0).sin() * 1.0).round();
             logical_y += bob;
             draw_anim_sheet(
-                &assets.edie_run_anim,
-                EDIE_RUN_FRAMES,
-                EDIE_RUN_FPS,
+                &assets.edie_happy_run,
+                EDIE_CHEER_FRAMES,
+                10.0,
                 elapsed,
                 logical_x,
                 logical_y,
@@ -307,10 +308,16 @@ pub fn draw_obstacle(
                 &assets.obstacle_sign, f, SPARK_FRAME_W, SPARK_FRAME_H, 1.0, o.x, o.y, cam, WHITE,
             );
         }
-        ObstacleKind::Cat => {
+        ObstacleKind::CatOrange => {
             let f = frame_index(elapsed, 4.0, 2);
             draw_tex_frame(
-                &assets.obstacle_cat, f, 40.0, 28.0, 1.0, o.x, o.y, cam, WHITE,
+                &assets.obstacle_cat_orange, f, 44.0, 36.0, 1.0, o.x, o.y, cam, WHITE,
+            );
+        }
+        ObstacleKind::CatWhite => {
+            let f = frame_index(elapsed, 4.0, 2);
+            draw_tex_frame(
+                &assets.obstacle_cat_white, f, 44.0, 36.0, 1.0, o.x, o.y, cam, WHITE,
             );
         }
         ObstacleKind::Car => {
@@ -335,28 +342,16 @@ pub fn draw_obstacle(
             );
         }
         ObstacleKind::Amy => {
-            let f = frame_index(elapsed, 12.0, 4);
-            draw_tex_frame(
-                &assets.obstacle_amy, f, 44.0, 32.0, 1.0, o.x, o.y, cam, WHITE,
-            );
+            draw_tex_at(&assets.obstacle_amy, o.x, o.y, w, h, cam, WHITE);
         }
         ObstacleKind::AliceM1 => {
-            let f = frame_index(elapsed, 6.0, 2);
-            draw_tex_frame(
-                &assets.obstacle_alicem1, f, 36.0, 36.0, 1.0, o.x, o.y, cam, WHITE,
-            );
+            draw_tex_at(&assets.obstacle_alicem1, o.x, o.y, w, h, cam, WHITE);
         }
         ObstacleKind::Alice3 => {
-            let f = frame_index(elapsed, 4.0, 2);
-            draw_tex_frame(
-                &assets.obstacle_alice3, f, 32.0, 64.0, 1.0, o.x, o.y, cam, WHITE,
-            );
+            draw_tex_at(&assets.obstacle_alice3, o.x, o.y, w, h, cam, WHITE);
         }
         ObstacleKind::Alice4 => {
-            let f = frame_index(elapsed, 4.0, 2);
-            draw_tex_frame(
-                &assets.obstacle_alice4, f, 36.0, 68.0, 1.0, o.x, o.y, cam, WHITE,
-            );
+            draw_tex_at(&assets.obstacle_alice4, o.x, o.y, w, h, cam, WHITE);
         }
     }
 }

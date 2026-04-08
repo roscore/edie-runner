@@ -119,11 +119,17 @@ impl Game {
                 // Any key skips back to title
                 self.state = GameState::Title;
             }
-            (GameState::Playing, Action::Pause) => {
+            (GameState::Playing, Action::Pause) | (GameState::Playing, Action::Back) => {
                 self.state = GameState::Paused;
             }
-            (GameState::Paused, Action::Pause) | (GameState::Paused, Action::Confirm) => {
+            (GameState::Paused, Action::Pause) | (GameState::Paused, Action::Jump) => {
                 self.state = GameState::Playing;
+            }
+            (GameState::Paused, Action::Back) | (GameState::Paused, Action::Confirm) => {
+                // ESC / Q from pause returns to the title screen, abandoning
+                // the current run.
+                self.state = GameState::Title;
+                self.countdown_remaining = 0.0;
             }
             (GameState::GameOver, Action::Confirm) | (GameState::GameOver, Action::Jump) => {
                 self.start_run(storage);

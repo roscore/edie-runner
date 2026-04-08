@@ -468,7 +468,7 @@ pub fn draw_overlay(
 
     let sub = match state {
         GameState::Title => "PRESS SPACE TO START".to_string(),
-        GameState::Paused => "PRESS P OR SPACE TO RESUME".to_string(),
+        GameState::Paused => "SPACE RESUME    ESC = TITLE".to_string(),
         GameState::GameOver => format!("SCORE {} | HI {} | SPACE TO RETRY", score.current, score.high),
         GameState::Playing
         | GameState::Help
@@ -647,34 +647,79 @@ pub fn draw_help(assets: &AssetHandles, elapsed: f32, cam: &Camera) {
 
 /// Ending screen shown after the player survives the 60-second boss fight.
 pub fn draw_ending(assets: &AssetHandles, elapsed: f32, cam: &Camera) {
-    // Warm victory background
-    let (x0, y0) = cam.to_screen(0.0, 0.0);
-    draw_rectangle(
-        x0,
-        y0,
-        cam.scaled(LOGICAL_W),
-        cam.scaled(LOGICAL_H),
-        Color::new(0.96, 0.90, 0.75, 1.0),
-    );
-    // Sunray bands
-    for i in 0..12 {
-        let angle = i as f32 * 0.524 + elapsed * 0.3;
-        let ox = angle.cos() * 60.0;
-        let oy = angle.sin() * 60.0;
-        let (cx, cy) = cam.to_screen(640.0 + ox, 200.0 + oy);
+    // Warm sunrise gradient (3 bands)
+    for (i, col) in [
+        (0.0, 100.0, Color::new(1.0, 0.78, 0.55, 1.0)),
+        (100.0, 210.0, Color::new(1.0, 0.90, 0.65, 1.0)),
+        (210.0, 400.0, Color::new(0.98, 0.95, 0.80, 1.0)),
+    ]
+    .iter()
+    .enumerate()
+    {
+        let _ = i;
+        let (y0, y1, color) = col;
+        let (sx, sy) = cam.to_screen(0.0, *y0);
         draw_rectangle(
-            cx - cam.scaled(200.0),
-            cy - cam.scaled(10.0),
-            cam.scaled(400.0),
-            cam.scaled(20.0),
-            Color::new(1.0, 0.95, 0.8, 0.12),
+            sx,
+            sy,
+            cam.scaled(LOGICAL_W),
+            cam.scaled(y1 - y0),
+            *color,
         );
     }
 
-    // Big cheering EDIE
-    let mascot_size = 200.0;
+    // Rotating sun rays
+    let cx_r = 640.0;
+    let cy_r = 180.0;
+    for i in 0..14 {
+        let angle = i as f32 * 0.449 + elapsed * 0.35;
+        let ox = angle.cos() * 260.0;
+        let oy = angle.sin() * 260.0;
+        let (x1, y1) = cam.to_screen(cx_r, cy_r);
+        let (x2, y2) = cam.to_screen(cx_r + ox, cy_r + oy);
+        draw_line(
+            x1,
+            y1,
+            x2,
+            y2,
+            14.0 * cam.scale,
+            Color::new(1.0, 0.95, 0.75, 0.18),
+        );
+    }
+    // Central warm sun halo
+    let (sxh, syh) = cam.to_screen(cx_r, cy_r);
+    draw_circle(sxh, syh, 90.0 * cam.scale, Color::new(1.0, 0.95, 0.7, 0.35));
+    draw_circle(sxh, syh, 56.0 * cam.scale, Color::new(1.0, 0.98, 0.85, 0.55));
+
+    // Floating confetti hearts (deterministic)
+    for i in 0..18 {
+        let seed = i as f32 * 0.73;
+        let fx = ((seed * 101.0).sin() * 560.0) + 640.0;
+        let drift = (elapsed * 20.0 + seed * 40.0) % 420.0;
+        let fy = 420.0 - drift;
+        let sway = (elapsed * 1.4 + seed * 3.1).sin() * 12.0;
+        let (hx, hy) = cam.to_screen(fx + sway, fy);
+        // Little pink heart
+        draw_rectangle(
+            hx,
+            hy,
+            cam.scaled(4.0),
+            cam.scaled(4.0),
+            Color::new(1.0, 0.55, 0.65, 0.85),
+        );
+        draw_rectangle(
+            hx + cam.scaled(4.0),
+            hy + cam.scaled(1.0),
+            cam.scaled(3.0),
+            cam.scaled(3.0),
+            Color::new(1.0, 0.55, 0.65, 0.85),
+        );
+    }
+
+    // Big cheering EDIE, gently bobbing
+    let mascot_size = 220.0;
     let mx = 640.0 - mascot_size * 0.5;
-    let my = 60.0 + ((elapsed * 2.0).sin() * 6.0);
+    let my = 36.0 + ((elapsed * 2.0).sin() * 8.0);
     let frame_w = (assets.edie_cheer_anim.width() - 16.0) / 17.0;
     let frame_h = assets.edie_cheer_anim.height();
     let idx = ((elapsed * 12.0) as usize) % 17;
@@ -696,52 +741,74 @@ pub fn draw_ending(assets: &AssetHandles, elapsed: f32, cam: &Camera) {
         },
     );
 
-    // Title text
-    let title = "EDIE MADE IT HOME";
-    let size = 52.0 * cam.scale;
+    // Banner title "EDIE MADE IT HOME"
+    let title = "EDIE MADE IT HOME!";
+    let size = 56.0 * cam.scale;
     let dim = measure_text(title, None, size as u16, 1.0);
-    let (tx, ty) = cam.to_screen(LOGICAL_W * 0.5, 300.0);
-    // Shadow
-    draw_text(
-        title,
-        tx - dim.width * 0.5 + 3.0,
-        ty + 3.0,
-        size,
-        Color::new(0.3, 0.15, 0.05, 0.5),
-    );
+    let (tx, ty) = cam.to_screen(LOGICAL_W * 0.5, 282.0);
+    // Shadow layers
+    for (ox, oy, a) in [(5.0, 5.0, 0.4), (3.0, 3.0, 0.5)] {
+        draw_text(
+            title,
+            tx - dim.width * 0.5 + ox,
+            ty + oy,
+            size,
+            Color::new(0.35, 0.12, 0.02, a),
+        );
+    }
+    let pulse_color = 0.95 + (elapsed * 2.0).sin() * 0.05;
     draw_text(
         title,
         tx - dim.width * 0.5,
         ty,
         size,
-        Color::new(0.95, 0.35, 0.1, 1.0),
+        Color::new(pulse_color, 0.35, 0.08, 1.0),
     );
 
-    // Subtitle
-    let sub = "EDIE survived the corona rain and reached AeiROBOT HQ.";
-    let sub_size = 20.0 * cam.scale;
-    let sd = measure_text(sub, None, sub_size as u16, 1.0);
-    let (sx2, sy2) = cam.to_screen(LOGICAL_W * 0.5, 340.0);
+    // Credit / subtitle lines
+    let sub_lines = [
+        "Left behind in a pop-up store,",
+        "EDIE journeyed across Pangyo, the highway, and Ansan",
+        "to come home to AeiROBOT.",
+    ];
+    let sub_size = 16.0 * cam.scale;
+    for (i, line) in sub_lines.iter().enumerate() {
+        let sd = measure_text(line, None, sub_size as u16, 1.0);
+        let (sx2, sy2) = cam.to_screen(LOGICAL_W * 0.5, 310.0 + (i as f32) * 18.0);
+        draw_text(
+            line,
+            sx2 - sd.width * 0.5,
+            sy2,
+            sub_size,
+            Color::new(0.2, 0.12, 0.04, 1.0),
+        );
+    }
+
+    // Credit line
+    let credit = "- thank you for playing -";
+    let csize = 14.0 * cam.scale;
+    let cd = measure_text(credit, None, csize as u16, 1.0);
+    let (ccx, ccy) = cam.to_screen(LOGICAL_W * 0.5, 368.0);
     draw_text(
-        sub,
-        sx2 - sd.width * 0.5,
-        sy2,
-        sub_size,
-        Color::new(0.2, 0.15, 0.1, 1.0),
+        credit,
+        ccx - cd.width * 0.5,
+        ccy,
+        csize,
+        Color::new(0.35, 0.25, 0.12, 0.85),
     );
 
     // Prompt
-    let prompt = "PRESS SPACE TO RETURN TO TITLE";
+    let prompt = "PRESS SPACE TO RETURN";
     let psize = 18.0 * cam.scale;
     let pd = measure_text(prompt, None, psize as u16, 1.0);
-    let (px, py) = cam.to_screen(LOGICAL_W * 0.5, 380.0);
-    let pulse = 0.6 + 0.4 * (elapsed * 3.0).sin().abs();
+    let (px, py) = cam.to_screen(LOGICAL_W * 0.5, 390.0);
+    let pulse = 0.55 + 0.45 * (elapsed * 3.0).sin().abs();
     draw_text(
         prompt,
         px - pd.width * 0.5,
         py,
         psize,
-        Color::new(0.2, 0.15, 0.1, pulse),
+        Color::new(0.25, 0.15, 0.05, pulse),
     );
 }
 

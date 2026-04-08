@@ -12,7 +12,8 @@ pub enum ObstacleKind {
     ShoppingCart,
     TrafficCone,
     SignBoard,
-    Cat,
+    CatOrange,
+    CatWhite,
     // Highway hazards
     Car,    // charging car
     Deer,   // sudden leap
@@ -51,26 +52,26 @@ impl ObstacleKind {
             ObstacleKind::ShoppingCart => (80.0, 44.0),
             ObstacleKind::TrafficCone => (24.0, 32.0),
             ObstacleKind::SignBoard => (24.0, 24.0),
-            ObstacleKind::Cat => (40.0, 28.0),
+            ObstacleKind::CatOrange => (44.0, 36.0),
+            ObstacleKind::CatWhite => (44.0, 36.0),
             ObstacleKind::Car => (96.0, 40.0),
             ObstacleKind::Deer => (48.0, 52.0),
             ObstacleKind::BalloonDrone => (40.0, 48.0),
             ObstacleKind::VacuumBot => (40.0, 20.0),
-            ObstacleKind::Amy => (44.0, 32.0),
-            ObstacleKind::AliceM1 => (36.0, 36.0),
-            ObstacleKind::Alice3 => (32.0, 64.0),
-            ObstacleKind::Alice4 => (36.0, 68.0),
+            ObstacleKind::Amy => (24.0, 60.0),
+            ObstacleKind::AliceM1 => (28.0, 64.0),
+            ObstacleKind::Alice3 => (25.0, 64.0),
+            ObstacleKind::Alice4 => (27.0, 68.0),
         }
     }
 
     pub fn y_for_kind(&self) -> f32 {
         let (_, h) = self.size();
         match self {
-            // Amy hovers so the player MUST duck.
-            ObstacleKind::Amy => GROUND_Y - 56.0,
-            // Balloon drone forces a duck — positioned just above running height.
-            ObstacleKind::BalloonDrone => GROUND_Y - 64.0,
+            // Balloon drone hovers at duck-height so the player MUST duck.
+            ObstacleKind::BalloonDrone => GROUND_Y - 50.0,
             ObstacleKind::SignBoard => GROUND_Y - 160.0,
+            // Amy hovers above ground but is ground-resting (a walker, not a flyer).
             _ => GROUND_Y - h,
         }
     }
@@ -79,9 +80,7 @@ impl ObstacleKind {
     pub fn has_ground_shadow(&self) -> bool {
         !matches!(
             self,
-            ObstacleKind::Amy
-                | ObstacleKind::BalloonDrone
-                | ObstacleKind::SignBoard
+            ObstacleKind::BalloonDrone | ObstacleKind::SignBoard
         )
     }
 }
@@ -92,12 +91,30 @@ pub struct Obstacle {
     pub x: f32,
     pub y: f32,
     pub alive: bool,
+    /// Extra horizontal velocity on top of world scroll (negative = charging
+    /// at the player faster than background).
+    pub extra_vx: f32,
+    /// Vertical velocity. Used by Deer leap and Car dart.
+    pub vy: f32,
+    /// Seconds the obstacle has existed in the world — drives timed patterns.
+    pub age: f32,
+    /// Pattern-specific counter (e.g. deer-leap trigger).
+    pub pattern_t: f32,
 }
 
 impl Obstacle {
     pub fn new(kind: ObstacleKind, x: f32) -> Self {
         let y = kind.y_for_kind();
-        Self { kind, x, y, alive: true }
+        Self {
+            kind,
+            x,
+            y,
+            alive: true,
+            extra_vx: 0.0,
+            vy: 0.0,
+            age: 0.0,
+            pattern_t: 0.0,
+        }
     }
 
     pub fn hitbox(&self) -> Aabb {
@@ -143,19 +160,18 @@ impl ObstacleField {
 
         match stage {
             Stage::DepartmentStore => {
-                // Inside a pop-up store: coffee cups, cones, a stray cat,
-                // abandoned shopping carts.
                 pool.push(ObstacleKind::CoffeeCup);
                 pool.push(ObstacleKind::CoffeeCup);
-                pool.push(ObstacleKind::Cat);
+                pool.push(ObstacleKind::CatOrange);
+                pool.push(ObstacleKind::CatWhite);
                 pool.push(ObstacleKind::TrafficCone);
                 pool.push(ObstacleKind::ShoppingCart);
                 pool.push(ObstacleKind::BalloonDrone);
             }
             Stage::PangyoStreet => {
-                // City sidewalk: street obstacles + first vacuum bots.
                 pool.push(ObstacleKind::CoffeeCup);
-                pool.push(ObstacleKind::Cat);
+                pool.push(ObstacleKind::CatOrange);
+                pool.push(ObstacleKind::CatWhite);
                 pool.push(ObstacleKind::TrafficCone);
                 pool.push(ObstacleKind::ShoppingCart);
                 pool.push(ObstacleKind::BalloonDrone);
@@ -184,7 +200,8 @@ impl ObstacleField {
             }
             Stage::Ansan => {
                 // Hanyang ERICA campus: a mix, with AeiROBOT presence.
-                pool.push(ObstacleKind::Cat);
+                pool.push(ObstacleKind::CatOrange);
+                pool.push(ObstacleKind::CatWhite);
                 pool.push(ObstacleKind::TrafficCone);
                 pool.push(ObstacleKind::Amy);
                 pool.push(ObstacleKind::BalloonDrone);
@@ -231,7 +248,42 @@ impl ObstacleField {
         use crate::game::difficulty::{stage_for_tier, Stage};
         let dx = speed * dt;
         for o in &mut self.obstacles {
+            o.age += dt;
+            // Baseline scroll
             o.x -= dx;
+            // Extra charge velocity
+            o.x += o.extra_vx * dt;
+            // Vertical pattern
+            o.y += o.vy * dt;
+            let ground_y = o.kind.y_for_kind();
+            if o.y > ground_y && o.vy > 0.0 {
+                o.y = ground_y;
+                o.vy = 0.0;
+            }
+
+            match o.kind {
+                ObstacleKind::Car => {
+                    // Idle cruise, then random surge toward the player.
+                    if o.pattern_t <= 0.0 && o.age > 0.25 && o.age < 0.4 {
+                        // One-time commit to a surge speed
+                        o.extra_vx = -(rng.gen_range(120.0..220.0));
+                        o.pattern_t = 1.0;
+                    }
+                }
+                ObstacleKind::Deer => {
+                    // Deer leaps diagonally: wait, then launch upward + charge.
+                    if o.pattern_t <= 0.0 && o.x < 1100.0 && o.age > 0.35 {
+                        o.vy = -220.0;
+                        o.extra_vx = -(rng.gen_range(90.0..170.0));
+                        o.pattern_t = 1.0;
+                    }
+                    // Gravity on the leap
+                    if o.pattern_t > 0.0 {
+                        o.vy += 520.0 * dt;
+                    }
+                }
+                _ => {}
+            }
         }
         self.obstacles.retain(|o| o.alive && o.x + o.kind.size().0 > -50.0);
 
@@ -273,7 +325,8 @@ mod tests {
             ObstacleKind::ShoppingCart,
             ObstacleKind::TrafficCone,
             ObstacleKind::SignBoard,
-            ObstacleKind::Cat,
+            ObstacleKind::CatOrange,
+            ObstacleKind::CatWhite,
             ObstacleKind::VacuumBot,
             ObstacleKind::Amy,
             ObstacleKind::AliceM1,
@@ -293,13 +346,14 @@ mod tests {
     #[test]
     fn spawn_respects_min_spacing_in_normal_stages() {
         use crate::game::difficulty::{stage_for_tier, Stage, SCORE_PER_TIER};
-        // Only check normal stages — AeiROBOT Office/CEORoom intentionally
-        // use tighter density.
+        // Only check static-spacing stages. Highway obstacles (Car, Deer)
+        // use dynamic charge/leap patterns so their spacing is not stable by
+        // design. CEO Room uses intentionally tighter density.
         for tier in 0..=6u32 {
             let score = tier * SCORE_PER_TIER;
             if !matches!(
                 stage_for_tier(tier),
-                Stage::DepartmentStore | Stage::PangyoStreet | Stage::Highway | Stage::Ansan
+                Stage::DepartmentStore | Stage::PangyoStreet | Stage::Ansan
             ) {
                 continue;
             }

@@ -7,8 +7,8 @@ use rand::Rng;
 
 pub const BOSS_DURATION: f32 = 60.0;
 pub const BOSS_INTRO_DURATION: f32 = 3.5;
-pub const VIRUS_W: f32 = 60.0;
-pub const VIRUS_H: f32 = 60.0;
+pub const VIRUS_W: f32 = 54.0;
+pub const VIRUS_H: f32 = 54.0;
 pub const PLAYER_SIDE_SPEED: f32 = 520.0;
 
 // Visual EDIE size in boss mode (must match draw_boss_mode).
@@ -24,11 +24,11 @@ pub const BOSS_X: f32 = 640.0;
 pub const BOSS_Y_BASE: f32 = 110.0;
 pub const BOSS_SIZE: f32 = 180.0;
 
-// Laser
-pub const LASER_COOLDOWN: f32 = 4.0;
-pub const LASER_WARN: f32 = 1.0;
-pub const LASER_FIRE: f32 = 0.7;
-pub const LASER_WIDTH: f32 = 96.0;
+// Laser (slightly slower cadence + longer warn time)
+pub const LASER_COOLDOWN: f32 = 5.5;
+pub const LASER_WARN: f32 = 1.4;
+pub const LASER_FIRE: f32 = 0.6;
+pub const LASER_WIDTH: f32 = 84.0;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum VirusColor {
@@ -119,22 +119,21 @@ impl BossWorld {
 
         let progress = (self.elapsed / BOSS_DURATION).clamp(0.0, 1.0);
 
-        // Virus spawn — much denser, bigger, faster
+        // Virus spawn tuning — slightly less oppressive than before.
         self.spawn_timer -= dt;
-        let spawn_interval = 0.30 - progress * 0.24; // 0.30s -> 0.06s
+        let spawn_interval = 0.42 - progress * 0.26; // 0.42s -> 0.16s
         if self.spawn_timer <= 0.0 {
-            let count = if progress > 0.66 {
-                5
-            } else if progress > 0.33 {
-                4
-            } else {
+            let count = if progress > 0.70 {
+                3
+            } else if progress > 0.35 {
                 2
+            } else {
+                1
             };
             for _ in 0..count {
                 let x = rng.gen_range(0.0..=(1280.0 - VIRUS_W));
-                // Faster fall speeds, escalate over time
-                let vy = rng.gen_range(320.0..480.0) + self.elapsed * 9.0;
-                let vx = rng.gen_range(-60.0..60.0);
+                let vy = rng.gen_range(260.0..380.0) + self.elapsed * 5.0;
+                let vx = rng.gen_range(-45.0..45.0);
                 let color = if rng.gen_bool(0.5) {
                     VirusColor::Green
                 } else {
@@ -142,7 +141,7 @@ impl BossWorld {
                 };
                 self.viruses.push(Virus { x, y: -VIRUS_H, vy, vx, color, alive: true });
             }
-            self.spawn_timer = spawn_interval.max(0.04);
+            self.spawn_timer = spawn_interval.max(0.09);
         }
 
         // Advance viruses

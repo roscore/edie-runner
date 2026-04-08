@@ -239,105 +239,129 @@ def make_shopping_cart() -> None:
 
 
 def make_cat() -> None:
-    """Sitting orange tabby cat, facing the player - 2-frame tail swish."""
+    _make_cat_variant("orange", (235, 150, 70, 255), (180, 100, 40, 255), (255, 220, 170, 255))
+    _make_cat_variant("white", (252, 252, 252, 255), (200, 200, 210, 255), (240, 240, 245, 255))
+
+
+def _make_cat_variant(variant: str, body, body_d, belly) -> None:
+    """Chibi round cat, 2-frame bob. Oversized head, huge sparkly eyes."""
     frames = []
-    orange = (220, 130, 50, 255)
-    orange_d = (150, 80, 25, 255)
-    belly = (250, 200, 130, 255)
-    pink = (240, 140, 160, 255)
+    pink = (255, 155, 180, 255)
+    pink_d = (220, 100, 140, 255)
     out = EDIE_OUTLINE
     white = EDIE_WHITE
     for f in range(2):
-        w, h = 40, 28
+        w, h = 44, 36
         im = new_canvas(w, h)
         d = ImageDraw.Draw(im)
-        # Body (haunches, sitting)
-        # Back arch
-        d.ellipse((8, 12, 30, 26), fill=orange, outline=out, width=1)
-        # Front chest / belly
-        d.ellipse((12, 14, 26, 27), fill=belly)
-        # Front legs
-        d.rectangle((14, 20, 17, 27), fill=orange, outline=out, width=1)
-        d.rectangle((21, 20, 24, 27), fill=orange, outline=out, width=1)
-        # Paws
-        d.rectangle((13, 26, 18, 27), fill=out)
-        d.rectangle((20, 26, 25, 27), fill=out)
-        # Back haunch bump
-        d.ellipse((26, 16, 34, 25), fill=orange, outline=out, width=1)
-        # Tail — curled up behind, swishes
-        swish = f
-        tail_pts = [
-            (32, 20 + swish),
-            (36, 18 + swish),
-            (38, 12 + swish),
-            (36, 6),
-            (32, 4),
-        ]
-        for i in range(len(tail_pts) - 1):
-            d.line((tail_pts[i], tail_pts[i + 1]), fill=orange, width=3)
-            d.line((tail_pts[i], tail_pts[i + 1]), fill=out)
-        # Tail tip
-        d.ellipse((30, 2, 34, 6), fill=orange, outline=out, width=1)
-        # Head (larger, front-facing)
-        head_cx = 19
-        head_cy = 10
-        d.ellipse((head_cx - 9, head_cy - 8, head_cx + 9, head_cy + 8), fill=orange, outline=out, width=1)
-        # Cheeks
-        d.ellipse((head_cx - 8, head_cy + 1, head_cx - 2, head_cy + 6), fill=belly)
-        d.ellipse((head_cx + 2, head_cy + 1, head_cx + 8, head_cy + 6), fill=belly)
-        # Ears (triangles)
+        bob = f  # 1-pixel up/down bob
+
+        # ----- Body: round blob taking the lower half -----
+        body_top = 14 + bob
+        body_bot = 34
+        d.ellipse((8, body_top, w - 9, body_bot), fill=body, outline=out, width=1)
+        # Belly
+        d.ellipse((12, body_top + 4, w - 13, body_bot - 1), fill=belly)
+        # Little feet (pink beans peeking out)
+        d.ellipse((13, body_bot - 4, 17, body_bot), fill=pink, outline=out, width=1)
+        d.ellipse((w - 18, body_bot - 4, w - 14, body_bot), fill=pink, outline=out, width=1)
+        # Tail curled upward (swish)
+        tx = w - 10
+        ty = body_top + 3
+        swish = f * 2
+        for i in range(5):
+            ox = tx + i - swish
+            oy = ty - i * 2
+            d.ellipse((ox - 2, oy - 2, ox + 2, oy + 2), fill=body, outline=out, width=1)
+        # Tail tip (pink/cream)
+        d.ellipse((tx + 3 - swish, ty - 11, tx + 6 - swish, ty - 8), fill=belly, outline=out, width=1)
+
+        # ----- Head: huge chibi circle overlapping body -----
+        head_cx = w // 2
+        head_cy = 13 + bob
+        head_r = 12
+        d.ellipse(
+            (head_cx - head_r, head_cy - head_r, head_cx + head_r, head_cy + head_r),
+            fill=body,
+            outline=out,
+            width=1,
+        )
+        # Forehead highlight
+        d.ellipse(
+            (head_cx - 8, head_cy - 10, head_cx + 4, head_cy - 3),
+            fill=belly,
+        )
+
+        # Ears (triangular, pink inner)
         d.polygon(
-            [(head_cx - 9, head_cy - 6), (head_cx - 6, head_cy - 10), (head_cx - 3, head_cy - 6)],
-            fill=orange,
+            [(head_cx - 11, head_cy - 5), (head_cx - 9, head_cy - 13), (head_cx - 4, head_cy - 9)],
+            fill=body,
             outline=out,
         )
         d.polygon(
-            [(head_cx + 3, head_cy - 6), (head_cx + 6, head_cy - 10), (head_cx + 9, head_cy - 6)],
-            fill=orange,
+            [(head_cx + 11, head_cy - 5), (head_cx + 9, head_cy - 13), (head_cx + 4, head_cy - 9)],
+            fill=body,
             outline=out,
         )
-        # Inner ears (pink)
         d.polygon(
-            [(head_cx - 7, head_cy - 6), (head_cx - 6, head_cy - 9), (head_cx - 5, head_cy - 6)],
+            [(head_cx - 9, head_cy - 6), (head_cx - 8, head_cy - 10), (head_cx - 6, head_cy - 8)],
             fill=pink,
         )
         d.polygon(
-            [(head_cx + 5, head_cy - 6), (head_cx + 6, head_cy - 9), (head_cx + 7, head_cy - 6)],
+            [(head_cx + 9, head_cy - 6), (head_cx + 8, head_cy - 10), (head_cx + 6, head_cy - 8)],
             fill=pink,
         )
-        # Eyes — big green with slit pupils, alert cat
-        # Eye whites
-        d.ellipse((head_cx - 6, head_cy - 3, head_cx - 2, head_cy + 1), fill=white, outline=out)
-        d.ellipse((head_cx + 2, head_cy - 3, head_cx + 6, head_cy + 1), fill=white, outline=out)
-        # Green iris
-        d.ellipse((head_cx - 5, head_cy - 2, head_cx - 3, head_cy + 0), fill=(100, 200, 120, 255))
-        d.ellipse((head_cx + 3, head_cy - 2, head_cx + 5, head_cy + 0), fill=(100, 200, 120, 255))
-        # Black slit pupils
-        d.point((head_cx - 4, head_cy - 1), fill=out)
-        d.point((head_cx + 4, head_cy - 1), fill=out)
-        # Nose
+
+        # ----- HUGE sparkly chibi eyes -----
+        eye_y = head_cy + 1
+        # Left eye (big round)
+        d.ellipse((head_cx - 7, eye_y - 3, head_cx - 2, eye_y + 3), fill=out)
+        d.ellipse((head_cx - 6, eye_y - 2, head_cx - 3, eye_y + 2), fill=(80, 160, 220, 255))
+        d.point((head_cx - 5, eye_y - 1), fill=white)  # sparkle
+        d.point((head_cx - 4, eye_y + 1), fill=(200, 240, 255, 255))
+        # Right eye
+        d.ellipse((head_cx + 2, eye_y - 3, head_cx + 7, eye_y + 3), fill=out)
+        d.ellipse((head_cx + 3, eye_y - 2, head_cx + 6, eye_y + 2), fill=(80, 160, 220, 255))
+        d.point((head_cx + 4, eye_y - 1), fill=white)
+        d.point((head_cx + 5, eye_y + 1), fill=(200, 240, 255, 255))
+
+        # ----- Tiny triangular nose -----
         d.polygon(
-            [(head_cx - 1, head_cy + 2), (head_cx + 1, head_cy + 2), (head_cx, head_cy + 4)],
-            fill=pink,
+            [(head_cx - 1, eye_y + 4), (head_cx + 1, eye_y + 4), (head_cx, eye_y + 5)],
+            fill=pink_d,
         )
-        # Mouth
-        d.line((head_cx, head_cy + 4, head_cx - 1, head_cy + 5), fill=out)
-        d.line((head_cx, head_cy + 4, head_cx + 1, head_cy + 5), fill=out)
-        # Whiskers
-        d.line((head_cx - 10, head_cy + 3, head_cx - 5, head_cy + 4), fill=out)
-        d.line((head_cx - 10, head_cy + 5, head_cx - 5, head_cy + 5), fill=out)
-        d.line((head_cx + 5, head_cy + 4, head_cx + 10, head_cy + 3), fill=out)
-        d.line((head_cx + 5, head_cy + 5, head_cx + 10, head_cy + 5), fill=out)
-        # Tabby stripes on head
-        d.line((head_cx - 3, head_cy - 7, head_cx - 3, head_cy - 5), fill=orange_d)
-        d.line((head_cx, head_cy - 8, head_cx, head_cy - 5), fill=orange_d)
-        d.line((head_cx + 3, head_cy - 7, head_cx + 3, head_cy - 5), fill=orange_d)
-        # Tabby stripe on back
-        d.line((14, 13, 20, 12), fill=orange_d)
-        d.line((22, 13, 28, 12), fill=orange_d)
+        # ----- Cute smiley mouth -----
+        d.point((head_cx - 1, eye_y + 6), fill=out)
+        d.point((head_cx, eye_y + 7), fill=out)
+        d.point((head_cx + 1, eye_y + 6), fill=out)
+
+        # Rosy cheeks
+        d.ellipse((head_cx - 11, eye_y + 2, head_cx - 8, eye_y + 5), fill=(255, 180, 200, 180))
+        d.ellipse((head_cx + 8, eye_y + 2, head_cx + 11, eye_y + 5), fill=(255, 180, 200, 180))
+
+        # Whiskers (short, just 1px each)
+        d.point((head_cx - 12, eye_y + 4), fill=out)
+        d.point((head_cx - 13, eye_y + 4), fill=out)
+        d.point((head_cx + 12, eye_y + 4), fill=out)
+        d.point((head_cx + 13, eye_y + 4), fill=out)
+
+        # ----- Variant-specific markings -----
+        if variant == "orange":
+            # Tabby stripes on forehead
+            d.line((head_cx - 4, head_cy - 11, head_cx - 4, head_cy - 9), fill=body_d)
+            d.line((head_cx, head_cy - 12, head_cx, head_cy - 9), fill=body_d)
+            d.line((head_cx + 4, head_cy - 11, head_cx + 4, head_cy - 9), fill=body_d)
+            # Back stripes
+            d.line((15, body_top + 2, 20, body_top + 1), fill=body_d)
+            d.line((24, body_top + 2, 29, body_top + 1), fill=body_d)
+        else:
+            # White cat: subtle grey shading on ear + body
+            d.line((head_cx - 10, head_cy - 3, head_cx - 9, head_cy + 1), fill=body_d)
+            d.line((head_cx + 9, head_cy - 3, head_cx + 10, head_cy + 1), fill=body_d)
+
         frames.append(im)
     sheet = tile_horizontal(frames)
-    save_png(sheet, "obstacle_cat.png", palette_lock=False)
+    save_png(sheet, f"obstacle_cat_{variant}.png", palette_lock=False)
 
 
 def make_vacuum_bot() -> None:
@@ -365,6 +389,49 @@ def make_vacuum_bot() -> None:
         frames.append(im)
     sheet = tile_horizontal(frames)
     save_png(sheet, "obstacle_vacuum.png", palette_lock=False)
+
+
+def process_robot_refs() -> None:
+    """Downsample the user-provided AeiROBOT reference PNGs into game-ready
+    sprites, preserving their silhouette and palette."""
+    print("[robots] downsampling AeiROBOT reference PNGs")
+
+    def downsample(src_name: str, target_h: int, out_name: str) -> None:
+        p = SOURCE / src_name
+        im = Image.open(p).convert("RGBA")
+        a = np.array(im)
+        alpha = a[:, :, 3]
+        rows = np.any(alpha > 40, axis=1)
+        cols = np.any(alpha > 40, axis=0)
+        if not rows.any():
+            return
+        y0, y1 = np.where(rows)[0][[0, -1]]
+        x0, x1 = np.where(cols)[0][[0, -1]]
+        cropped = im.crop((x0, y0, x1 + 1, y1 + 1))
+        cw, ch = cropped.size
+        new_w = max(1, round(cw * target_h / ch))
+        small = cropped.resize((new_w, target_h), Image.LANCZOS)
+        # Quantize to a small palette to tighten edges
+        pal_im = small.convert("RGB").quantize(colors=10, method=Image.FASTOCTREE)
+        quant_rgb = pal_im.convert("RGB")
+        out = Image.new("RGBA", small.size)
+        orig = np.array(small)
+        q = np.array(quant_rgb)
+        for y in range(small.size[1]):
+            for x in range(small.size[0]):
+                if orig[y, x, 3] < 80:
+                    out.putpixel((x, y), (0, 0, 0, 0))
+                else:
+                    r, g, b = q[y, x]
+                    out.putpixel((x, y), (int(r), int(g), int(b), 255))
+        save_png(out, out_name, palette_lock=False)
+
+    # Target heights chosen to fit game world (Alice3 ~64, Alice4 ~68,
+    # AliceM1 ~64, Amy ~60) -- matches ObstacleKind::size().
+    downsample("alice3.png", 64, "obstacle_alice3.png")
+    downsample("alice4.png", 68, "obstacle_alice4.png")
+    downsample("alice_m1.png", 64, "obstacle_alicem1.png")
+    downsample("aimy.png", 60, "obstacle_amy.png")
 
 
 def make_amy() -> None:
@@ -1549,8 +1616,10 @@ def extract_gif_to_sheet(gif_name: str, out_name: str, target_h: int | None = No
 
 def process_gif_assets() -> None:
     print("[EDIE] extracting gif animations")
-    # Running cycle (7f): bright-eyed idle blink
+    # Running cycle (7f): bright-eyed idle blink - also used as boss-mode EDIE
     extract_gif_to_sheet("1000027545.gif", "edie_run_anim.png")
+    # Happy smile cycle (17f) - now the DEFAULT playable running face
+    extract_gif_to_sheet("1000027555.gif", "edie_happy_run.png")
     # Title idle variant 1 (7f): looking around curiously
     extract_gif_to_sheet("1000027548.gif", "edie_title_idle.png")
     # Sad closed eyes (7f): GameOver alternate
@@ -1589,10 +1658,12 @@ def main() -> None:
     make_deer()
     make_balloon_drone()
     make_vacuum_bot()
+    # Procedural fallbacks first -- then real PNGs overwrite if present.
     make_amy()
     make_alice_m1()
     make_alice3()
     make_alice4()
+    process_robot_refs()
     print()
     print("[pickups]")
     make_aurora()
