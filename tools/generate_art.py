@@ -378,31 +378,227 @@ def _make_cat_variant(variant: str, body, body_d, belly) -> None:
     save_png(sheet, f"obstacle_cat_{variant}.png", palette_lock=False)
 
 
-def make_vacuum_bot() -> None:
-    """Generic round vacuum robot — 4-frame indicator blink."""
+def make_box_bot() -> None:
+    """Boxy mobile delivery bot - 44x40 chassis + wheels, 2-frame light blink."""
     frames = []
-    for f in range(4):
-        w, h = 40, 20
+    for f in range(2):
+        w, h = 44, 40
         im = new_canvas(w, h)
         d = ImageDraw.Draw(im)
-        # Disc body
-        d.ellipse((1, 4, w - 2, h - 1), fill=(220, 220, 230, 255), outline=EDIE_OUTLINE, width=1)
-        # Bumper
-        d.ellipse((3, 6, w - 4, h - 3), fill=(180, 180, 190, 255))
-        # Top sensor
-        d.rectangle((w // 2 - 3, 1, w // 2 + 3, 5), fill=(70, 70, 80, 255), outline=EDIE_OUTLINE, width=1)
-        # Indicator LED — animated
-        led_colors = [
-            (60, 230, 120, 255),
-            (60, 230, 120, 255),
-            (40, 100, 60, 255),
-            (40, 100, 60, 255),
-        ]
-        d.rectangle((w // 2 - 1, 2, w // 2, 3), fill=led_colors[f])
-        save_png_no_lock = True
+        body = (220, 220, 230, 255)
+        body_d = (160, 160, 175, 255)
+        accent = (60, 170, 220, 255)
+        out = EDIE_OUTLINE
+        # Main box body
+        d.rectangle((4, 10, w - 5, h - 10), fill=body, outline=out, width=1)
+        # Top lid
+        d.rectangle((8, 4, w - 9, 12), fill=body_d, outline=out, width=1)
+        # Handle
+        d.rectangle((w // 2 - 3, 2, w // 2 + 3, 5), fill=(120, 120, 130, 255))
+        # Front panel
+        d.rectangle((6, 14, w - 7, 26), fill=(240, 240, 248, 255))
+        # LED strip (blinks between frames)
+        led_col = if_else = accent if f == 0 else (30, 90, 120, 255)
+        d.rectangle((8, 16, w - 9, 19), fill=led_col)
+        # AeiROBOT logo dot
+        d.rectangle((w // 2 - 2, 22, w // 2 + 2, 25), fill=EDIE_ORANGE)
+        # Wheels
+        d.ellipse((4, h - 10, 14, h - 1), fill=(40, 40, 46, 255), outline=out, width=1)
+        d.ellipse((w - 14, h - 10, w - 4, h - 1), fill=(40, 40, 46, 255), outline=out, width=1)
+        d.ellipse((7, h - 7, 11, h - 4), fill=(100, 100, 110, 255))
+        d.ellipse((w - 11, h - 7, w - 7, h - 4), fill=(100, 100, 110, 255))
         frames.append(im)
     sheet = tile_horizontal(frames)
-    save_png(sheet, "obstacle_vacuum.png", palette_lock=False)
+    save_png(sheet, "obstacle_boxbot.png", palette_lock=False)
+
+
+def make_truck() -> None:
+    """Big delivery truck - 128x56, slow, wide."""
+    w, h = 128, 56
+    im = new_canvas(w, h)
+    d = ImageDraw.Draw(im)
+    out = EDIE_OUTLINE
+    # Cargo container
+    d.rectangle((4, 12, 84, h - 10), fill=(240, 240, 230, 255), outline=out, width=2)
+    # Container stripe
+    d.rectangle((8, 22, 80, 26), fill=(60, 130, 200, 255))
+    d.rectangle((8, 34, 80, 38), fill=(60, 130, 200, 255))
+    # Container door lines
+    d.line((44, 14, 44, h - 12), fill=out)
+    d.line((24, 14, 24, h - 12), fill=(180, 180, 170, 255))
+    d.line((64, 14, 64, h - 12), fill=(180, 180, 170, 255))
+    # Cabin
+    d.rectangle((86, 20, 120, h - 10), fill=(200, 60, 60, 255), outline=out, width=2)
+    # Windshield
+    d.rectangle((90, 24, 118, 34), fill=(150, 200, 230, 255))
+    # Grille
+    d.rectangle((121, 30, 124, 44), fill=(60, 60, 70, 255))
+    # Wheels (big double wheels on trailer)
+    for cx in (16, 36, 60, 96):
+        d.ellipse((cx, h - 14, cx + 14, h), fill=(40, 40, 46, 255), outline=out, width=2)
+        d.ellipse((cx + 3, h - 11, cx + 11, h - 3), fill=(120, 120, 130, 255))
+    save_png(im, "obstacle_truck.png", palette_lock=False)
+
+
+def make_bus() -> None:
+    """Long city bus - 144x52, yellow school-bus style."""
+    w, h = 144, 52
+    im = new_canvas(w, h)
+    d = ImageDraw.Draw(im)
+    out = EDIE_OUTLINE
+    yellow = (240, 200, 60, 255)
+    yellow_d = (180, 140, 30, 255)
+    # Body
+    d.rectangle((2, 10, w - 3, h - 10), fill=yellow, outline=out, width=2)
+    # Bottom panel stripe
+    d.rectangle((2, h - 18, w - 3, h - 10), fill=yellow_d)
+    # Windows (long row)
+    for wx in range(10, w - 8, 16):
+        d.rectangle((wx, 14, wx + 12, 26), fill=(140, 200, 230, 255), outline=out, width=1)
+    # Driver windshield
+    d.rectangle((w - 22, 14, w - 5, 32), fill=(120, 180, 210, 255), outline=out, width=1)
+    # Door (on the left)
+    d.rectangle((6, 18, 14, h - 12), fill=(100, 150, 180, 255), outline=out, width=1)
+    # Destination sign
+    d.rectangle((20, 4, 60, 11), fill=(30, 30, 40, 255), outline=out, width=1)
+    d.rectangle((24, 6, 56, 9), fill=(240, 210, 100, 255))
+    # Headlight
+    d.rectangle((w - 6, 28, w - 3, 34), fill=(255, 240, 150, 255))
+    # Wheels
+    for cx in (14, 40, w - 36):
+        d.ellipse((cx, h - 14, cx + 14, h), fill=(40, 40, 46, 255), outline=out, width=2)
+        d.ellipse((cx + 3, h - 11, cx + 11, h - 3), fill=(120, 120, 130, 255))
+    save_png(im, "obstacle_bus.png", palette_lock=False)
+
+
+def make_taxi() -> None:
+    """Short yellow/black taxi - 88x36."""
+    w, h = 88, 36
+    im = new_canvas(w, h)
+    d = ImageDraw.Draw(im)
+    out = EDIE_OUTLINE
+    body = (240, 200, 50, 255)
+    body_d = (170, 130, 20, 255)
+    # Body lower
+    d.rectangle((4, 14, w - 5, h - 8), fill=body, outline=out, width=2)
+    # Bottom stripe (black)
+    d.rectangle((4, h - 12, w - 5, h - 8), fill=(30, 30, 35, 255))
+    # Cabin upper
+    d.polygon(
+        [(18, 14), (26, 4), (w - 26, 4), (w - 18, 14)],
+        fill=body,
+        outline=out,
+    )
+    # Windshield + windows
+    d.polygon([(22, 12), (28, 6), (44, 6), (42, 12)], fill=(140, 200, 230, 255))
+    d.polygon([(46, 12), (48, 6), (w - 28, 6), (w - 22, 12)], fill=(140, 200, 230, 255))
+    # Roof taxi sign
+    d.rectangle((w // 2 - 6, 1, w // 2 + 6, 4), fill=(240, 240, 240, 255), outline=out)
+    # Headlight
+    d.rectangle((w - 7, 18, w - 3, 22), fill=(255, 240, 150, 255))
+    # Tail light
+    d.rectangle((4, 18, 7, 22), fill=(220, 40, 40, 255))
+    # Wheels
+    for cx in (10, w - 22):
+        d.ellipse((cx, h - 12, cx + 12, h), fill=(40, 40, 46, 255), outline=out, width=2)
+        d.ellipse((cx + 3, h - 9, cx + 9, h - 3), fill=(120, 120, 130, 255))
+    save_png(im, "obstacle_taxi.png", palette_lock=False)
+
+
+def make_sports_car() -> None:
+    """Fast sky-blue sportscar with red side skirt - 104x32."""
+    w, h = 104, 32
+    im = new_canvas(w, h)
+    d = ImageDraw.Draw(im)
+    out = EDIE_OUTLINE
+    body = (90, 180, 230, 255)       # sky blue
+    body_hi = (160, 220, 250, 255)
+    red = (220, 40, 50, 255)         # side skirt red
+    # Low aggressive body
+    d.polygon(
+        [
+            (8, 20),
+            (18, 10),
+            (44, 6),
+            (78, 8),
+            (w - 6, 16),
+            (w - 6, 24),
+            (8, 24),
+        ],
+        fill=body,
+        outline=out,
+    )
+    # Upper cabin highlight
+    d.polygon(
+        [(20, 10), (44, 6), (74, 8), (72, 14), (24, 14)],
+        fill=body_hi,
+    )
+    # Windshield (dark)
+    d.polygon(
+        [(26, 12), (44, 8), (68, 10), (62, 14), (30, 14)],
+        fill=(30, 50, 80, 255),
+    )
+    # Red side skirt (very visible)
+    d.rectangle((10, 24, w - 8, 28), fill=red, outline=out)
+    # White racing stripe
+    d.rectangle((30, 10, 34, 14), fill=(250, 250, 255, 255))
+    d.rectangle((38, 8, 42, 12), fill=(250, 250, 255, 255))
+    # Headlight
+    d.rectangle((w - 10, 18, w - 5, 22), fill=(255, 240, 160, 255))
+    # Rear light
+    d.rectangle((6, 18, 10, 22), fill=(220, 40, 40, 255))
+    # Wheels (small, flush)
+    d.ellipse((14, h - 10, 26, h - 1), fill=(30, 30, 35, 255), outline=out)
+    d.ellipse((17, h - 7, 23, h - 3), fill=(100, 100, 110, 255))
+    d.ellipse((w - 28, h - 10, w - 16, h - 1), fill=(30, 30, 35, 255), outline=out)
+    d.ellipse((w - 25, h - 7, w - 19, h - 3), fill=(100, 100, 110, 255))
+    # Motion streaks (very fast)
+    for sy in (12, 16, 20, 24):
+        d.line((0, sy, 3, sy), fill=(255, 255, 255, 220))
+        d.line((-2, sy, 1, sy), fill=(200, 220, 255, 180))
+    save_png(im, "obstacle_sportscar.png", palette_lock=False)
+
+
+def make_pigeon() -> None:
+    """Flying pigeon - 36x32, 2-frame wing flap."""
+    frames = []
+    out = EDIE_OUTLINE
+    grey = (160, 170, 180, 255)
+    grey_d = (100, 110, 125, 255)
+    body = (200, 205, 215, 255)
+    for f in range(2):
+        w, h = 36, 32
+        im = new_canvas(w, h)
+        d = ImageDraw.Draw(im)
+        # Body
+        d.ellipse((8, 12, 28, 26), fill=body, outline=out, width=1)
+        d.ellipse((10, 16, 24, 25), fill=grey)
+        # Head
+        d.ellipse((22, 8, 32, 18), fill=body, outline=out, width=1)
+        # Eye
+        d.point((28, 12), fill=out)
+        # Beak (orange)
+        d.polygon([(32, 13), (35, 14), (32, 15)], fill=(240, 160, 60, 255))
+        # Neck collar (green-purple iridescent)
+        d.line((24, 16, 28, 17), fill=(80, 140, 90, 255))
+        d.line((24, 17, 28, 18), fill=(140, 80, 150, 255))
+        # Wings: flap between frames
+        if f == 0:
+            # Wings up
+            d.polygon([(6, 16), (14, 4), (22, 14)], fill=grey, outline=out)
+            d.polygon([(10, 14), (16, 8), (20, 14)], fill=grey_d)
+        else:
+            # Wings down
+            d.polygon([(6, 18), (14, 26), (22, 18)], fill=grey, outline=out)
+            d.polygon([(10, 18), (16, 24), (20, 18)], fill=grey_d)
+        # Tail
+        d.polygon([(6, 18), (2, 22), (8, 22)], fill=grey, outline=out)
+        # Feet (tiny pink)
+        d.line((14, 26, 14, 29), fill=(220, 140, 150, 255))
+        d.line((18, 26, 18, 29), fill=(220, 140, 150, 255))
+        frames.append(im)
+    sheet = tile_horizontal(frames)
+    save_png(sheet, "obstacle_pigeon.png", palette_lock=False)
 
 
 def process_robot_refs() -> None:
@@ -1791,9 +1987,14 @@ def main() -> None:
     make_sign_board()
     make_cat()
     make_car()
+    make_truck()
+    make_bus()
+    make_taxi()
+    make_sports_car()
     make_deer()
     make_balloon_drone()
-    make_vacuum_bot()
+    make_pigeon()
+    make_box_bot()
     # Procedural fallbacks first -- then real PNGs overwrite if present.
     make_amy()
     make_alice_m1()

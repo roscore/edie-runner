@@ -263,7 +263,9 @@ fn needs_telegraph(o: &Obstacle, speed: f32) -> bool {
         o.kind,
         ObstacleKind::Amy
             | ObstacleKind::BalloonDrone
+            | ObstacleKind::Pigeon
             | ObstacleKind::Car
+            | ObstacleKind::SportsCar
             | ObstacleKind::Deer
     ) {
         return false;
@@ -346,6 +348,18 @@ pub fn draw_obstacle(
         ObstacleKind::Car => {
             draw_tex_at(&assets.obstacle_car, o.x, o.y, w, h, cam, WHITE);
         }
+        ObstacleKind::Truck => {
+            draw_tex_at(&assets.obstacle_truck, o.x, o.y, w, h, cam, WHITE);
+        }
+        ObstacleKind::Bus => {
+            draw_tex_at(&assets.obstacle_bus, o.x, o.y, w, h, cam, WHITE);
+        }
+        ObstacleKind::Taxi => {
+            draw_tex_at(&assets.obstacle_taxi, o.x, o.y, w, h, cam, WHITE);
+        }
+        ObstacleKind::SportsCar => {
+            draw_tex_at(&assets.obstacle_sportscar, o.x, o.y, w, h, cam, WHITE);
+        }
         ObstacleKind::Deer => {
             let f = frame_index(elapsed, 6.0, 2);
             draw_tex_frame(
@@ -358,10 +372,16 @@ pub fn draw_obstacle(
                 &assets.obstacle_balloon, f, 40.0, 48.0, 1.0, o.x, o.y, cam, WHITE,
             );
         }
-        ObstacleKind::VacuumBot => {
-            let f = frame_index(elapsed, 6.0, 4);
+        ObstacleKind::Pigeon => {
+            let f = frame_index(elapsed, 8.0, 2);
             draw_tex_frame(
-                &assets.obstacle_vacuum, f, 40.0, 20.0, 1.0, o.x, o.y, cam, WHITE,
+                &assets.obstacle_pigeon, f, 36.0, 32.0, 1.0, o.x, o.y, cam, WHITE,
+            );
+        }
+        ObstacleKind::BoxBot => {
+            let f = frame_index(elapsed, 4.0, 2);
+            draw_tex_frame(
+                &assets.obstacle_boxbot, f, 44.0, 40.0, 1.0, o.x, o.y, cam, WHITE,
             );
         }
         ObstacleKind::Amy => {

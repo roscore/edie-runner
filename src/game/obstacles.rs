@@ -14,17 +14,22 @@ pub enum ObstacleKind {
     SignBoard,
     CatOrange,
     CatWhite,
-    // Highway hazards
-    Car,    // charging car
-    Deer,   // sudden leap
-    // Air obstacles forcing duck
-    BalloonDrone, // balloon-style drone (duck required)
-    // AeiROBOT robots - appear as we approach AeiROBOT HQ
-    VacuumBot, // generic intro robot
-    Amy,       // small flying robot (replaces drone role)
+    Pigeon, // duck-forcing bird for Pangyo stages
+    // Highway vehicles
+    Car,     // charging generic car
+    Truck,   // large slow truck
+    Bus,     // long yellow bus
+    Taxi,    // short fast taxi
+    SportsCar, // very fast blue car with red skirt
+    Deer,    // sudden leap
+    // Ansan air obstacle
+    BalloonDrone,
+    // AeiROBOT robots - appear from Ansan onward
+    BoxBot,    // boxy mobile robot (the old "vacuum" silhouette, reused)
+    Amy,       // small flying robot
     AliceM1,   // mobile ground robot
-    Alice3,    // humanoid v3 (heavy)
-    Alice4,    // humanoid v4 (heavy)
+    Alice3,    // humanoid v3
+    Alice4,    // humanoid v4
 }
 
 impl ObstacleKind {
@@ -33,12 +38,10 @@ impl ObstacleKind {
         true
     }
 
-    /// True if this obstacle is a robot. Used for the "approaching AeiROBOT"
-    /// scaling - higher tiers spawn more robots.
     pub fn is_robot(&self) -> bool {
         matches!(
             self,
-            ObstacleKind::VacuumBot
+            ObstacleKind::BoxBot
                 | ObstacleKind::Amy
                 | ObstacleKind::AliceM1
                 | ObstacleKind::Alice3
@@ -54,10 +57,15 @@ impl ObstacleKind {
             ObstacleKind::SignBoard => (24.0, 24.0),
             ObstacleKind::CatOrange => (48.0, 40.0),
             ObstacleKind::CatWhite => (48.0, 40.0),
+            ObstacleKind::Pigeon => (36.0, 32.0),
             ObstacleKind::Car => (96.0, 40.0),
+            ObstacleKind::Truck => (128.0, 56.0),
+            ObstacleKind::Bus => (144.0, 52.0),
+            ObstacleKind::Taxi => (88.0, 36.0),
+            ObstacleKind::SportsCar => (104.0, 32.0),
             ObstacleKind::Deer => (48.0, 52.0),
             ObstacleKind::BalloonDrone => (40.0, 48.0),
-            ObstacleKind::VacuumBot => (40.0, 20.0),
+            ObstacleKind::BoxBot => (44.0, 40.0),
             ObstacleKind::Amy => (24.0, 60.0),
             ObstacleKind::AliceM1 => (28.0, 64.0),
             ObstacleKind::Alice3 => (25.0, 64.0),
@@ -68,12 +76,11 @@ impl ObstacleKind {
     pub fn y_for_kind(&self) -> f32 {
         let (_, h) = self.size();
         match self {
-            // Balloon drone: bottom must fall inside the [standing-top,
-            // ducked-top] window so running collides and ducking escapes.
-            //   standing top = GROUND_Y - SPRITE_BODY_H = 320 - 44 = 276
-            //   ducked  top  = GROUND_Y - SPRITE_BODY_H*0.55 ~= 296
-            //   target bottom ~286  ->  y = 286 - 48 = 238 = GROUND_Y - 82
+            // Balloon drone & pigeon: bottom must fall inside the
+            // [standing-top 276, ducked-top ~296] window so running collides
+            // and ducking escapes.
             ObstacleKind::BalloonDrone => GROUND_Y - 82.0,
+            ObstacleKind::Pigeon => GROUND_Y - 82.0 - (h - 48.0),
             ObstacleKind::SignBoard => GROUND_Y - 160.0,
             _ => GROUND_Y - h,
         }
@@ -83,7 +90,7 @@ impl ObstacleKind {
     pub fn has_ground_shadow(&self) -> bool {
         !matches!(
             self,
-            ObstacleKind::BalloonDrone | ObstacleKind::SignBoard
+            ObstacleKind::BalloonDrone | ObstacleKind::SignBoard | ObstacleKind::Pigeon
         )
     }
 }
@@ -169,7 +176,7 @@ impl ObstacleField {
                 pool.push(ObstacleKind::CatWhite);
                 pool.push(ObstacleKind::TrafficCone);
                 pool.push(ObstacleKind::ShoppingCart);
-                pool.push(ObstacleKind::BalloonDrone);
+                pool.push(ObstacleKind::Pigeon);
             }
             Stage::PangyoStreet => {
                 pool.push(ObstacleKind::CoffeeCup);
@@ -177,49 +184,55 @@ impl ObstacleField {
                 pool.push(ObstacleKind::CatWhite);
                 pool.push(ObstacleKind::TrafficCone);
                 pool.push(ObstacleKind::ShoppingCart);
-                pool.push(ObstacleKind::BalloonDrone);
+                pool.push(ObstacleKind::Pigeon);
+                pool.push(ObstacleKind::Pigeon);
             }
             Stage::PangyoTechPark => {
-                // IT campus plaza: foot traffic, coffee, pigeons(cats),
-                // balloons, cones. No vacuum bots -- that's a home-goods aisle.
                 pool.push(ObstacleKind::CoffeeCup);
                 pool.push(ObstacleKind::CoffeeCup);
                 pool.push(ObstacleKind::CatOrange);
                 pool.push(ObstacleKind::CatWhite);
                 pool.push(ObstacleKind::TrafficCone);
-                pool.push(ObstacleKind::BalloonDrone);
-                pool.push(ObstacleKind::BalloonDrone);
                 pool.push(ObstacleKind::SignBoard);
+                pool.push(ObstacleKind::Pigeon);
+                pool.push(ObstacleKind::Pigeon);
             }
             Stage::Highway => {
-                // Highway: charging cars, sudden deer leaps, signs, drones.
-                // NO cats or shopping carts here.
+                // Big vehicle traffic + wildlife.
                 pool.push(ObstacleKind::Car);
                 pool.push(ObstacleKind::Car);
-                pool.push(ObstacleKind::Car);
+                pool.push(ObstacleKind::Truck);
+                pool.push(ObstacleKind::Bus);
+                pool.push(ObstacleKind::Taxi);
+                pool.push(ObstacleKind::Taxi);
                 pool.push(ObstacleKind::Deer);
                 pool.push(ObstacleKind::Deer);
                 pool.push(ObstacleKind::TrafficCone);
                 pool.push(ObstacleKind::SignBoard);
-                pool.push(ObstacleKind::BalloonDrone);
-                pool.push(ObstacleKind::Amy);
+                pool.push(ObstacleKind::Pigeon);
+                // Rare sports-car surprise
+                if tier >= 3 {
+                    pool.push(ObstacleKind::SportsCar);
+                }
                 if tier >= 4 {
-                    pool.push(ObstacleKind::AliceM1);
-                    pool.push(ObstacleKind::Car);
+                    pool.push(ObstacleKind::SportsCar);
+                    pool.push(ObstacleKind::Truck);
                 }
             }
             Stage::Ansan => {
-                // Hanyang ERICA campus: a mix, with AeiROBOT presence.
+                // Hanyang ERICA: AeiROBOT bots debut here, balloons arrive.
                 pool.push(ObstacleKind::CatOrange);
                 pool.push(ObstacleKind::CatWhite);
                 pool.push(ObstacleKind::TrafficCone);
-                pool.push(ObstacleKind::Amy);
                 pool.push(ObstacleKind::BalloonDrone);
                 pool.push(ObstacleKind::BalloonDrone);
+                pool.push(ObstacleKind::BoxBot);
+                pool.push(ObstacleKind::BoxBot);
                 pool.push(ObstacleKind::AliceM1);
-                pool.push(ObstacleKind::VacuumBot);
+                pool.push(ObstacleKind::Amy);
                 if tier >= 5 {
                     pool.push(ObstacleKind::Alice3);
+                    pool.push(ObstacleKind::AliceM1);
                 }
                 if tier >= 6 {
                     pool.push(ObstacleKind::Alice4);
@@ -227,8 +240,7 @@ impl ObstacleField {
                 }
             }
             Stage::AeiRobotOffice => {
-                // Tier 7 office: mix of AeiROBOT bots, manageable density.
-                pool.push(ObstacleKind::VacuumBot);
+                pool.push(ObstacleKind::BoxBot);
                 pool.push(ObstacleKind::Amy);
                 pool.push(ObstacleKind::Amy);
                 pool.push(ObstacleKind::BalloonDrone);
@@ -237,7 +249,6 @@ impl ObstacleField {
                 pool.push(ObstacleKind::SignBoard);
             }
             Stage::AeiRobotCEORoom => {
-                // CEO room: wall-to-wall robots, extreme difficulty.
                 pool.push(ObstacleKind::Alice3);
                 pool.push(ObstacleKind::Alice3);
                 pool.push(ObstacleKind::Alice4);
@@ -273,10 +284,36 @@ impl ObstacleField {
 
             match o.kind {
                 ObstacleKind::Car => {
-                    // Idle cruise, then random surge toward the player.
                     if o.pattern_t <= 0.0 && o.age > 0.25 && o.age < 0.4 {
-                        // One-time commit to a surge speed
                         o.extra_vx = -(rng.gen_range(120.0..220.0));
+                        o.pattern_t = 1.0;
+                    }
+                }
+                ObstacleKind::SportsCar => {
+                    // Instantly floors it - very fast surge from first frame.
+                    if o.pattern_t <= 0.0 && o.age > 0.08 {
+                        o.extra_vx = -(rng.gen_range(360.0..480.0));
+                        o.pattern_t = 1.0;
+                    }
+                }
+                ObstacleKind::Truck => {
+                    // Slow-moving behemoth: slightly slower than scroll.
+                    if o.pattern_t <= 0.0 {
+                        o.extra_vx = 60.0;
+                        o.pattern_t = 1.0;
+                    }
+                }
+                ObstacleKind::Bus => {
+                    // Cruises at background speed.
+                    if o.pattern_t <= 0.0 {
+                        o.extra_vx = 30.0;
+                        o.pattern_t = 1.0;
+                    }
+                }
+                ObstacleKind::Taxi => {
+                    // Quick lane-change: modest surge on a short delay.
+                    if o.pattern_t <= 0.0 && o.age > 0.3 {
+                        o.extra_vx = -(rng.gen_range(80.0..160.0));
                         o.pattern_t = 1.0;
                     }
                 }
@@ -354,7 +391,8 @@ mod tests {
             ObstacleKind::SignBoard,
             ObstacleKind::CatOrange,
             ObstacleKind::CatWhite,
-            ObstacleKind::VacuumBot,
+            ObstacleKind::Pigeon,
+            ObstacleKind::BoxBot,
             ObstacleKind::Amy,
             ObstacleKind::AliceM1,
             ObstacleKind::Alice3,
