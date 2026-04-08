@@ -6,7 +6,7 @@ use edie_runner::platform::input::{InputSource, MacroquadInput};
 use edie_runner::platform::storage::InMemoryStorage;
 use edie_runner::platform::visibility::VisibilityTracker;
 use edie_runner::render::camera::Camera;
-use edie_runner::render::sprites::{draw_aurora, draw_obstacle, draw_player};
+use edie_runner::render::sprites::{draw_aurora, draw_heart_pickup, draw_obstacle, draw_player};
 use edie_runner::render::ui::{draw_background, draw_hud, draw_overlay};
 use edie_runner::time::{FixedStep, DT};
 use macroquad::prelude::*;
@@ -87,7 +87,8 @@ async fn main() {
 
         clear_background(Color::new(0.96, 0.94, 0.89, 1.0));
         let cam = Camera::new(screen_width(), screen_height());
-        draw_background(&game.world.background, &assets, &cam);
+        let wall_time = get_time() as f32;
+        draw_background(&game.world.background, &assets, wall_time, &cam);
         let elapsed = game.world.elapsed;
         for o in &game.world.obstacles.obstacles {
             if o.alive {
@@ -99,12 +100,26 @@ async fn main() {
                 draw_aurora(s, &assets, elapsed, &cam);
             }
         }
-        draw_player(&game.world.player, &game.world.dash, &assets, elapsed, &cam);
-        draw_hud(&game.world.score, &game.world.dash, &assets, elapsed, &cam);
-        // For Title/GameOver mascot animation, use wall-clock time so the
-        // animation plays even when game.world.elapsed is 0 (fresh world).
-        let overlay_time = get_time() as f32;
-        draw_overlay(game.state, &game.world.score, &assets, overlay_time, &cam);
+        for h in &game.world.pickups.hearts {
+            if !h.collected {
+                draw_heart_pickup(h, &assets, elapsed, &cam);
+            }
+        }
+        // Player flickers during HP invuln
+        let invuln_visible =
+            game.world.hp_invuln <= 0.0 || ((wall_time * 16.0).sin() > 0.0);
+        if invuln_visible {
+            draw_player(&game.world.player, &game.world.dash, &assets, elapsed, &cam);
+        }
+        draw_hud(
+            &game.world.score,
+            &game.world.dash,
+            game.world.hp,
+            &assets,
+            elapsed,
+            &cam,
+        );
+        draw_overlay(&game, &assets, wall_time, &cam);
 
         next_frame().await;
     }

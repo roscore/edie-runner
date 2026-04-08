@@ -12,6 +12,11 @@ const SPAWN_X: f32 = 1400.0;
 const SPAWN_INTERVAL_MIN: f32 = 8.0;
 const SPAWN_INTERVAL_MAX: f32 = 12.0;
 
+pub const HEART_W: f32 = 36.0;
+pub const HEART_H: f32 = 36.0;
+const HEART_INTERVAL_MIN: f32 = 25.0;
+const HEART_INTERVAL_MAX: f32 = 40.0;
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum AuroraColor {
     Purple,
@@ -32,14 +37,34 @@ impl AuroraStone {
     }
 }
 
+#[derive(Debug, Clone)]
+pub struct HeartPod {
+    pub x: f32,
+    pub y: f32,
+    pub collected: bool,
+}
+
+impl HeartPod {
+    pub fn hitbox(&self) -> Aabb {
+        Aabb { x: self.x, y: self.y, w: HEART_W, h: HEART_H }
+    }
+}
+
 pub struct PickupField {
     pub stones: Vec<AuroraStone>,
+    pub hearts: Vec<HeartPod>,
     pub time_to_next: f32,
+    pub time_to_next_heart: f32,
 }
 
 impl Default for PickupField {
     fn default() -> Self {
-        Self { stones: Vec::new(), time_to_next: SPAWN_INTERVAL_MIN }
+        Self {
+            stones: Vec::new(),
+            hearts: Vec::new(),
+            time_to_next: SPAWN_INTERVAL_MIN,
+            time_to_next_heart: HEART_INTERVAL_MIN,
+        }
     }
 }
 
@@ -53,7 +78,11 @@ impl PickupField {
         for s in &mut self.stones {
             s.x -= dx;
         }
+        for hp in &mut self.hearts {
+            hp.x -= dx;
+        }
         self.stones.retain(|s| !s.collected && s.x + PICKUP_W > -50.0);
+        self.hearts.retain(|h| !h.collected && h.x + HEART_W > -50.0);
 
         self.time_to_next -= dt;
         if self.time_to_next <= 0.0 {
@@ -71,6 +100,23 @@ impl PickupField {
             self.stones.push(AuroraStone { x: SPAWN_X, y, color, collected: false });
             self.time_to_next = rng.gen_range(SPAWN_INTERVAL_MIN..SPAWN_INTERVAL_MAX);
         }
+
+        self.time_to_next_heart -= dt;
+        if self.time_to_next_heart <= 0.0 {
+            // Hearts spawn at mid-air height to reward jumping
+            let y = GROUND_Y - 120.0;
+            self.hearts.push(HeartPod { x: SPAWN_X, y, collected: false });
+            self.time_to_next_heart = rng.gen_range(HEART_INTERVAL_MIN..HEART_INTERVAL_MAX);
+        }
+    }
+
+    pub fn heart_collisions_with(&self, player: &Aabb) -> Vec<usize> {
+        self.hearts
+            .iter()
+            .enumerate()
+            .filter(|(_, h)| !h.collected && h.hitbox().intersects(player))
+            .map(|(i, _)| i)
+            .collect()
     }
 
     pub fn collisions_with(&self, player: &Aabb) -> Vec<usize> {

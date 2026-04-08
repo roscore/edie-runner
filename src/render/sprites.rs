@@ -3,7 +3,7 @@
 use crate::assets::AssetHandles;
 use crate::game::dash::DashState;
 use crate::game::obstacles::{Obstacle, ObstacleKind};
-use crate::game::pickups::{AuroraColor, AuroraStone};
+use crate::game::pickups::{AuroraColor, AuroraStone, HeartPod, HEART_H, HEART_W};
 use crate::game::player::{Player, PlayerState, GROUND_Y, PLAYER_H, PLAYER_W, PLAYER_X};
 use crate::render::camera::Camera;
 use macroquad::prelude::*;
@@ -274,5 +274,20 @@ pub fn draw_aurora(s: &AuroraStone, assets: &AssetHandles, elapsed: f32, cam: &C
     let f = frame_index(elapsed, AURORA_FPS, AURORA_FRAMES);
     draw_tex_frame(
         tex, f, AURORA_FRAME_W, AURORA_FRAME_H, 1.0, s.x, s.y, cam, WHITE,
+    );
+}
+
+pub fn draw_heart_pickup(h: &HeartPod, assets: &AssetHandles, elapsed: f32, cam: &Camera) {
+    let f = frame_index(elapsed, 6.0, 4);
+    draw_tex_frame(
+        &assets.heart,
+        f,
+        HEART_W,
+        HEART_H,
+        1.0,
+        h.x,
+        h.y,
+        cam,
+        WHITE,
     );
 }

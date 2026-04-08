@@ -347,47 +347,162 @@ def make_aurora() -> None:
 # ============================================================
 # Background tiles
 # ============================================================
+def _pixel_dither(d, x0, y0, x1, y1, base, accent, step=4):
+    """Sparse pixel dither to add texture without exploding color count."""
+    for y in range(y0, y1, step):
+        for x in range(x0 + ((y // step) % 2) * (step // 2), x1, step):
+            d.point((x, y), fill=accent)
+
+
 def make_background() -> None:
     print("[bg] generating layers")
-    # Sky — solid 1280×200
+
+    # Sky — 1280×200 base warm cream with pixel cloud smears
     sky = Image.new("RGBA", (1280, 200), BG_SKY)
+    d = ImageDraw.Draw(sky)
+    cloud = (228, 221, 207, 255)
+    # A handful of horizontal cloud streaks at pixel-friendly positions
+    cloud_positions = [
+        (40, 22, 100, 5),
+        (180, 40, 120, 4),
+        (340, 15, 80, 3),
+        (520, 60, 140, 5),
+        (700, 30, 90, 4),
+        (860, 55, 110, 4),
+        (1020, 20, 100, 5),
+        (1160, 45, 90, 3),
+    ]
+    for cx, cy, cw, ch in cloud_positions:
+        d.rectangle((cx, cy, cx + cw, cy + ch), fill=cloud)
+        d.rectangle((cx + 4, cy - 1, cx + cw - 4, cy), fill=cloud)
     save_png(sky, "bg_sky.png", palette_lock=False)
 
-    # Far — 256×100, server silhouettes
+    # Stars — 1280×200 transparent layer with scattered pixel stars
+    # (rendered over sky during night portion of day/night cycle)
+    stars = new_canvas(1280, 200)
+    ds = ImageDraw.Draw(stars)
+    import random
+    rng = random.Random(42)
+    for _ in range(90):
+        sx = rng.randint(0, 1279)
+        sy = rng.randint(0, 110)
+        if rng.random() < 0.3:
+            # Bright star — 3-pixel cross
+            ds.point((sx, sy), fill=(255, 255, 255, 255))
+            ds.point((sx + 1, sy), fill=(220, 220, 230, 255))
+            ds.point((sx - 1, sy), fill=(220, 220, 230, 255))
+            ds.point((sx, sy + 1), fill=(220, 220, 230, 255))
+            ds.point((sx, sy - 1), fill=(220, 220, 230, 255))
+        else:
+            ds.point((sx, sy), fill=(255, 255, 255, 255))
+    save_png(stars, "bg_stars.png", palette_lock=False)
+
+    # Far — 256×100, server silhouettes with pixel window rows + dither
     far = new_canvas(256, 100)
     d = ImageDraw.Draw(far)
     silhouette_x = 0
     heights = [60, 80, 50, 90, 70, 55, 85, 65, 75, 50, 95, 60]
     widths = [24, 20, 28, 18, 22, 30, 16, 24, 20, 26, 18, 28]
+    far_shade = (174, 174, 164, 255)
     for hh, ww in zip(heights, widths):
+        # Main silhouette
         d.rectangle((silhouette_x, 100 - hh, silhouette_x + ww, 100), fill=BG_FAR)
-        # window dots
-        for wy in range(100 - hh + 8, 100 - 4, 6):
-            for wx in range(silhouette_x + 4, silhouette_x + ww - 2, 4):
-                d.point((wx, wy), fill=(160, 170, 175, 255))
+        # Shaded right edge
+        d.rectangle(
+            (silhouette_x + ww - 2, 100 - hh, silhouette_x + ww, 100),
+            fill=far_shade,
+        )
+        # Top accent line
+        d.line(
+            (silhouette_x, 100 - hh, silhouette_x + ww, 100 - hh),
+            fill=(210, 208, 200, 255),
+        )
+        # Pixel window rows
+        for wy in range(100 - hh + 6, 100 - 6, 5):
+            for wx in range(silhouette_x + 3, silhouette_x + ww - 3, 4):
+                d.point((wx, wy), fill=(120, 130, 140, 255))
         silhouette_x += ww
     save_png(far, "bg_far.png", palette_lock=False)
 
-    # Mid — 256×60 workbench silhouette
+    # Mid — 256×60 workbench with pixel highlights and bolts
     mid = new_canvas(256, 60)
     d = ImageDraw.Draw(mid)
-    d.rectangle((0, 30, 256, 60), fill=BG_MID)
-    # legs
-    for x in (10, 50, 90, 130, 170, 210, 240):
-        d.rectangle((x, 35, x + 4, 60), fill=(100, 95, 80, 255))
-    # surface highlight
-    d.line((0, 30, 256, 30), fill=(170, 160, 140, 255), width=1)
+    # Surface band
+    d.rectangle((0, 28, 256, 60), fill=BG_MID)
+    d.rectangle((0, 26, 256, 30), fill=(170, 160, 140, 255))  # brighter top
+    d.rectangle((0, 28, 256, 29), fill=(205, 195, 175, 255))  # bright edge
+    # Legs
+    leg_color = (90, 85, 70, 255)
+    leg_hl = (120, 114, 94, 255)
+    for x in (8, 48, 88, 128, 168, 208, 248):
+        d.rectangle((x, 32, x + 5, 60), fill=leg_color)
+        d.line((x, 32, x, 60), fill=leg_hl)
+    # Bolts on surface
+    bolt = (70, 65, 52, 255)
+    for bx in range(14, 256, 22):
+        d.point((bx, 35), fill=bolt)
+        d.point((bx + 1, 35), fill=bolt)
     save_png(mid, "bg_mid.png", palette_lock=False)
 
-    # Floor — 256×80
+    # Floor — 256×80 warm brown with dither + rivets + accent stripe
     floor = new_canvas(256, 80)
     d = ImageDraw.Draw(floor)
     d.rectangle((0, 0, 256, 80), fill=FLOOR)
-    d.line((0, 0, 256, 0), fill=FLOOR_LINE, width=2)
-    # Subtle floor lines
-    for x in range(0, 256, 32):
-        d.line((x, 4, x, 78), fill=(60, 55, 46, 255), width=1)
+    # Accent stripe near top
+    d.rectangle((0, 0, 256, 3), fill=FLOOR_LINE)
+    d.rectangle((0, 4, 256, 5), fill=(94, 85, 70, 255))
+    # Dither dots for pixel feel
+    dither_color = (60, 55, 46, 255)
+    for y in range(8, 80, 3):
+        for x in range((y // 3) % 2 * 2, 256, 4):
+            d.point((x, y), fill=dither_color)
+    # Panel seams every 32 pixels
+    for px in range(0, 256, 32):
+        d.line((px, 6, px, 78), fill=(62, 56, 45, 255))
+        d.line((px + 1, 6, px + 1, 78), fill=(82, 74, 60, 255))
+    # Rivets
+    rivet = (106, 96, 76, 255)
+    for px in range(0, 256, 32):
+        for py in (16, 40, 64):
+            d.rectangle((px + 14, py, px + 15, py + 1), fill=rivet)
     save_png(floor, "bg_floor.png", palette_lock=False)
+
+
+def make_heart_pickup() -> None:
+    """Pixel-art heart sprite sheet (4-frame pulse)."""
+    frames = []
+    red_dark = (180, 25, 40, 255)
+    red = (232, 50, 60, 255)
+    red_light = (255, 140, 140, 255)
+    white = (255, 255, 255, 255)
+    outline = EDIE_OUTLINE
+    for f in range(4):
+        w = h = 36
+        im = new_canvas(w, h)
+        d = ImageDraw.Draw(im)
+        # Heart shape centered at (18, 18), pulse by +/-1 px
+        pulse = (f % 2)
+        cx, cy = 18, 18 - pulse
+        # Two top lobes
+        d.ellipse((cx - 10, cy - 8, cx - 1, cy + 2), fill=red, outline=outline, width=1)
+        d.ellipse((cx + 1, cy - 8, cx + 10, cy + 2), fill=red, outline=outline, width=1)
+        # Bottom triangle/point
+        d.polygon(
+            [(cx - 10, cy - 1), (cx + 10, cy - 1), (cx, cy + 12)],
+            fill=red,
+            outline=outline,
+        )
+        # Dark inner
+        d.polygon(
+            [(cx - 6, cy + 2), (cx + 6, cy + 2), (cx, cy + 8)],
+            fill=red_dark,
+        )
+        # Highlight
+        d.ellipse((cx - 7, cy - 6, cx - 4, cy - 3), fill=red_light)
+        d.point((cx - 6, cy - 5), fill=white)
+        frames.append(im)
+    sheet = tile_horizontal(frames)
+    save_png(sheet, "heart.png", palette_lock=False)
 
 
 # ============================================================
@@ -476,6 +591,7 @@ def main() -> None:
     print()
     print("[pickups]")
     make_aurora()
+    make_heart_pickup()
     print()
     make_background()
     print()

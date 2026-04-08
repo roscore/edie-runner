@@ -5,7 +5,8 @@ use crate::game::background::Background;
 use crate::game::dash::{DashState, DASH_COOLDOWN, DASH_DURATION};
 use crate::game::pickups::MAX_AURORA;
 use crate::game::score::Score;
-use crate::game::state::GameState;
+use crate::game::state::{Game, GameState};
+use crate::game::world::MAX_HP;
 use crate::render::camera::{Camera, LOGICAL_H, LOGICAL_W};
 use crate::render::sprites::{
     draw_anim_sheet, EDIE_BLINK_FPS, EDIE_BLINK_FRAMES, EDIE_GAMEOVER_FPS, EDIE_GAMEOVER_FRAMES,
@@ -14,19 +15,77 @@ use crate::render::sprites::{
 };
 use macroquad::prelude::*;
 
-pub fn draw_background(bg: &Background, assets: &AssetHandles, cam: &Camera) {
+/// Day/night tint for a given world time.
+/// Cycle period = 60 seconds. Returns (tint_color, star_alpha 0..1).
+pub fn day_night_tint(t: f32) -> (Color, f32) {
+    let cycle = 60.0;
+    let phase = (t % cycle) / cycle; // 0..1
+    // Keyframes (phase, r, g, b, star_alpha)
+    let frames: [(f32, f32, f32, f32, f32); 6] = [
+        (0.00, 1.00, 1.00, 1.00, 0.0), // day
+        (0.30, 1.00, 1.00, 1.00, 0.0), // day
+        (0.40, 1.00, 0.78, 0.55, 0.1), // sunset orange
+        (0.55, 0.40, 0.42, 0.65, 0.95), // night blue
+        (0.75, 0.55, 0.55, 0.78, 0.7), // late night
+        (0.85, 1.00, 0.80, 0.85, 0.2), // dawn pink
+    ];
+    let mut a = &frames[0];
+    let mut b = &frames[0];
+    for w in frames.windows(2) {
+        if phase >= w[0].0 && phase < w[1].0 {
+            a = &w[0];
+            b = &w[1];
+            break;
+        }
+    }
+    if phase >= frames[frames.len() - 1].0 {
+        a = &frames[frames.len() - 1];
+        // wrap to first frame
+        b = &frames[0];
+    }
+    let span = if b.0 > a.0 { b.0 - a.0 } else { 1.0 - a.0 + b.0 };
+    let local = if b.0 > a.0 {
+        (phase - a.0) / span
+    } else {
+        ((phase - a.0).rem_euclid(1.0)) / span
+    };
+    let lerp = |x: f32, y: f32| x + (y - x) * local;
+    (
+        Color::new(lerp(a.1, b.1), lerp(a.2, b.2), lerp(a.3, b.3), 1.0),
+        lerp(a.4, b.4),
+    )
+}
+
+pub fn draw_background(bg: &Background, assets: &AssetHandles, t: f32, cam: &Camera) {
+    let (tint, star_alpha) = day_night_tint(t);
+
     // Sky
     let (sx, sy) = cam.to_screen(0.0, 0.0);
     draw_texture_ex(
         &assets.bg_sky,
         sx,
         sy,
-        WHITE,
+        tint,
         DrawTextureParams {
             dest_size: Some(vec2(cam.scaled(LOGICAL_W), cam.scaled(200.0))),
             ..Default::default()
         },
     );
+
+    // Stars overlay (visible at night)
+    if star_alpha > 0.01 {
+        let star_tint = Color::new(1.0, 1.0, 1.0, star_alpha);
+        draw_texture_ex(
+            &assets.bg_stars,
+            sx,
+            sy,
+            star_tint,
+            DrawTextureParams {
+                dest_size: Some(vec2(cam.scaled(LOGICAL_W), cam.scaled(200.0))),
+                ..Default::default()
+            },
+        );
+    }
 
     // Far servers (parallax)
     let far_tile_w = 256.0;
@@ -39,7 +98,7 @@ pub fn draw_background(bg: &Background, assets: &AssetHandles, cam: &Camera) {
             &assets.bg_far,
             px,
             py,
-            WHITE,
+            tint,
             DrawTextureParams {
                 dest_size: Some(vec2(cam.scaled(far_tile_w), cam.scaled(far_h))),
                 ..Default::default()
@@ -59,7 +118,7 @@ pub fn draw_background(bg: &Background, assets: &AssetHandles, cam: &Camera) {
             &assets.bg_mid,
             px,
             py,
-            WHITE,
+            tint,
             DrawTextureParams {
                 dest_size: Some(vec2(cam.scaled(mid_tile_w), cam.scaled(mid_h))),
                 ..Default::default()
@@ -68,7 +127,13 @@ pub fn draw_background(bg: &Background, assets: &AssetHandles, cam: &Camera) {
         x += mid_tile_w;
     }
 
-    // Floor
+    // Floor (slight tint, less affected so it stays readable)
+    let floor_tint = Color::new(
+        0.4 + 0.6 * tint.r,
+        0.4 + 0.6 * tint.g,
+        0.4 + 0.6 * tint.b,
+        1.0,
+    );
     let floor_tile_w = 256.0;
     let floor_y = 320.0;
     let floor_h = 80.0;
@@ -79,7 +144,7 @@ pub fn draw_background(bg: &Background, assets: &AssetHandles, cam: &Camera) {
             &assets.bg_floor,
             px,
             py,
-            WHITE,
+            floor_tint,
             DrawTextureParams {
                 dest_size: Some(vec2(cam.scaled(floor_tile_w), cam.scaled(floor_h))),
                 ..Default::default()
@@ -92,6 +157,7 @@ pub fn draw_background(bg: &Background, assets: &AssetHandles, cam: &Camera) {
 pub fn draw_hud(
     score: &Score,
     dash: &DashState,
+    hp: u32,
     assets: &AssetHandles,
     elapsed: f32,
     cam: &Camera,
@@ -105,13 +171,51 @@ pub fn draw_hud(
     let (hx, hy) = cam.to_screen(LOGICAL_W - 200.0, 60.0);
     draw_text(&high_text, hx, hy, 20.0 * cam.scale, DARKGRAY);
 
-    // Aurora gauge (top-left) — three pulsing slots using the real aurora
-    // sprite for filled slots, a dim outline ring for empty slots, and a
+    // HP hearts row (top-left, above aurora)
+    let heart_size = 28.0;
+    let heart_gap = 6.0;
+    let heart_y = 12.0;
+    let heart_label_size = 14.0 * cam.scale;
+    let (hlx, hly) = cam.to_screen(24.0, heart_y - 2.0);
+    draw_text("LIFE", hlx, hly, heart_label_size, Color::new(0.1, 0.1, 0.1, 0.9));
+    for i in 0..MAX_HP {
+        let lx = 70.0 + i as f32 * (heart_size + heart_gap);
+        let ly = heart_y;
+        let (sx, sy) = cam.to_screen(lx, ly);
+        let filled = i < hp;
+        if filled {
+            // Use frame 0 of heart sprite (static, no pulse in HUD)
+            let src = Rect { x: 0.0, y: 0.0, w: 36.0, h: 36.0 };
+            draw_texture_ex(
+                &assets.heart,
+                sx,
+                sy,
+                WHITE,
+                DrawTextureParams {
+                    dest_size: Some(vec2(cam.scaled(heart_size), cam.scaled(heart_size))),
+                    source: Some(src),
+                    ..Default::default()
+                },
+            );
+        } else {
+            draw_rectangle_lines(
+                sx,
+                sy,
+                cam.scaled(heart_size),
+                cam.scaled(heart_size),
+                2.0,
+                Color::new(0.4, 0.1, 0.15, 0.5),
+            );
+        }
+    }
+
+    // Aurora gauge (top-left, below hearts) — three pulsing slots using the real
+    // aurora sprite for filled slots, a dim outline ring for empty slots, and a
     // thin dash-status bar below.
     let slot_size = 42.0;
     let slot_gap = 8.0;
     let gauge_x = 24.0;
-    let gauge_y = 20.0;
+    let gauge_y = 56.0;
     let label = "AURORA";
     let label_size = 16.0 * cam.scale;
     let (lx, ly) = cam.to_screen(gauge_x, gauge_y - 4.0);
@@ -223,12 +327,13 @@ pub fn draw_hud(
 }
 
 pub fn draw_overlay(
-    state: GameState,
-    score: &Score,
+    game: &Game,
     assets: &AssetHandles,
     elapsed: f32,
     cam: &Camera,
 ) {
+    let state = game.state;
+    let score = &game.world.score;
     let dim = match state {
         GameState::Title | GameState::Paused | GameState::GameOver => 0.45,
         _ => return,
@@ -336,7 +441,51 @@ pub fn draw_overlay(
         GameState::Playing => return,
     };
     let sub_size = 22.0 * cam.scale;
-    let (sx, sy) = cam.to_screen(LOGICAL_W * 0.5, LOGICAL_H * 0.88);
+    let (sx, sy) = cam.to_screen(LOGICAL_W * 0.5, LOGICAL_H * 0.83);
     let dim_sub = measure_text(&sub, None, sub_size as u16, 1.0);
     draw_text(&sub, sx - dim_sub.width * 0.5, sy, sub_size, WHITE);
+
+    // Run history dashboard — Title and GameOver
+    if matches!(state, GameState::Title | GameState::GameOver) {
+        let best = game.best_runs();
+        if !best.is_empty() {
+            let dash_label = "BEST RUNS";
+            let dash_size = 16.0 * cam.scale;
+            let (lx, ly) = cam.to_screen(LOGICAL_W * 0.5, LOGICAL_H * 0.90);
+            let dim_label = measure_text(dash_label, None, dash_size as u16, 1.0);
+            draw_text(
+                dash_label,
+                lx - dim_label.width * 0.5,
+                ly,
+                dash_size,
+                Color::new(0.85, 0.82, 0.7, 1.0),
+            );
+
+            // Render up to 5 scores in a horizontal row, "1234 / 890 / 456"
+            let row: Vec<String> = best
+                .iter()
+                .enumerate()
+                .map(|(i, s)| format!("#{} {}", i + 1, s))
+                .collect();
+            let joined = row.join("    ");
+            let row_size = 18.0 * cam.scale;
+            let (rx, ry) = cam.to_screen(LOGICAL_W * 0.5, LOGICAL_H * 0.95);
+            let dim_row = measure_text(&joined, None, row_size as u16, 1.0);
+            draw_text(&joined, rx - dim_row.width * 0.5, ry, row_size, WHITE);
+        }
+    }
+
+    // NEW #N badge on GameOver if the just-completed run made the leaderboard.
+    if matches!(state, GameState::GameOver) {
+        if let Some(rank) = game.last_run_rank {
+            let badge = format!("NEW #{}", rank);
+            let badge_size = 28.0 * cam.scale;
+            let dim_badge = measure_text(&badge, None, badge_size as u16, 1.0);
+            // Pulsing yellow
+            let pulse = 0.7 + 0.3 * (elapsed * 4.0).sin().abs();
+            let color = Color::new(1.0, 0.85, 0.2, pulse);
+            let (bx, by) = cam.to_screen(LOGICAL_W * 0.5, LOGICAL_H * 0.55);
+            draw_text(&badge, bx - dim_badge.width * 0.5, by, badge_size, color);
+        }
+    }
 }

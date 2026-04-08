@@ -18,6 +18,9 @@ pub enum RunOutcome {
     Died,
 }
 
+pub const MAX_HP: u32 = 3;
+pub const HP_INVULN_TIME: f32 = 1.0;
+
 pub struct World {
     pub player: Player,
     pub obstacles: ObstacleField,
@@ -29,6 +32,8 @@ pub struct World {
     pub elapsed: f32,
     /// Fractional score accumulator (px scrolled / 4) — flushed when ≥1.
     score_accum: f32,
+    pub hp: u32,
+    pub hp_invuln: f32,
 }
 
 impl World {
@@ -43,7 +48,13 @@ impl World {
             rng: SmallRng::seed_from_u64(seed),
             elapsed: 0.0,
             score_accum: 0.0,
+            hp: 1,
+            hp_invuln: 0.0,
         }
+    }
+
+    pub fn is_hp_invuln(&self) -> bool {
+        self.hp_invuln > 0.0
     }
 
     pub fn current_speed(&self) -> f32 {
@@ -78,6 +89,9 @@ impl World {
         self.elapsed += sim_dt;
         self.dash.update(real_dt);
         self.player.update(sim_dt);
+        if self.hp_invuln > 0.0 {
+            self.hp_invuln = (self.hp_invuln - real_dt).max(0.0);
+        }
 
         let speed = self.current_speed();
         self.background.update(sim_dt, speed);
@@ -101,6 +115,16 @@ impl World {
             self.score.add(50);
         }
 
+        // Heart pickups
+        let heart_indices = self.pickups.heart_collisions_with(&player_box);
+        for &i in &heart_indices {
+            self.pickups.hearts[i].collected = true;
+            if self.hp < MAX_HP {
+                self.hp += 1;
+            }
+            self.score.add(75);
+        }
+
         if let Some(idx) = self.obstacles.first_collision(&player_box) {
             let kind = self.obstacles.obstacles[idx].kind;
             if self.dash.is_invulnerable() && kind.destroyable_by_dash() {
@@ -109,9 +133,16 @@ impl World {
                 if matches!(kind, ObstacleKind::QuadDrone) {
                     self.dash.trigger_slowmo();
                 }
-            } else if !self.dash.is_invulnerable() {
-                self.player.hit();
-                return RunOutcome::Died;
+            } else if !self.dash.is_invulnerable() && !self.is_hp_invuln() {
+                if self.hp > 1 {
+                    self.hp -= 1;
+                    self.hp_invuln = HP_INVULN_TIME;
+                    // Despawn the obstacle so we don't double-hit
+                    self.obstacles.obstacles[idx].alive = false;
+                } else {
+                    self.player.hit();
+                    return RunOutcome::Died;
+                }
             }
         }
 

@@ -12,10 +12,17 @@ pub enum GameState {
     GameOver,
 }
 
+pub const RUN_HISTORY_LEN: usize = 5;
+
 pub struct Game {
     pub state: GameState,
     pub world: World,
     pub seed_counter: u64,
+    /// Most recent run scores, newest first. Capped at RUN_HISTORY_LEN.
+    pub run_history: Vec<u32>,
+    /// Position (1-indexed) of the most recently completed run within the
+    /// best-runs leaderboard, if it qualified. Used for the "NEW #N" badge.
+    pub last_run_rank: Option<usize>,
 }
 
 impl Game {
@@ -24,7 +31,16 @@ impl Game {
             state: GameState::Title,
             world: World::new(seed, storage),
             seed_counter: seed,
+            run_history: Vec::new(),
+            last_run_rank: None,
         }
+    }
+
+    /// Top scores in the session, sorted high→low.
+    pub fn best_runs(&self) -> Vec<u32> {
+        let mut sorted = self.run_history.clone();
+        sorted.sort_unstable_by(|a, b| b.cmp(a));
+        sorted
     }
 
     pub fn on_visibility_change(&mut self, visible: bool) {
@@ -69,6 +85,19 @@ impl Game {
             RunOutcome::Died => {
                 self.state = GameState::GameOver;
                 let _ = self.world.score.save_if_new_high(storage);
+
+                let final_score = self.world.score.current;
+                // Insert into history (newest first)
+                self.run_history.insert(0, final_score);
+                if self.run_history.len() > RUN_HISTORY_LEN {
+                    self.run_history.truncate(RUN_HISTORY_LEN);
+                }
+                // Compute rank within best_runs (1-indexed)
+                let best = self.best_runs();
+                self.last_run_rank = best
+                    .iter()
+                    .position(|s| *s == final_score)
+                    .map(|i| i + 1);
             }
         }
     }
