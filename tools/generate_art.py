@@ -975,6 +975,87 @@ def make_stage_backgrounds() -> None:
     save_png(floor, "bg_street_floor.png", palette_lock=False)
 
     # ============================================================
+    # Stage 1b: Pangyo Tech Park (generic fictional IT campus)
+    # Logos are abstract color shapes, not real brand marks.
+    # ============================================================
+    far = new_canvas(256, 100)
+    d = ImageDraw.Draw(far)
+    # Glass tower block 1 (tall, blue-grey)
+    d.rectangle((8, 8, 96, 100), fill=(155, 175, 195, 255), outline=EDIE_OUTLINE, width=1)
+    # Window grid
+    for wy in range(14, 98, 7):
+        for wx in range(12, 94, 8):
+            d.rectangle((wx, wy, wx + 6, wy + 4), fill=(95, 125, 160, 255))
+    # Abstract rooftop mark: simple triangle, no letters
+    d.polygon([(46, 22), (58, 22), (52, 12)], fill=(240, 210, 90, 255), outline=EDIE_OUTLINE)
+    # Glass tower block 2 (mid-height, muted teal)
+    d.rectangle((104, 24, 176, 100), fill=(165, 195, 180, 255), outline=EDIE_OUTLINE, width=1)
+    for wy in range(30, 98, 6):
+        for wx in range(108, 174, 7):
+            d.rectangle((wx, wy, wx + 5, wy + 3), fill=(80, 140, 110, 255))
+    # Rooftop accent: two stacked bars, no text
+    d.rectangle((120, 28, 160, 32), fill=(90, 170, 130, 255))
+    d.rectangle((126, 34, 154, 38), fill=(120, 190, 150, 255))
+    # Glass tower block 3 (short, warm peach)
+    d.rectangle((184, 40, 254, 100), fill=(220, 180, 150, 255), outline=EDIE_OUTLINE, width=1)
+    for wy in range(46, 98, 6):
+        for wx in range(188, 252, 7):
+            d.rectangle((wx, wy, wx + 5, wy + 3), fill=(160, 110, 80, 255))
+    # Rooftop dome
+    d.ellipse((208, 32, 230, 44), fill=(200, 160, 130, 255), outline=EDIE_OUTLINE, width=1)
+    # Sky between buildings
+    d.rectangle((96, 8, 104, 24), fill=(200, 225, 240, 255))
+    d.rectangle((176, 24, 184, 40), fill=(200, 225, 240, 255))
+    save_png(far, "bg_techpark_far.png", palette_lock=False)
+
+    mid = new_canvas(256, 60)
+    d = ImageDraw.Draw(mid)
+    # Wide plaza with fountain and benches
+    d.rectangle((0, 40, 256, 60), fill=(210, 210, 200, 255))
+    d.rectangle((0, 38, 256, 41), fill=(170, 170, 160, 255))
+    # Fountain (center)
+    d.ellipse((108, 26, 148, 50), fill=(180, 190, 210, 255), outline=EDIE_OUTLINE, width=1)
+    d.ellipse((112, 30, 144, 46), fill=(120, 170, 200, 255))
+    # Water spout
+    d.line((128, 10, 128, 30), fill=(200, 220, 240, 255), width=2)
+    d.line((124, 14, 126, 28), fill=(200, 220, 240, 255))
+    d.line((130, 14, 132, 28), fill=(200, 220, 240, 255))
+    # Food truck (left)
+    d.rectangle((12, 18, 58, 44), fill=(220, 80, 60, 255), outline=EDIE_OUTLINE, width=1)
+    d.rectangle((14, 22, 56, 32), fill=(255, 240, 220, 255))
+    # Awning stripes
+    for sx in range(12, 58, 4):
+        d.line((sx, 18, sx, 20), fill=(240, 180, 60, 255))
+    d.rectangle((18, 34, 52, 42), fill=(40, 40, 50, 255))
+    d.ellipse((18, 40, 28, 48), fill=(40, 40, 50, 255), outline=EDIE_OUTLINE, width=1)
+    d.ellipse((44, 40, 54, 48), fill=(40, 40, 50, 255), outline=EDIE_OUTLINE, width=1)
+    # Trees (right side)
+    for tx in (180, 210, 240):
+        d.rectangle((tx + 2, 30, tx + 4, 44), fill=(90, 60, 40, 255))
+        d.ellipse((tx - 4, 16, tx + 10, 32), fill=(70, 150, 80, 255), outline=EDIE_OUTLINE, width=1)
+        d.ellipse((tx - 2, 18, tx + 8, 28), fill=(90, 170, 100, 255))
+    save_png(mid, "bg_techpark_mid.png", palette_lock=False)
+
+    floor = new_canvas(256, 80)
+    d = ImageDraw.Draw(floor)
+    # Modern granite plaza
+    d.rectangle((0, 0, 256, 80), fill=(175, 175, 180, 255))
+    d.rectangle((0, 0, 256, 4), fill=(110, 110, 120, 255))
+    # Large diagonal stone tile pattern
+    for tx in range(0, 256, 32):
+        d.line((tx, 4, tx, 80), fill=(145, 145, 155, 255))
+    for ty in range(16, 80, 16):
+        d.line((0, ty, 256, ty), fill=(145, 145, 155, 255))
+    # Speckle
+    import random as _rr
+    rng = _rr.Random(42)
+    for _ in range(120):
+        sx = rng.randint(0, 255)
+        sy = rng.randint(6, 79)
+        d.point((sx, sy), fill=(130, 130, 140, 255))
+    save_png(floor, "bg_techpark_floor.png", palette_lock=False)
+
+    # ============================================================
     # Stage 2: Highway
     # ============================================================
     far = new_canvas(256, 100)
@@ -1554,14 +1635,12 @@ def make_boss_virus() -> None:
 
 
 def make_heart_pickup() -> None:
-    """Heart pickup using the Aurora Stone palette (purple + green accent).
-    4-frame pulse."""
+    """Classic red heart pickup (4-frame pulse)."""
     frames = []
-    # Aurora purple core / green highlight split
-    red_dark = (90, 50, 180, 255)        # aurora-purple-deep
-    red = AURORA_PURPLE                   # main body
-    red_light = AURORA_PURPLE_HI          # lighter
-    white = AURORA_GREEN_HI               # pale green highlight
+    red_dark = (180, 25, 40, 255)
+    red = (232, 50, 60, 255)
+    red_light = (255, 140, 140, 255)
+    white = (255, 255, 255, 255)
     outline = EDIE_OUTLINE
     for f in range(4):
         w = h = 36
@@ -1595,6 +1674,41 @@ def make_heart_pickup() -> None:
 # ============================================================
 # main
 # ============================================================
+def _extract_gif_slice(gif_name: str, out_name: str, start: int, end_exclusive: int) -> None:
+    """Extract a specific frame range from a GIF into a sprite sheet."""
+    p = SOURCE / gif_name
+    im = Image.open(p)
+    n = getattr(im, "n_frames", 1)
+    end = min(end_exclusive, n)
+    # Union bbox across selected frames
+    union = None
+    for i in range(start, end):
+        im.seek(i)
+        fr = im.convert("RGBA")
+        bbox = fr.getbbox()
+        if bbox is None:
+            continue
+        if union is None:
+            union = bbox
+        else:
+            union = (
+                min(union[0], bbox[0]),
+                min(union[1], bbox[1]),
+                max(union[2], bbox[2]),
+                max(union[3], bbox[3]),
+            )
+    if union is None:
+        raise SystemExit(f"{gif_name}: empty slice")
+    frames: list[Image.Image] = []
+    for i in range(start, end):
+        im.seek(i)
+        fr = im.convert("RGBA").crop(union)
+        frames.append(fr)
+    sheet = tile_horizontal(frames)
+    save_png(sheet, out_name, palette_lock=False)
+    print(f"    sliced frames [{start}..{end}) -> {len(frames)}f")
+
+
 def extract_gif_to_sheet(gif_name: str, out_name: str, target_h: int | None = None) -> None:
     """Extract every frame of a GIF into a horizontal sprite sheet.
 
@@ -1640,8 +1754,9 @@ def process_gif_assets() -> None:
     print("[EDIE] extracting gif animations")
     # Running cycle (7f): bright-eyed idle blink - also used as boss-mode EDIE
     extract_gif_to_sheet("1000027545.gif", "edie_run_anim.png")
-    # Happy smile cycle (17f) - now the DEFAULT playable running face
-    extract_gif_to_sheet("1000027555.gif", "edie_happy_run.png")
+    # Extract only the "smile" portion of 1000027555.gif (frames 6..10)
+    # since the full GIF is actually a happy->sad transition.
+    _extract_gif_slice("1000027555.gif", "edie_happy_run.png", 6, 10)
     # Title idle variant 1 (7f): looking around curiously
     extract_gif_to_sheet("1000027548.gif", "edie_title_idle.png")
     # Sad closed eyes (7f): GameOver alternate

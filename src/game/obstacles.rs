@@ -68,11 +68,12 @@ impl ObstacleKind {
     pub fn y_for_kind(&self) -> f32 {
         let (_, h) = self.size();
         match self {
-            // Balloon drone: hover so that its BOTTOM sits clearly above the
-            // ducked player hitbox. Duck hitbox top is ~296 (GROUND_Y - 24);
-            // balloon bottom at GROUND_Y - 88 = 232 -> clean 64 px of duck
-            // clearance, plenty forgiving.
-            ObstacleKind::BalloonDrone => GROUND_Y - 88.0 - h,
+            // Balloon drone: bottom must fall inside the [standing-top,
+            // ducked-top] window so running collides and ducking escapes.
+            //   standing top = GROUND_Y - SPRITE_BODY_H = 320 - 44 = 276
+            //   ducked  top  = GROUND_Y - SPRITE_BODY_H*0.55 ~= 296
+            //   target bottom ~286  ->  y = 286 - 48 = 238 = GROUND_Y - 82
+            ObstacleKind::BalloonDrone => GROUND_Y - 82.0,
             ObstacleKind::SignBoard => GROUND_Y - 160.0,
             _ => GROUND_Y - h,
         }
@@ -177,11 +178,18 @@ impl ObstacleField {
                 pool.push(ObstacleKind::TrafficCone);
                 pool.push(ObstacleKind::ShoppingCart);
                 pool.push(ObstacleKind::BalloonDrone);
-                if tier >= 2 {
-                    pool.push(ObstacleKind::VacuumBot);
-                    pool.push(ObstacleKind::VacuumBot);
-                    pool.push(ObstacleKind::BalloonDrone);
-                }
+            }
+            Stage::PangyoTechPark => {
+                // IT campus plaza: foot traffic, coffee, pigeons(cats),
+                // balloons, cones. No vacuum bots -- that's a home-goods aisle.
+                pool.push(ObstacleKind::CoffeeCup);
+                pool.push(ObstacleKind::CoffeeCup);
+                pool.push(ObstacleKind::CatOrange);
+                pool.push(ObstacleKind::CatWhite);
+                pool.push(ObstacleKind::TrafficCone);
+                pool.push(ObstacleKind::BalloonDrone);
+                pool.push(ObstacleKind::BalloonDrone);
+                pool.push(ObstacleKind::SignBoard);
             }
             Stage::Highway => {
                 // Highway: charging cars, sudden deer leaps, signs, drones.

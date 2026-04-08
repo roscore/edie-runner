@@ -71,6 +71,14 @@ pub enum Facing {
     Right,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum BossPattern {
+    Rain,
+    DiagonalVolley,
+    Spiral,
+    SweepLaser,
+}
+
 pub struct BossWorld {
     pub remaining: f32,
     pub player_x: f32,
@@ -81,6 +89,11 @@ pub struct BossWorld {
     pub boss_bob_t: f32,
     pub laser: Option<Laser>,
     pub laser_cooldown: f32,
+    pub pattern: BossPattern,
+    pub pattern_timer: f32,
+    pub sweep_laser_x: f32,
+    pub sweep_laser_active: bool,
+    pub sweep_laser_dir: f32,
 }
 
 impl BossWorld {
@@ -94,7 +107,12 @@ impl BossWorld {
             elapsed: 0.0,
             boss_bob_t: 0.0,
             laser: None,
-            laser_cooldown: 3.0, // first laser ~3s in
+            laser_cooldown: 3.0,
+            pattern: BossPattern::Rain,
+            pattern_timer: 8.0,
+            sweep_laser_x: 0.0,
+            sweep_laser_active: false,
+            sweep_laser_dir: 1.0,
         }
     }
 
@@ -119,23 +137,123 @@ impl BossWorld {
 
         let progress = (self.elapsed / BOSS_DURATION).clamp(0.0, 1.0);
 
-        // Virus spawn — casual friendly pacing.
+        // Rotate attack pattern every ~8s
+        self.pattern_timer -= dt;
+        if self.pattern_timer <= 0.0 {
+            self.pattern = match self.pattern {
+                BossPattern::Rain => BossPattern::DiagonalVolley,
+                BossPattern::DiagonalVolley => BossPattern::Spiral,
+                BossPattern::Spiral => BossPattern::SweepLaser,
+                BossPattern::SweepLaser => BossPattern::Rain,
+            };
+            self.pattern_timer = 8.0;
+            // Clear sweep state at boundary
+            self.sweep_laser_active = false;
+        }
+
+        // Virus spawn — pattern-aware
         self.spawn_timer -= dt;
-        let spawn_interval = 0.60 - progress * 0.25; // 0.60s -> 0.35s
-        if self.spawn_timer <= 0.0 {
-            let count = if progress > 0.75 { 2 } else { 1 };
-            for _ in 0..count {
-                let x = rng.gen_range(0.0..=(1280.0 - VIRUS_W));
-                let vy = rng.gen_range(200.0..300.0) + self.elapsed * 3.0;
-                let vx = rng.gen_range(-30.0..30.0);
-                let color = if rng.gen_bool(0.5) {
-                    VirusColor::Green
-                } else {
-                    VirusColor::Purple
-                };
-                self.viruses.push(Virus { x, y: -VIRUS_H, vy, vx, color, alive: true });
+        match self.pattern {
+            BossPattern::Rain => {
+                let spawn_interval = 0.38 - progress * 0.18; // 0.38 -> 0.20
+                if self.spawn_timer <= 0.0 {
+                    let count = if progress > 0.6 { 2 } else { 1 };
+                    for _ in 0..count {
+                        let x = rng.gen_range(0.0..=(1280.0 - VIRUS_W));
+                        let vy = rng.gen_range(260.0..360.0) + self.elapsed * 4.0;
+                        let vx = rng.gen_range(-30.0..30.0);
+                        let color = if rng.gen_bool(0.5) {
+                            VirusColor::Green
+                        } else {
+                            VirusColor::Purple
+                        };
+                        self.viruses.push(Virus { x, y: -VIRUS_H, vy, vx, color, alive: true });
+                    }
+                    self.spawn_timer = spawn_interval.max(0.14);
+                }
             }
-            self.spawn_timer = spawn_interval.max(0.20);
+            BossPattern::DiagonalVolley => {
+                // Streams of 4 viruses at a fixed angle, alternating direction
+                if self.spawn_timer <= 0.0 {
+                    let from_left = ((self.elapsed * 0.8) as u32) % 2 == 0;
+                    for i in 0..4u32 {
+                        let x = if from_left {
+                            -40.0 - (i as f32) * 20.0
+                        } else {
+                            1280.0 + (i as f32) * 20.0
+                        };
+                        let y = -40.0 - (i as f32) * 30.0;
+                        let vx = if from_left { 260.0 } else { -260.0 };
+                        let vy = 260.0;
+                        let color = if rng.gen_bool(0.5) {
+                            VirusColor::Green
+                        } else {
+                            VirusColor::Purple
+                        };
+                        self.viruses.push(Virus { x, y, vy, vx, color, alive: true });
+                    }
+                    self.spawn_timer = 0.9;
+                }
+            }
+            BossPattern::Spiral => {
+                // Rotating 8-arm spiral from boss center
+                if self.spawn_timer <= 0.0 {
+                    let (cx, cy) = self.boss_center();
+                    let base_angle = self.elapsed * 2.8;
+                    for i in 0..8u32 {
+                        let a = base_angle + (i as f32) * std::f32::consts::TAU / 8.0;
+                        let speed = 280.0;
+                        let vx = a.cos() * speed;
+                        let vy = a.sin() * speed;
+                        let color = if i % 2 == 0 {
+                            VirusColor::Green
+                        } else {
+                            VirusColor::Purple
+                        };
+                        self.viruses.push(Virus {
+                            x: cx - VIRUS_W * 0.5,
+                            y: cy - VIRUS_H * 0.5,
+                            vy,
+                            vx,
+                            color,
+                            alive: true,
+                        });
+                    }
+                    self.spawn_timer = 0.35;
+                }
+            }
+            BossPattern::SweepLaser => {
+                // Few light rain drops + wide sweeping beam
+                if self.spawn_timer <= 0.0 {
+                    let x = rng.gen_range(0.0..=(1280.0 - VIRUS_W));
+                    let vy = rng.gen_range(220.0..320.0);
+                    self.viruses.push(Virus {
+                        x,
+                        y: -VIRUS_H,
+                        vy,
+                        vx: 0.0,
+                        color: VirusColor::Green,
+                        alive: true,
+                    });
+                    self.spawn_timer = 0.7;
+                }
+                if !self.sweep_laser_active {
+                    self.sweep_laser_active = true;
+                    self.sweep_laser_x = 100.0;
+                    self.sweep_laser_dir = 1.0;
+                }
+            }
+        }
+
+        // Sweep laser movement
+        if self.sweep_laser_active {
+            self.sweep_laser_x += self.sweep_laser_dir * 320.0 * dt;
+            if self.sweep_laser_x > 1180.0 {
+                self.sweep_laser_dir = -1.0;
+            }
+            if self.sweep_laser_x < 100.0 {
+                self.sweep_laser_dir = 1.0;
+            }
         }
 
         // Advance viruses
@@ -204,6 +322,15 @@ impl BossWorld {
                 if player_box.x + player_box.w > lx_min && player_box.x < lx_max {
                     return BossOutcome::Hit;
                 }
+            }
+        }
+
+        // Sweep laser collision
+        if self.sweep_laser_active {
+            let lx_min = self.sweep_laser_x - 30.0;
+            let lx_max = self.sweep_laser_x + 30.0;
+            if player_box.x + player_box.w > lx_min && player_box.x < lx_max {
+                return BossOutcome::Hit;
             }
         }
 

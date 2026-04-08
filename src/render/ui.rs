@@ -84,9 +84,9 @@ pub fn draw_background(
     );
 
     // Indoor stages get a flat tint (ignore day/night) and skip stars.
-    let outdoor = !matches!(
+    let outdoor = matches!(
         stage,
-        Stage::DepartmentStore | Stage::AeiRobotOffice | Stage::AeiRobotCEORoom
+        Stage::PangyoStreet | Stage::PangyoTechPark | Stage::Highway | Stage::Ansan
     );
 
     if outdoor && star_alpha > 0.01 {
@@ -107,6 +107,7 @@ pub fn draw_background(
     let stage_bg = match stage {
         Stage::DepartmentStore => &assets.stage_store,
         Stage::PangyoStreet => &assets.stage_street,
+        Stage::PangyoTechPark => &assets.stage_techpark,
         Stage::Highway => &assets.stage_highway,
         Stage::Ansan => &assets.stage_ansan,
         Stage::AeiRobotOffice => &assets.stage_office,

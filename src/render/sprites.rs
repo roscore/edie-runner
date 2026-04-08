@@ -47,6 +47,9 @@ pub const EDIE_BLINK_FRAMES: usize = 7;
 pub const EDIE_BLINK_FPS: f32 = 7.0;
 pub const EDIE_CHEER_FRAMES: usize = 17;
 pub const EDIE_CHEER_FPS: f32 = 14.0;
+/// edie_happy_run is a 4-frame slice of 1000027555.gif (smile portion only).
+pub const EDIE_HAPPY_FRAMES: usize = 4;
+pub const EDIE_HAPPY_FPS: f32 = 6.0;
 
 /// Draw one frame from a horizontally-laid-out sprite sheet that uses the
 /// generator's standard 1-px padding between frames.
@@ -210,8 +213,8 @@ pub fn draw_player(
             let duck_y = player.y + PLAYER_H - duck_h;
             draw_anim_sheet(
                 &assets.edie_happy_run,
-                EDIE_CHEER_FRAMES,
-                8.0,
+                EDIE_HAPPY_FRAMES,
+                EDIE_HAPPY_FPS,
                 elapsed,
                 logical_x,
                 duck_y,
@@ -222,11 +225,10 @@ pub fn draw_player(
             );
         }
         PlayerState::Jumping | PlayerState::Falling => {
-            // Use a frozen happy mid-frame for the airborne pose
             draw_anim_sheet(
                 &assets.edie_happy_run,
-                EDIE_CHEER_FRAMES,
-                8.0,
+                EDIE_HAPPY_FRAMES,
+                EDIE_HAPPY_FPS,
                 elapsed,
                 logical_x,
                 logical_y,
@@ -241,8 +243,8 @@ pub fn draw_player(
             logical_y += bob;
             draw_anim_sheet(
                 &assets.edie_happy_run,
-                EDIE_CHEER_FRAMES,
-                10.0,
+                EDIE_HAPPY_FRAMES,
+                EDIE_HAPPY_FPS,
                 elapsed,
                 logical_x,
                 logical_y,
@@ -737,6 +739,42 @@ pub fn draw_boss_mode(
     }
 
     // ======================================================
+    // Sweep laser (during SweepLaser pattern)
+    // ======================================================
+    if boss.sweep_laser_active {
+        let lx = boss.sweep_laser_x;
+        let top = by_c + BOSS_SIZE * 0.4;
+        let bottom = 400.0;
+        let (sx, sy) = cam.to_screen(lx - 30.0, top);
+        // Outer glow
+        draw_rectangle(
+            sx,
+            sy,
+            cam.scaled(60.0),
+            cam.scaled(bottom - top),
+            Color::new(1.0, 0.3, 0.4, 0.35),
+        );
+        // Core beam
+        let (cx_l, cy_l) = cam.to_screen(lx - 14.0, top);
+        draw_rectangle(
+            cx_l,
+            cy_l,
+            cam.scaled(28.0),
+            cam.scaled(bottom - top),
+            Color::new(1.0, 0.85, 0.9, 0.9),
+        );
+        // Bright center line
+        let (ccx, ccy) = cam.to_screen(lx - 2.0, top);
+        draw_rectangle(
+            ccx,
+            ccy,
+            cam.scaled(4.0),
+            cam.scaled(bottom - top),
+            Color::new(1.0, 1.0, 1.0, 1.0),
+        );
+    }
+
+    // ======================================================
     // Viruses (green + purple)
     // ======================================================
     let green_fw = (assets.virus_green.width() - 3.0) / 4.0;
@@ -834,6 +872,24 @@ pub fn draw_boss_mode(
         cam.scaled(16.0),
         2.0,
         Color::new(0.9, 0.95, 0.85, 1.0),
+    );
+
+    // Current pattern label
+    let pattern_label = match boss.pattern {
+        crate::game::boss::BossPattern::Rain => "CORONA RAIN",
+        crate::game::boss::BossPattern::DiagonalVolley => "CROSSFIRE VOLLEY",
+        crate::game::boss::BossPattern::Spiral => "SPIRAL STORM",
+        crate::game::boss::BossPattern::SweepLaser => "SWEEP LASER",
+    };
+    let psize = 16.0 * cam.scale;
+    let pdim = measure_text(pattern_label, None, psize as u16, 1.0);
+    let (px, py) = cam.to_screen(640.0, 60.0);
+    draw_text(
+        pattern_label,
+        px - pdim.width * 0.5,
+        py,
+        psize,
+        Color::new(1.0, 0.5, 0.5, 0.85),
     );
 
     let txt = format!("SURVIVE  {:>4.1}s", boss.remaining.max(0.0));

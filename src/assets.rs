@@ -78,6 +78,7 @@ pub struct AssetHandles {
 
     pub stage_store: StageBg,
     pub stage_street: StageBg,
+    pub stage_techpark: StageBg,
     pub stage_highway: StageBg,
     pub stage_ansan: StageBg,
     pub stage_office: StageBg,
@@ -180,6 +181,11 @@ pub async fn load_all() -> Result<AssetHandles, LoadError> {
             far: tex("bg_street_far.png")?,
             mid: tex("bg_street_mid.png")?,
             floor: tex("bg_street_floor.png")?,
+        },
+        stage_techpark: StageBg {
+            far: tex("bg_techpark_far.png")?,
+            mid: tex("bg_techpark_mid.png")?,
+            floor: tex("bg_techpark_floor.png")?,
         },
         stage_highway: StageBg {
             far: tex("bg_highway_far.png")?,

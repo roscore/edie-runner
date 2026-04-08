@@ -31,6 +31,7 @@ pub fn speed_for_score(score: u32) -> f32 {
 pub enum Stage {
     DepartmentStore,
     PangyoStreet,
+    PangyoTechPark,
     Highway,
     Ansan,
     AeiRobotOffice,
@@ -40,7 +41,8 @@ pub enum Stage {
 pub fn stage_for_tier(tier: u32) -> Stage {
     match tier {
         0 => Stage::DepartmentStore,
-        1 | 2 => Stage::PangyoStreet,
+        1 => Stage::PangyoStreet,
+        2 => Stage::PangyoTechPark,
         3 | 4 => Stage::Highway,
         5 | 6 => Stage::Ansan,
         7 => Stage::AeiRobotOffice,
@@ -52,6 +54,7 @@ pub fn stage_name(stage: Stage) -> &'static str {
     match stage {
         Stage::DepartmentStore => "PANGYO POP-UP STORE",
         Stage::PangyoStreet => "PANGYO STREET",
+        Stage::PangyoTechPark => "PANGYO TECH PARK",
         Stage::Highway => "HIGHWAY TO ANSAN",
         Stage::Ansan => "HANYANG UNIV (ERICA)",
         Stage::AeiRobotOffice => "AEIROBOT OFFICE",
