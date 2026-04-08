@@ -109,6 +109,7 @@ pub fn draw_overlay(state: GameState, score: &Score, cam: &Camera) {
         GameState::Title => "PRESS SPACE TO START".to_string(),
         GameState::Paused => "PRESS P OR SPACE TO RESUME".to_string(),
         GameState::GameOver => format!("SCORE {} | HI {} | SPACE TO RETRY", score.current, score.high),
+        GameState::Playing => return,
     };
     let sub_size = 24.0 * cam.scale;
     let (sx, sy) = cam.to_screen(LOGICAL_W * 0.5, LOGICAL_H * 0.6);

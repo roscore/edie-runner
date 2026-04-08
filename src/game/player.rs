@@ -1,7 +1,5 @@
 //! EDIE player: physics, state machine, hitbox. See spec §3.3.
 
-use crate::time::DT;
-
 // Physics constants (spec §3.3)
 pub const GROUND_Y: f32 = 320.0;
 pub const GRAVITY: f32 = 2400.0;
@@ -164,7 +162,9 @@ impl Player {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::time::DT;
 
+    #[allow(dead_code)]
     fn step(p: &mut Player, seconds: f32) {
         let n = (seconds / DT).round() as u32;
         for _ in 0..n {

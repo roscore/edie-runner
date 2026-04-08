@@ -48,3 +48,30 @@ mod tests {
         assert_eq!(s.get("k"), Some("b".to_string()));
     }
 }
+
+/// Production storage backed by quad-storage (browser localStorage).
+pub struct QuadStorage;
+
+impl QuadStorage {
+    pub fn new() -> Self {
+        Self
+    }
+}
+
+impl Default for QuadStorage {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+impl Storage for QuadStorage {
+    fn get(&self, key: &str) -> Option<String> {
+        let storage = quad_storage::STORAGE.lock().unwrap();
+        storage.get(key)
+    }
+
+    fn set(&mut self, key: &str, value: &str) {
+        let mut storage = quad_storage::STORAGE.lock().unwrap();
+        storage.set(key, value);
+    }
+}

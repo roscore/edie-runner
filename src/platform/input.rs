@@ -68,3 +68,55 @@ mod tests {
         assert!(actions.contains(&Action::Dash));
     }
 }
+
+use macroquad::prelude::*;
+
+/// Production input source: reads macroquad keyboard each frame.
+pub struct MacroquadInput {
+    jump_was_down: bool,
+    duck_was_down: bool,
+}
+
+impl MacroquadInput {
+    pub fn new() -> Self {
+        Self { jump_was_down: false, duck_was_down: false }
+    }
+}
+
+impl Default for MacroquadInput {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+impl InputSource for MacroquadInput {
+    fn poll(&mut self) -> Vec<Action> {
+        let mut out = Vec::new();
+        let jump_now = is_key_down(KeyCode::Space) || is_key_down(KeyCode::Up);
+        let duck_now = is_key_down(KeyCode::Down);
+
+        if jump_now && !self.jump_was_down {
+            out.push(Action::Jump);
+            out.push(Action::Confirm);
+        }
+        if !jump_now && self.jump_was_down {
+            out.push(Action::JumpRelease);
+        }
+        if duck_now && !self.duck_was_down {
+            out.push(Action::Duck);
+        }
+        if !duck_now && self.duck_was_down {
+            out.push(Action::DuckRelease);
+        }
+        if is_key_pressed(KeyCode::LeftShift) || is_key_pressed(KeyCode::RightShift) {
+            out.push(Action::Dash);
+        }
+        if is_key_pressed(KeyCode::P) {
+            out.push(Action::Pause);
+        }
+
+        self.jump_was_down = jump_now;
+        self.duck_was_down = duck_now;
+        out
+    }
+}
