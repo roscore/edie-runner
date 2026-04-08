@@ -162,8 +162,8 @@ def derive_edie_states(run_im: Image.Image) -> None:
     print("[EDIE] deriving duck/dash/hit/shadow")
     w, h = run_im.size
 
-    # Duck — vertical squash to ~62% height
-    duck_h = int(h * 0.62)
+    # Duck — dramatic vertical squash to ~50% height for clear visual feedback
+    duck_h = int(h * 0.50)
     duck = run_im.resize((w, duck_h), Image.NEAREST)
     save_png(duck, "edie_duck.png")
 
@@ -305,26 +305,40 @@ def make_spark_burst() -> None:
 # Aurora Stones
 # ============================================================
 def make_aurora() -> None:
-    import math
     for variant, core, hi in [
         ("purple", AURORA_PURPLE, AURORA_PURPLE_HI),
         ("green", AURORA_GREEN, AURORA_GREEN_HI),
     ]:
         frames = []
         for f in range(6):
-            w, h = 28, 28
+            w, h = 48, 48
             im = new_canvas(w, h)
             d = ImageDraw.Draw(im)
-            # Halo expanding 2→5px alpha
-            halo_r = 9 + f
-            halo_alpha = max(20, 100 - f * 12)
-            halo_color = (255, 255, 255, halo_alpha)
-            d.ellipse((14 - halo_r, 14 - halo_r, 14 + halo_r, 14 + halo_r), fill=halo_color)
+            cx, cy = 24, 24
+            # Outer soft halo — large, low alpha
+            for r_off, a in [(22, 30), (18, 55), (14, 85)]:
+                d.ellipse(
+                    (cx - r_off, cy - r_off, cx + r_off, cy + r_off),
+                    fill=(255, 255, 255, a),
+                )
+            # Mid pulse ring
+            ring_r = 10 + (f % 3) * 2
+            d.ellipse(
+                (cx - ring_r, cy - ring_r, cx + ring_r, cy + ring_r),
+                fill=hi,
+                outline=EDIE_OUTLINE,
+                width=1,
+            )
             # Core orb
-            r = 5 + (f % 2)
-            d.ellipse((14 - r, 14 - r, 14 + r, 14 + r), fill=core, outline=EDIE_OUTLINE)
-            # Highlight
-            d.ellipse((12, 11, 14, 13), fill=hi)
+            r = 6 + (f % 2)
+            d.ellipse(
+                (cx - r, cy - r, cx + r, cy + r),
+                fill=core,
+                outline=EDIE_OUTLINE,
+                width=1,
+            )
+            # Highlight glint
+            d.ellipse((cx - 3, cy - 4, cx - 1, cy - 2), fill=EDIE_WHITE)
             frames.append(im)
         sheet = tile_horizontal(frames)
         save_png(sheet, f"aurora_{variant}.png", palette_lock=False)

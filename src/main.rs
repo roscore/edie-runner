@@ -100,7 +100,7 @@ async fn main() {
             }
         }
         draw_player(&game.world.player, &assets, elapsed, &cam);
-        draw_hud(&game.world.score, &game.world.dash, &cam);
+        draw_hud(&game.world.score, &game.world.dash, &assets, elapsed, &cam);
         draw_overlay(game.state, &game.world.score, &cam);
 
         next_frame().await;

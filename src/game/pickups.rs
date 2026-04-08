@@ -6,8 +6,8 @@ use rand::rngs::SmallRng;
 use rand::Rng;
 
 pub const MAX_AURORA: u32 = 3;
-pub const PICKUP_W: f32 = 28.0;
-pub const PICKUP_H: f32 = 28.0;
+pub const PICKUP_W: f32 = 48.0;
+pub const PICKUP_H: f32 = 48.0;
 const SPAWN_X: f32 = 1400.0;
 const SPAWN_INTERVAL_MIN: f32 = 8.0;
 const SPAWN_INTERVAL_MAX: f32 = 12.0;

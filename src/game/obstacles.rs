@@ -34,7 +34,9 @@ impl ObstacleKind {
     pub fn y_for_kind(&self) -> f32 {
         let (_, h) = self.size();
         match self {
-            ObstacleKind::QuadDrone => GROUND_Y - 88.0,
+            // Drone hovers so the player MUST duck (can't walk under, can't
+            // run through standing).
+            ObstacleKind::QuadDrone => GROUND_Y - 56.0,
             ObstacleKind::SparkBurst => GROUND_Y - 160.0,
             _ => GROUND_Y - h,
         }

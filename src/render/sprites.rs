@@ -8,8 +8,8 @@ use crate::render::camera::Camera;
 use macroquad::prelude::*;
 
 const AURORA_FRAMES: usize = 6;
-const AURORA_FRAME_W: f32 = 28.0;
-const AURORA_FRAME_H: f32 = 28.0;
+const AURORA_FRAME_W: f32 = 48.0;
+const AURORA_FRAME_H: f32 = 48.0;
 const AURORA_FPS: f32 = 8.0;
 
 const DRONE_FRAMES: usize = 4;

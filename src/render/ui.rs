@@ -2,7 +2,7 @@
 
 use crate::assets::AssetHandles;
 use crate::game::background::Background;
-use crate::game::dash::DashState;
+use crate::game::dash::{DashState, DASH_COOLDOWN, DASH_DURATION};
 use crate::game::pickups::MAX_AURORA;
 use crate::game::score::Score;
 use crate::game::state::GameState;
@@ -84,7 +84,14 @@ pub fn draw_background(bg: &Background, assets: &AssetHandles, cam: &Camera) {
     }
 }
 
-pub fn draw_hud(score: &Score, dash: &DashState, cam: &Camera) {
+pub fn draw_hud(
+    score: &Score,
+    dash: &DashState,
+    assets: &AssetHandles,
+    elapsed: f32,
+    cam: &Camera,
+) {
+    // Score (right)
     let score_text = format!("{:06}", score.current);
     let high_text = format!("HI {:06}", score.high);
     let font_size = 28.0 * cam.scale;
@@ -93,19 +100,121 @@ pub fn draw_hud(score: &Score, dash: &DashState, cam: &Camera) {
     let (hx, hy) = cam.to_screen(LOGICAL_W - 200.0, 60.0);
     draw_text(&high_text, hx, hy, 20.0 * cam.scale, DARKGRAY);
 
-    let icon_w = 28.0;
-    let gap = 8.0;
+    // Aurora gauge (top-left) — three pulsing slots using the real aurora
+    // sprite for filled slots, a dim outline ring for empty slots, and a
+    // thin dash-status bar below.
+    let slot_size = 42.0;
+    let slot_gap = 8.0;
+    let gauge_x = 24.0;
+    let gauge_y = 20.0;
+    let label = "AURORA";
+    let label_size = 16.0 * cam.scale;
+    let (lx, ly) = cam.to_screen(gauge_x, gauge_y - 4.0);
+    draw_text(label, lx, ly, label_size, Color::new(0.1, 0.1, 0.1, 0.9));
+
+    let aurora_frame_w = 48.0;
+    let aurora_frame_h = 48.0;
+    let frame_idx = ((elapsed * 8.0) as usize) % 6;
+    let src = Rect {
+        x: frame_idx as f32 * (aurora_frame_w + 1.0),
+        y: 0.0,
+        w: aurora_frame_w,
+        h: aurora_frame_h,
+    };
+
     for i in 0..MAX_AURORA {
-        let x = 20.0 + i as f32 * (icon_w + gap);
-        let (sx, sy) = cam.to_screen(x, 20.0);
+        let lx = gauge_x + i as f32 * (slot_size + slot_gap);
+        let ly = gauge_y + 10.0;
+        let (sx, sy) = cam.to_screen(lx, ly);
         let filled = i < dash.aurora;
-        let color = if filled {
-            Color::new(0.62, 0.42, 1.00, 1.0)
+
+        // Slot frame — rounded square background
+        draw_rectangle(
+            sx - cam.scaled(2.0),
+            sy - cam.scaled(2.0),
+            cam.scaled(slot_size + 4.0),
+            cam.scaled(slot_size + 4.0),
+            Color::new(0.1, 0.1, 0.1, 0.25),
+        );
+        draw_rectangle_lines(
+            sx - cam.scaled(2.0),
+            sy - cam.scaled(2.0),
+            cam.scaled(slot_size + 4.0),
+            cam.scaled(slot_size + 4.0),
+            2.0,
+            Color::new(0.1, 0.1, 0.1, 0.6),
+        );
+
+        if filled {
+            draw_texture_ex(
+                &assets.aurora_purple,
+                sx,
+                sy,
+                WHITE,
+                DrawTextureParams {
+                    dest_size: Some(vec2(cam.scaled(slot_size), cam.scaled(slot_size))),
+                    source: Some(src),
+                    ..Default::default()
+                },
+            );
         } else {
-            Color::new(0.62, 0.42, 1.00, 0.25)
-        };
-        draw_rectangle(sx, sy, cam.scaled(icon_w), cam.scaled(icon_w), color);
+            // Empty slot — faded core
+            draw_rectangle(
+                sx + cam.scaled(slot_size * 0.3),
+                sy + cam.scaled(slot_size * 0.3),
+                cam.scaled(slot_size * 0.4),
+                cam.scaled(slot_size * 0.4),
+                Color::new(0.62, 0.42, 1.00, 0.15),
+            );
+        }
     }
+
+    // Dash status bar below the slots
+    let bar_y = gauge_y + 10.0 + slot_size + 8.0;
+    let bar_w = MAX_AURORA as f32 * slot_size + (MAX_AURORA - 1) as f32 * slot_gap;
+    let bar_h = 6.0;
+    let (bsx, bsy) = cam.to_screen(gauge_x, bar_y);
+    // background
+    draw_rectangle(
+        bsx,
+        bsy,
+        cam.scaled(bar_w),
+        cam.scaled(bar_h),
+        Color::new(0.1, 0.1, 0.1, 0.35),
+    );
+
+    let (fill_ratio, bar_color) = if dash.is_active() {
+        (
+            dash.active_remaining / DASH_DURATION,
+            Color::new(0.18, 0.77, 0.71, 1.0), // ok teal during dash
+        )
+    } else if dash.cooldown_remaining > 0.0 {
+        (
+            1.0 - dash.cooldown_remaining / DASH_COOLDOWN,
+            Color::new(0.9, 0.5, 0.2, 0.9), // orange during cooldown
+        )
+    } else if dash.aurora > 0 {
+        (1.0, Color::new(0.62, 0.42, 1.00, 1.0)) // ready purple
+    } else {
+        (0.0, Color::new(0.3, 0.3, 0.3, 0.6)) // empty grey
+    };
+    if fill_ratio > 0.0 {
+        draw_rectangle(
+            bsx,
+            bsy,
+            cam.scaled(bar_w * fill_ratio.clamp(0.0, 1.0)),
+            cam.scaled(bar_h),
+            bar_color,
+        );
+    }
+    draw_rectangle_lines(
+        bsx,
+        bsy,
+        cam.scaled(bar_w),
+        cam.scaled(bar_h),
+        1.0,
+        Color::new(0.1, 0.1, 0.1, 0.8),
+    );
 }
 
 pub fn draw_overlay(state: GameState, score: &Score, cam: &Camera) {

@@ -14,6 +14,11 @@ pub const PLAYER_W: f32 = 64.0;
 pub const PLAYER_H: f32 = 80.0;
 pub const PLAYER_X: f32 = 200.0;
 
+/// Visible EDIE sprite body (the round blob occupying the bottom of the
+/// physics box). Collision uses this tighter box, not PLAYER_W/PLAYER_H.
+pub const SPRITE_BODY_W: f32 = 44.0;
+pub const SPRITE_BODY_H: f32 = 44.0;
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum PlayerState {
     Running,
@@ -143,17 +148,21 @@ impl Player {
     }
 
     pub fn hitbox(&self) -> Aabb {
-        let mut h = PLAYER_H;
-        let mut y = self.y;
-        if matches!(self.state, PlayerState::Ducking) {
-            let shrink = PLAYER_H * DUCK_HITBOX_SHRINK;
-            h -= shrink;
-            y += shrink;
-        }
+        // Collision uses the sprite body box (bottom-aligned to physics box),
+        // not the full 64x80 physics box. EDIE sprites have a lot of empty
+        // pixels; matching collision to the round blob feels fair.
+        let bottom = self.y + PLAYER_H;
+        let (w, h) = if matches!(self.state, PlayerState::Ducking) {
+            (SPRITE_BODY_W, SPRITE_BODY_H * (1.0 - DUCK_HITBOX_SHRINK))
+        } else {
+            (SPRITE_BODY_W, SPRITE_BODY_H)
+        };
+        let left = PLAYER_X + (PLAYER_W - w) * 0.5;
+        let top = bottom - h;
         Aabb {
-            x: PLAYER_X + HITBOX_INSET,
-            y: y + HITBOX_INSET,
-            w: PLAYER_W - 2.0 * HITBOX_INSET,
+            x: left + HITBOX_INSET,
+            y: top + HITBOX_INSET,
+            w: w - 2.0 * HITBOX_INSET,
             h: h - 2.0 * HITBOX_INSET,
         }
     }
@@ -234,15 +243,17 @@ mod tests {
     }
 
     #[test]
-    fn duck_shrinks_hitbox_by_45_percent() {
+    fn duck_shrinks_hitbox() {
         let mut p = Player::new();
         let normal = p.hitbox();
         p.try_duck();
         let ducked = p.hitbox();
-        let ratio = ducked.h / normal.h;
+        // Duck hitbox should be meaningfully shorter than normal.
         assert!(
-            (ratio - 0.5).abs() < 0.1,
-            "duck hitbox ratio {ratio}, expected ~0.5"
+            ducked.h < normal.h * 0.7,
+            "duck hitbox ({}) should be much shorter than normal ({})",
+            ducked.h,
+            normal.h
         );
     }
 
