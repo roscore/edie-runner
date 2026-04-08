@@ -1,5 +1,6 @@
 //! UI: background bands, HUD, title/pause/game-over overlays.
 
+use crate::assets::AssetHandles;
 use crate::game::background::Background;
 use crate::game::dash::DashState;
 use crate::game::pickups::MAX_AURORA;
@@ -8,52 +9,79 @@ use crate::game::state::GameState;
 use crate::render::camera::{Camera, LOGICAL_H, LOGICAL_W};
 use macroquad::prelude::*;
 
-pub fn draw_background(bg: &Background, cam: &Camera) {
-    let (x0, y0) = cam.to_screen(0.0, 0.0);
-    draw_rectangle(
-        x0,
-        y0,
-        cam.scaled(LOGICAL_W),
-        cam.scaled(LOGICAL_H),
-        Color::new(0.96, 0.94, 0.89, 1.0),
+pub fn draw_background(bg: &Background, assets: &AssetHandles, cam: &Camera) {
+    // Sky
+    let (sx, sy) = cam.to_screen(0.0, 0.0);
+    draw_texture_ex(
+        &assets.bg_sky,
+        sx,
+        sy,
+        WHITE,
+        DrawTextureParams {
+            dest_size: Some(vec2(cam.scaled(LOGICAL_W), cam.scaled(200.0))),
+            ..Default::default()
+        },
     );
 
-    let band_h = 100.0;
-    let (fx, fy) = cam.to_screen(-bg.far_offset, 200.0);
-    draw_rectangle(
-        fx,
-        fy,
-        cam.scaled(LOGICAL_W * 2.0),
-        cam.scaled(band_h),
-        Color::new(0.79, 0.76, 0.70, 1.0),
-    );
+    // Far servers (parallax)
+    let far_tile_w = 256.0;
+    let far_y = 200.0;
+    let far_h = 100.0;
+    let mut x = -(bg.far_offset % far_tile_w);
+    while x < LOGICAL_W {
+        let (px, py) = cam.to_screen(x, far_y);
+        draw_texture_ex(
+            &assets.bg_far,
+            px,
+            py,
+            WHITE,
+            DrawTextureParams {
+                dest_size: Some(vec2(cam.scaled(far_tile_w), cam.scaled(far_h))),
+                ..Default::default()
+            },
+        );
+        x += far_tile_w;
+    }
 
-    let (mx, my) = cam.to_screen(-bg.mid_offset, 280.0);
-    draw_rectangle(
-        mx,
-        my,
-        cam.scaled(LOGICAL_W * 2.0),
-        cam.scaled(40.0),
-        Color::new(0.56, 0.53, 0.46, 1.0),
-    );
+    // Mid workbenches
+    let mid_tile_w = 256.0;
+    let mid_y = 270.0;
+    let mid_h = 60.0;
+    let mut x = -(bg.mid_offset % mid_tile_w);
+    while x < LOGICAL_W {
+        let (px, py) = cam.to_screen(x, mid_y);
+        draw_texture_ex(
+            &assets.bg_mid,
+            px,
+            py,
+            WHITE,
+            DrawTextureParams {
+                dest_size: Some(vec2(cam.scaled(mid_tile_w), cam.scaled(mid_h))),
+                ..Default::default()
+            },
+        );
+        x += mid_tile_w;
+    }
 
-    let (flx, fly) = cam.to_screen(0.0, 320.0);
-    draw_rectangle(
-        flx,
-        fly,
-        cam.scaled(LOGICAL_W),
-        cam.scaled(80.0),
-        Color::new(0.29, 0.27, 0.22, 1.0),
-    );
-    let (lx, ly) = cam.to_screen(0.0, 320.0);
-    draw_line(
-        lx,
-        ly,
-        lx + cam.scaled(LOGICAL_W),
-        ly,
-        2.0 * cam.scale,
-        Color::new(0.18, 0.16, 0.13, 1.0),
-    );
+    // Floor
+    let floor_tile_w = 256.0;
+    let floor_y = 320.0;
+    let floor_h = 80.0;
+    let mut x = -(bg.floor_offset % floor_tile_w);
+    while x < LOGICAL_W {
+        let (px, py) = cam.to_screen(x, floor_y);
+        draw_texture_ex(
+            &assets.bg_floor,
+            px,
+            py,
+            WHITE,
+            DrawTextureParams {
+                dest_size: Some(vec2(cam.scaled(floor_tile_w), cam.scaled(floor_h))),
+                ..Default::default()
+            },
+        );
+        x += floor_tile_w;
+    }
 }
 
 pub fn draw_hud(score: &Score, dash: &DashState, cam: &Camera) {

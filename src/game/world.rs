@@ -27,6 +27,8 @@ pub struct World {
     pub score: Score,
     pub rng: SmallRng,
     pub elapsed: f32,
+    /// Fractional score accumulator (px scrolled / 4) — flushed when ≥1.
+    score_accum: f32,
 }
 
 impl World {
@@ -40,6 +42,7 @@ impl World {
             score: Score::load(storage),
             rng: SmallRng::seed_from_u64(seed),
             elapsed: 0.0,
+            score_accum: 0.0,
         }
     }
 
@@ -82,8 +85,13 @@ impl World {
             .update(sim_dt, speed, self.score.current, &mut self.rng);
         self.pickups.update(sim_dt, speed, &mut self.rng);
 
-        let dx = (speed * sim_dt) as u32;
-        self.score.add(dx / 4);
+        // Accumulate fractional score (1 point per 4 px scrolled).
+        self.score_accum += speed * sim_dt / 4.0;
+        if self.score_accum >= 1.0 {
+            let whole = self.score_accum.floor() as u32;
+            self.score.add(whole);
+            self.score_accum -= whole as f32;
+        }
 
         let player_box = self.player.hitbox();
         let collected = self.pickups.collisions_with(&player_box);
