@@ -118,7 +118,16 @@ async fn main() {
         let (shake_ox, shake_oy) = game.world.effects.shake_offset(wall_time);
         let cam = Camera::new(screen_width(), screen_height())
             .with_shake(shake_ox * screen_width() / 1280.0, shake_oy * screen_width() / 1280.0);
-        draw_background(&game.world.background, &assets, game.world.current_stage(), wall_time, &cam);
+        // Day/night cycles only on the Title screen (for visual flavor).
+        // During gameplay and other states, the background stays in a fixed
+        // daylight tint so readability is consistent.
+        let day_phase = if matches!(game.state, GameState::Title) {
+            // Wall-clock driven cycle: 90 seconds per full day/night loop.
+            ((wall_time / 90.0) % 1.0 + 1.0) % 1.0
+        } else {
+            0.25 // fixed noon-ish daylight
+        };
+        draw_background(&game.world.background, &assets, game.world.current_stage(), day_phase, &cam);
 
         // Drain SFX queue and play cued sounds.
         if !game.world.effects.sfx_queue.is_empty() {

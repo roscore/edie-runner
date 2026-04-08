@@ -15,41 +15,38 @@ use crate::render::sprites::{
 };
 use macroquad::prelude::*;
 
-/// Day/night tint for a given world time.
-/// Cycle period = 120 seconds (2 minutes). Smooth 9-keyframe curve that
-/// transitions noon -> afternoon -> golden -> sunset -> dusk -> night ->
-/// deep night -> pre-dawn -> morning -> noon.
-pub fn day_night_tint(t: f32) -> (Color, f32) {
-    let cycle = 120.0;
-    let phase = (t % cycle) / cycle; // 0..1
+/// Day/night tint driven by **journey progress**, not wall clock.
+/// EDIE's trip through Pangyo takes one in-game day: dawn -> morning -> noon ->
+/// golden -> sunset -> dusk -> night, ending at AeiROBOT HQ.
+///
+/// `phase` is 0..1 where 0 = start of run (dawn), 1 = end (night).
+/// Monotonic: time of day never goes backwards within a single run.
+pub fn day_night_tint(phase: f32) -> (Color, f32) {
+    let phase = phase.clamp(0.0, 1.0);
     // (phase, r, g, b, star_alpha)
-    let frames: [(f32, f32, f32, f32, f32); 10] = [
-        (0.00, 1.00, 1.00, 1.00, 0.00), // noon
-        (0.22, 1.00, 0.98, 0.92, 0.00), // afternoon
-        (0.32, 1.00, 0.88, 0.70, 0.03), // golden hour
-        (0.42, 1.00, 0.68, 0.45, 0.15), // sunset
-        (0.52, 0.62, 0.50, 0.70, 0.45), // dusk
-        (0.62, 0.40, 0.42, 0.72, 0.85), // night blue
-        (0.78, 0.38, 0.40, 0.70, 0.95), // deep night
-        (0.88, 0.60, 0.50, 0.75, 0.55), // pre-dawn
-        (0.94, 0.95, 0.78, 0.80, 0.18), // dawn pink
-        (0.98, 1.00, 0.94, 0.88, 0.03), // early morning
+    let frames: [(f32, f32, f32, f32, f32); 8] = [
+        (0.00, 0.95, 0.85, 0.78, 0.15), // dawn (soft pink)
+        (0.10, 1.00, 0.98, 0.92, 0.02), // early morning
+        (0.25, 1.00, 1.00, 1.00, 0.00), // noon (pure white)
+        (0.45, 1.00, 0.98, 0.92, 0.00), // afternoon
+        (0.60, 1.00, 0.82, 0.58, 0.05), // golden hour
+        (0.75, 1.00, 0.62, 0.42, 0.20), // sunset orange
+        (0.88, 0.58, 0.48, 0.72, 0.60), // dusk purple
+        (1.00, 0.38, 0.42, 0.72, 0.95), // night
     ];
-    // Find the segment containing `phase`, or wrap around after the last frame.
-    let n = frames.len();
-    let mut a = &frames[n - 1];
-    let mut b = &frames[0];
-    let mut span = 1.0 - a.0 + b.0; // wraparound span
-    let mut local = ((phase - a.0).rem_euclid(1.0)) / span;
+
+    // Find the segment containing `phase`.
+    let mut a = &frames[0];
+    let mut b = &frames[frames.len() - 1];
     for w in frames.windows(2) {
-        if phase >= w[0].0 && phase < w[1].0 {
+        if phase >= w[0].0 && phase <= w[1].0 {
             a = &w[0];
             b = &w[1];
-            span = b.0 - a.0;
-            local = (phase - a.0) / span;
             break;
         }
     }
+    let span = (b.0 - a.0).max(0.0001);
+    let local = ((phase - a.0) / span).clamp(0.0, 1.0);
     let lerp = |x: f32, y: f32| x + (y - x) * local;
     (
         Color::new(lerp(a.1, b.1), lerp(a.2, b.2), lerp(a.3, b.3), 1.0),
@@ -57,15 +54,21 @@ pub fn day_night_tint(t: f32) -> (Color, f32) {
     )
 }
 
+/// Convert a running score into a day-progress phase (0..1).
+/// Reaches full night at ~SCORE_AT_CAP, matching the speed cap.
+pub fn day_phase_for_score(score: u32) -> f32 {
+    (score as f32 / crate::game::difficulty::SCORE_AT_CAP as f32).clamp(0.0, 1.0)
+}
+
 pub fn draw_background(
     bg: &Background,
     assets: &AssetHandles,
     stage: crate::game::difficulty::Stage,
-    t: f32,
+    day_phase: f32,
     cam: &Camera,
 ) {
     use crate::game::difficulty::Stage;
-    let (tint, star_alpha) = day_night_tint(t);
+    let (tint, star_alpha) = day_night_tint(day_phase);
 
     // Sky (only meaningful for outdoor stages; indoor stages hide it behind far layer)
     let (sx, sy) = cam.to_screen(0.0, 0.0);
@@ -730,8 +733,8 @@ pub fn draw_story(t_in_story: f32, _assets: &AssetHandles, cam: &Camera) {
     ];
 
     let crawl_t = (t_in_story - 4.0).max(0.0);
-    let crawl_speed = 28.0; // logical px/sec scroll
-    let line_spacing = 26.0;
+    let crawl_speed = 34.0; // logical px/sec scroll
+    let line_spacing = 24.0;
     let bottom = LOGICAL_H + 40.0;
     let yellow = Color::new(1.0, 0.85, 0.2, 1.0);
 

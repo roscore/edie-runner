@@ -15,7 +15,7 @@ pub enum GameState {
 }
 
 pub const RUN_HISTORY_LEN: usize = 5;
-pub const STORY_DURATION: f32 = 28.0;
+pub const STORY_DURATION: f32 = 52.0;
 pub const COUNTDOWN_DURATION: f32 = 3.5;
 
 pub struct Game {

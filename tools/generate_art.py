@@ -555,40 +555,91 @@ def make_stage_backgrounds() -> None:
     print("[bg] generating stage backgrounds")
 
     # ============================================================
-    # Stage 0: Department Store interior
+    # Stage 0: Department Store interior (Pangyo pop-up scene)
     # ============================================================
     far = new_canvas(256, 100)
     d = ImageDraw.Draw(far)
-    # Back wall with shop fronts
-    d.rectangle((0, 0, 256, 100), fill=(240, 224, 198, 255))
-    d.rectangle((0, 80, 256, 100), fill=(198, 170, 130, 255))
-    # Pillar silhouettes
-    for px in (20, 95, 170, 240):
-        d.rectangle((px, 0, px + 18, 100), fill=(175, 150, 115, 255))
-        d.rectangle((px + 2, 10, px + 16, 14), fill=(145, 120, 85, 255))
-    # Shop sign bars
-    for sx in (50, 130, 200):
-        d.rectangle((sx, 30, sx + 32, 38), fill=(220, 90, 60, 255))
+    # Ceiling / ambient glow
+    d.rectangle((0, 0, 256, 16), fill=(250, 236, 210, 255))
+    # Ceiling recessed lights
+    for lx in range(20, 256, 32):
+        d.rectangle((lx, 6, lx + 10, 9), fill=(255, 230, 140, 255))
+    # Shopfront wall
+    d.rectangle((0, 16, 256, 72), fill=(234, 216, 186, 255))
+    # Shop sign band
+    d.rectangle((0, 16, 256, 26), fill=(60, 50, 45, 255))
+    # Letter bars (big "STORE" letters as abstract color blocks)
+    letters = [
+        ((10, 30, 30, 230, 60, 80), "A"),
+        ((42, 60, 80, 220, 120, 70), "B"),
+        ((74, 230, 190, 60, 60, 60), "C"),
+        ((106, 60, 160, 220, 220, 60), "D"),
+        ((138, 220, 100, 150, 80, 80), "E"),
+        ((170, 100, 200, 180, 60, 70), "F"),
+        ((202, 220, 180, 60, 80, 60), "G"),
+        ((234, 60, 200, 160, 70, 60), "H"),
+    ]
+    for (lx, r, g, b, h, w), _ in letters:
+        d.rectangle((lx, 18, lx + 22, 24), fill=(r, g, b, 255))
+    # Glass storefront windows with mannequin silhouettes
+    for wx in (12, 84, 156, 228):
+        # Window frame
+        d.rectangle((wx, 30, wx + 56, 68), fill=(200, 190, 175, 255), outline=(80, 60, 40, 255), width=1)
+        # Glass
+        d.rectangle((wx + 3, 33, wx + 53, 65), fill=(225, 235, 240, 255))
+        # Mannequin silhouette inside
+        d.ellipse((wx + 24, 37, wx + 34, 47), fill=(170, 160, 150, 255))
+        d.rectangle((wx + 26, 46, wx + 32, 62), fill=(170, 160, 150, 255))
+        # Window price tag
+        d.rectangle((wx + 8, 56, wx + 20, 62), fill=(255, 230, 80, 255))
+    # Escalator balustrade running across the back
+    d.rectangle((0, 72, 256, 82), fill=(180, 180, 195, 255))
+    d.line((0, 72, 256, 72), fill=(100, 100, 115, 255))
+    # Escalator rail with diagonal step hint
+    for ex in range(0, 256, 12):
+        d.line((ex, 82, ex + 6, 76), fill=(140, 140, 160, 255))
+    # Floor edge
+    d.rectangle((0, 90, 256, 100), fill=(210, 195, 170, 255))
     save_png(far, "bg_store_far.png", palette_lock=False)
 
     mid = new_canvas(256, 60)
     d = ImageDraw.Draw(mid)
-    d.rectangle((0, 40, 256, 60), fill=(210, 190, 160, 255))
-    # Mannequin / display stands
-    for i, mx in enumerate((20, 80, 140, 200)):
-        d.rectangle((mx, 20, mx + 12, 40), fill=(160, 140, 110, 255))
-        d.ellipse((mx - 2, 10, mx + 14, 26), fill=(200, 180, 150, 255), outline=EDIE_OUTLINE)
+    d.rectangle((0, 40, 256, 60), fill=(225, 210, 185, 255))
+    # Brand display cases / shelves
+    for i, dx in enumerate((8, 72, 136, 200)):
+        # Cabinet
+        d.rectangle((dx, 12, dx + 48, 42), fill=(240, 230, 210, 255), outline=(90, 70, 50, 255), width=1)
+        # Shelf lines
+        d.line((dx + 2, 22, dx + 46, 22), fill=(150, 120, 90, 255))
+        d.line((dx + 2, 32, dx + 46, 32), fill=(150, 120, 90, 255))
+        # Product silhouettes
+        colors = [(230, 80, 70, 255), (70, 130, 220, 255), (240, 200, 60, 255), (80, 200, 140, 255)]
+        for j, pc in enumerate(colors):
+            px = dx + 4 + j * 11
+            d.rectangle((px, 14, px + 8, 20), fill=pc)
+            d.rectangle((px, 24, px + 8, 30), fill=pc)
+        # Price dot
+        d.rectangle((dx + 2, 36, dx + 10, 40), fill=(255, 220, 60, 255))
+    # Potted plants between cabinets
+    for pt in (56, 120, 184, 248):
+        d.rectangle((pt, 35, pt + 8, 42), fill=(120, 80, 50, 255))
+        d.ellipse((pt - 4, 22, pt + 12, 38), fill=(70, 140, 80, 255), outline=EDIE_OUTLINE)
     save_png(mid, "bg_store_mid.png", palette_lock=False)
 
     floor = new_canvas(256, 80)
     d = ImageDraw.Draw(floor)
-    d.rectangle((0, 0, 256, 80), fill=(195, 175, 145, 255))  # light mall floor
-    d.rectangle((0, 0, 256, 3), fill=(130, 105, 75, 255))
-    # Marble tile pattern
-    for tx in range(0, 256, 32):
-        d.line((tx, 3, tx, 80), fill=(170, 148, 118, 255))
-    for ty in range(8, 80, 16):
-        d.line((0, ty, 256, ty), fill=(170, 148, 118, 255))
+    # Polished marble — light cream with veins
+    d.rectangle((0, 0, 256, 80), fill=(230, 220, 200, 255))
+    d.rectangle((0, 0, 256, 3), fill=(170, 140, 100, 255))
+    # Large tile grid
+    for tx in range(0, 256, 64):
+        d.line((tx, 3, tx, 80), fill=(195, 180, 155, 255))
+    d.line((0, 40, 256, 40), fill=(195, 180, 155, 255))
+    # Marble veining
+    for i, (vx, vy, length) in enumerate(((12, 20, 40), (80, 55, 32), (150, 10, 28), (200, 50, 44), (30, 68, 22))):
+        d.line((vx, vy, vx + length, vy + 3), fill=(205, 190, 165, 255))
+    # Reflection highlight
+    d.line((0, 6, 256, 6), fill=(255, 250, 235, 255))
     save_png(floor, "bg_store_floor.png", palette_lock=False)
 
     # ============================================================
