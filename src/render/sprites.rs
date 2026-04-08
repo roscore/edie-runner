@@ -186,25 +186,10 @@ pub fn draw_player(
         return;
     }
 
+    // Default playable face = happy (7555). Jump/Fall/Duck re-use the same
+    // happy cycle so the mood never flips to the grumpy baseline. Only Hit
+    // swaps to the dizzy x-eye animation.
     match player.state {
-        PlayerState::Running => {
-            // Tiny bob for liveliness. Use the happy/cheering face
-            // as the playable default (run_anim 7545 had a grumpy look).
-            let bob = ((elapsed * 8.0).sin() * 1.0).round();
-            logical_y += bob;
-            draw_anim_sheet(
-                &assets.edie_happy_run,
-                EDIE_CHEER_FRAMES,
-                10.0,
-                elapsed,
-                logical_x,
-                logical_y,
-                vis_w,
-                vis_h,
-                cam,
-                WHITE,
-            );
-        }
         PlayerState::Hit => {
             draw_anim_sheet(
                 &assets.edie_hit_anim,
@@ -220,16 +205,52 @@ pub fn draw_player(
             );
         }
         PlayerState::Ducking => {
-            // Duck: render shorter sprite, bottom-aligned
-            let duck_h = vis_h * 0.55;
+            // Duck: render the happy cycle squashed shorter
+            let duck_h = vis_h * 0.58;
             let duck_y = player.y + PLAYER_H - duck_h;
-            let tex = &assets.edie_duck;
-            draw_tex_at(tex, logical_x, duck_y, vis_w, duck_h, cam, WHITE);
+            draw_anim_sheet(
+                &assets.edie_happy_run,
+                EDIE_CHEER_FRAMES,
+                8.0,
+                elapsed,
+                logical_x,
+                duck_y,
+                vis_w,
+                duck_h,
+                cam,
+                WHITE,
+            );
         }
         PlayerState::Jumping | PlayerState::Falling => {
-            let tex = &assets.edie_jump;
-            // Centered at the visual box
-            draw_tex_at(tex, logical_x, logical_y, vis_w, vis_h, cam, WHITE);
+            // Use a frozen happy mid-frame for the airborne pose
+            draw_anim_sheet(
+                &assets.edie_happy_run,
+                EDIE_CHEER_FRAMES,
+                8.0,
+                elapsed,
+                logical_x,
+                logical_y,
+                vis_w,
+                vis_h,
+                cam,
+                WHITE,
+            );
+        }
+        PlayerState::Running => {
+            let bob = ((elapsed * 8.0).sin() * 1.0).round();
+            logical_y += bob;
+            draw_anim_sheet(
+                &assets.edie_happy_run,
+                EDIE_CHEER_FRAMES,
+                10.0,
+                elapsed,
+                logical_x,
+                logical_y,
+                vis_w,
+                vis_h,
+                cam,
+                WHITE,
+            );
         }
     }
 }
@@ -311,13 +332,13 @@ pub fn draw_obstacle(
         ObstacleKind::CatOrange => {
             let f = frame_index(elapsed, 4.0, 2);
             draw_tex_frame(
-                &assets.obstacle_cat_orange, f, 44.0, 36.0, 1.0, o.x, o.y, cam, WHITE,
+                &assets.obstacle_cat_orange, f, 48.0, 40.0, 1.0, o.x, o.y, cam, WHITE,
             );
         }
         ObstacleKind::CatWhite => {
             let f = frame_index(elapsed, 4.0, 2);
             draw_tex_frame(
-                &assets.obstacle_cat_white, f, 44.0, 36.0, 1.0, o.x, o.y, cam, WHITE,
+                &assets.obstacle_cat_white, f, 48.0, 40.0, 1.0, o.x, o.y, cam, WHITE,
             );
         }
         ObstacleKind::Car => {
@@ -568,19 +589,19 @@ pub fn draw_boss_mode(
     let boss_x = bx_c - BOSS_SIZE * 0.5;
     let boss_y = by_c - BOSS_SIZE * 0.5;
 
-    // Aura fades as boss weakens
-    let aura_scale = 1.0 + ((boss.boss_bob_t * 3.0).sin() * 0.05);
-    let aura_w = BOSS_SIZE * aura_scale * 1.15;
-    let aura_x = bx_c - aura_w * 0.5;
-    let aura_y = by_c - aura_w * 0.5;
-    let (sax, say) = cam.to_screen(aura_x, aura_y);
-    draw_rectangle(
-        sax,
-        say,
-        cam.scaled(aura_w),
-        cam.scaled(aura_w),
-        Color::new(0.2, 0.9, 0.3, 0.08 * health_frac),
-    );
+    // Circular aura halo -- three concentric pulsing rings that fade with
+    // boss health.
+    let (sax, say) = cam.to_screen(bx_c, by_c);
+    let pulse = (boss.boss_bob_t * 3.0).sin();
+    for (r_mul, alpha) in [(1.18, 0.10), (1.30, 0.06), (1.44, 0.035)] {
+        let r = BOSS_SIZE * 0.5 * r_mul * (1.0 + pulse * 0.04);
+        draw_circle(
+            sax,
+            say,
+            cam.scaled(r),
+            Color::new(0.35, 1.0, 0.4, alpha * health_frac),
+        );
+    }
 
     // Main boss sprite -- color drains, alpha drops, hint of red as it dies
     let (sbx, sby) = cam.to_screen(boss_x, boss_y);
@@ -883,6 +904,96 @@ pub fn draw_hit_flash(effects: &crate::game::effects::Effects, cam: &Camera) {
         cam.screen_h,
         Color::new(0.95, 0.15, 0.2, alpha.clamp(0.0, 0.6)),
     );
+}
+
+/// Metal-Slug style stage transition wipe. Plays over the world for ~1.4s
+/// when the player enters a new stage. Black bars slide in, the new stage
+/// name flashes in the middle, then bars slide out.
+pub fn draw_stage_wipe(effects: &crate::game::effects::Effects, cam: &Camera) {
+    let wipe = match &effects.stage_wipe {
+        Some(w) => w,
+        None => return,
+    };
+    let t = 1.0 - (wipe.remaining / wipe.total); // 0..1
+    // Three phases: 0.0-0.35 slide-in, 0.35-0.65 hold, 0.65-1.0 slide-out
+    let (bar_in, bar_hold, bar_out) = (0.35, 0.65, 1.0);
+    let bar_progress = if t < bar_in {
+        (t / bar_in).clamp(0.0, 1.0)
+    } else if t < bar_hold {
+        1.0
+    } else {
+        (1.0 - (t - bar_hold) / (bar_out - bar_hold)).clamp(0.0, 1.0)
+    };
+
+    let bar_h = 1280.0; // slant length, diagonal feel
+    let max_w = 720.0;
+    let w = max_w * bar_progress;
+    // Top bar slides in from left, bottom bar from right (for diagonal X)
+    let (tlx, tly) = cam.to_screen(0.0, 0.0);
+    draw_rectangle(
+        tlx,
+        tly,
+        cam.scaled(w),
+        cam.scaled(200.0),
+        Color::new(0.02, 0.02, 0.04, 1.0),
+    );
+    let (blx, bly) = cam.to_screen(1280.0 - w, 200.0);
+    draw_rectangle(
+        blx,
+        bly,
+        cam.scaled(w),
+        cam.scaled(200.0),
+        Color::new(0.02, 0.02, 0.04, 1.0),
+    );
+    // Thin bright trim on the leading edges
+    let trim = Color::new(1.0, 0.82, 0.2, 1.0);
+    let (tx, ty) = cam.to_screen(w - 3.0, 0.0);
+    draw_rectangle(tx, ty, cam.scaled(3.0), cam.scaled(200.0), trim);
+    let (bx, by) = cam.to_screen(1280.0 - w, 200.0);
+    draw_rectangle(bx, by, cam.scaled(3.0), cam.scaled(200.0), trim);
+
+    // Text appears while bars are held
+    if t > 0.25 && t < 0.85 {
+        let fade = if t < 0.4 {
+            ((t - 0.25) / 0.15).clamp(0.0, 1.0)
+        } else if t > 0.7 {
+            (1.0 - (t - 0.7) / 0.15).clamp(0.0, 1.0)
+        } else {
+            1.0
+        };
+        // "NOW ENTERING" label
+        let label = "NOW ENTERING";
+        let lsize = 22.0 * cam.scale;
+        let ldim = measure_text(label, None, lsize as u16, 1.0);
+        let (lx, ly) = cam.to_screen(640.0, 170.0);
+        draw_text(
+            label,
+            lx - ldim.width * 0.5,
+            ly,
+            lsize,
+            Color::new(1.0, 0.85, 0.2, fade),
+        );
+        // Stage name
+        let size = 46.0 * cam.scale;
+        let dim = measure_text(&wipe.new_stage_name, None, size as u16, 1.0);
+        let (tx, ty) = cam.to_screen(640.0, 220.0);
+        // Shadow
+        draw_text(
+            &wipe.new_stage_name,
+            tx - dim.width * 0.5 + 3.0,
+            ty + 3.0,
+            size,
+            Color::new(0.0, 0.0, 0.0, fade * 0.7),
+        );
+        draw_text(
+            &wipe.new_stage_name,
+            tx - dim.width * 0.5,
+            ty,
+            size,
+            Color::new(1.0, 1.0, 1.0, fade),
+        );
+        let _ = bar_h;
+    }
 }
 
 /// Tier-change banner - top-of-screen pulse when crossing a difficulty tier.

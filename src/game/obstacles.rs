@@ -49,11 +49,11 @@ impl ObstacleKind {
     pub fn size(&self) -> (f32, f32) {
         match self {
             ObstacleKind::CoffeeCup => (24.0, 32.0),
-            ObstacleKind::ShoppingCart => (80.0, 44.0),
+            ObstacleKind::ShoppingCart => (56.0, 36.0),
             ObstacleKind::TrafficCone => (24.0, 32.0),
             ObstacleKind::SignBoard => (24.0, 24.0),
-            ObstacleKind::CatOrange => (44.0, 36.0),
-            ObstacleKind::CatWhite => (44.0, 36.0),
+            ObstacleKind::CatOrange => (48.0, 40.0),
+            ObstacleKind::CatWhite => (48.0, 40.0),
             ObstacleKind::Car => (96.0, 40.0),
             ObstacleKind::Deer => (48.0, 52.0),
             ObstacleKind::BalloonDrone => (40.0, 48.0),
@@ -68,10 +68,12 @@ impl ObstacleKind {
     pub fn y_for_kind(&self) -> f32 {
         let (_, h) = self.size();
         match self {
-            // Balloon drone hovers at duck-height so the player MUST duck.
-            ObstacleKind::BalloonDrone => GROUND_Y - 50.0,
+            // Balloon drone: hover so that its BOTTOM sits clearly above the
+            // ducked player hitbox. Duck hitbox top is ~296 (GROUND_Y - 24);
+            // balloon bottom at GROUND_Y - 88 = 232 -> clean 64 px of duck
+            // clearance, plenty forgiving.
+            ObstacleKind::BalloonDrone => GROUND_Y - 88.0 - h,
             ObstacleKind::SignBoard => GROUND_Y - 160.0,
-            // Amy hovers above ground but is ground-resting (a walker, not a flyer).
             _ => GROUND_Y - h,
         }
     }
@@ -308,6 +310,23 @@ impl ObstacleField {
         self.obstacles
             .iter()
             .position(|o| o.alive && o.hitbox().intersects(player))
+    }
+
+    /// True if an AABB would overlap any existing obstacle hitbox (padded).
+    pub fn collides_with_any(&self, aabb: &Aabb, padding: f32) -> bool {
+        self.obstacles.iter().any(|o| {
+            if !o.alive {
+                return false;
+            }
+            let hb = o.hitbox();
+            let padded = Aabb {
+                x: hb.x - padding,
+                y: hb.y - padding,
+                w: hb.w + 2.0 * padding,
+                h: hb.h + 2.0 * padding,
+            };
+            padded.intersects(aabb)
+        })
     }
 }
 

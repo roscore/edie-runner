@@ -244,120 +244,134 @@ def make_cat() -> None:
 
 
 def _make_cat_variant(variant: str, body, body_d, belly) -> None:
-    """Chibi round cat, 2-frame bob. Oversized head, huge sparkly eyes."""
+    """Chunky chibi kitten. Oversized head, tiny body, big round eyes."""
     frames = []
     pink = (255, 155, 180, 255)
-    pink_d = (220, 100, 140, 255)
+    pink_d = (230, 110, 140, 255)
     out = EDIE_OUTLINE
-    white = EDIE_WHITE
     for f in range(2):
-        w, h = 44, 36
+        w, h = 48, 40
         im = new_canvas(w, h)
         d = ImageDraw.Draw(im)
         bob = f  # 1-pixel up/down bob
 
-        # ----- Body: round blob taking the lower half -----
-        body_top = 14 + bob
-        body_bot = 34
-        d.ellipse((8, body_top, w - 9, body_bot), fill=body, outline=out, width=1)
-        # Belly
-        d.ellipse((12, body_top + 4, w - 13, body_bot - 1), fill=belly)
-        # Little feet (pink beans peeking out)
-        d.ellipse((13, body_bot - 4, 17, body_bot), fill=pink, outline=out, width=1)
-        d.ellipse((w - 18, body_bot - 4, w - 14, body_bot), fill=pink, outline=out, width=1)
-        # Tail curled upward (swish)
-        tx = w - 10
-        ty = body_top + 3
-        swish = f * 2
-        for i in range(5):
-            ox = tx + i - swish
-            oy = ty - i * 2
-            d.ellipse((ox - 2, oy - 2, ox + 2, oy + 2), fill=body, outline=out, width=1)
-        # Tail tip (pink/cream)
-        d.ellipse((tx + 3 - swish, ty - 11, tx + 6 - swish, ty - 8), fill=belly, outline=out, width=1)
+        # Body coords
+        body_cx = w // 2
+        body_top = 22 + bob
+        body_bot = 38
+        # Main body blob (shorter than head)
+        d.ellipse((body_cx - 12, body_top, body_cx + 12, body_bot), fill=body, outline=out, width=1)
+        # Belly patch
+        d.ellipse((body_cx - 9, body_top + 3, body_cx + 9, body_bot - 1), fill=belly)
+        # Tiny front legs tucked in
+        d.rectangle((body_cx - 8, body_bot - 4, body_cx - 4, body_bot - 1), fill=body_d, outline=out, width=1)
+        d.rectangle((body_cx + 4, body_bot - 4, body_cx + 8, body_bot - 1), fill=body_d, outline=out, width=1)
+        # Paws
+        d.point((body_cx - 6, body_bot - 1), fill=out)
+        d.point((body_cx + 6, body_bot - 1), fill=out)
+        # Tail: long curved, wrapping around right side
+        tail_swing = f
+        tail_pts = [
+            (body_cx + 11, body_top + 6),
+            (body_cx + 16, body_top + 2 + tail_swing),
+            (body_cx + 18, body_top - 4 + tail_swing),
+            (body_cx + 16, body_top - 10),
+            (body_cx + 11, body_top - 13),
+        ]
+        for i in range(len(tail_pts) - 1):
+            d.line([tail_pts[i], tail_pts[i + 1]], fill=body, width=4)
+            d.line([tail_pts[i], tail_pts[i + 1]], fill=out, width=1)
 
-        # ----- Head: huge chibi circle overlapping body -----
-        head_cx = w // 2
-        head_cy = 13 + bob
-        head_r = 12
+        # HUGE head (takes most of the canvas)
+        head_cx = body_cx
+        head_cy = 14 + bob
+        head_r = 13
         d.ellipse(
             (head_cx - head_r, head_cy - head_r, head_cx + head_r, head_cy + head_r),
             fill=body,
             outline=out,
             width=1,
         )
-        # Forehead highlight
+        # Head highlight
         d.ellipse(
-            (head_cx - 8, head_cy - 10, head_cx + 4, head_cy - 3),
+            (head_cx - 9, head_cy - 11, head_cx + 2, head_cy - 2),
             fill=belly,
         )
-
-        # Ears (triangular, pink inner)
+        # Pointy ears (bigger, well-defined)
         d.polygon(
-            [(head_cx - 11, head_cy - 5), (head_cx - 9, head_cy - 13), (head_cx - 4, head_cy - 9)],
+            [(head_cx - 13, head_cy - 3), (head_cx - 11, head_cy - 15), (head_cx - 5, head_cy - 9)],
             fill=body,
             outline=out,
         )
         d.polygon(
-            [(head_cx + 11, head_cy - 5), (head_cx + 9, head_cy - 13), (head_cx + 4, head_cy - 9)],
+            [(head_cx + 13, head_cy - 3), (head_cx + 11, head_cy - 15), (head_cx + 5, head_cy - 9)],
             fill=body,
             outline=out,
         )
+        # Inner pink ears
         d.polygon(
-            [(head_cx - 9, head_cy - 6), (head_cx - 8, head_cy - 10), (head_cx - 6, head_cy - 8)],
+            [(head_cx - 11, head_cy - 5), (head_cx - 10, head_cy - 12), (head_cx - 7, head_cy - 8)],
             fill=pink,
         )
         d.polygon(
-            [(head_cx + 9, head_cy - 6), (head_cx + 8, head_cy - 10), (head_cx + 6, head_cy - 8)],
+            [(head_cx + 11, head_cy - 5), (head_cx + 10, head_cy - 12), (head_cx + 7, head_cy - 8)],
             fill=pink,
         )
 
-        # ----- HUGE sparkly chibi eyes -----
+        # --- Big round eyes (oval, 6x8) ---
         eye_y = head_cy + 1
-        # Left eye (big round)
-        d.ellipse((head_cx - 7, eye_y - 3, head_cx - 2, eye_y + 3), fill=out)
-        d.ellipse((head_cx - 6, eye_y - 2, head_cx - 3, eye_y + 2), fill=(80, 160, 220, 255))
-        d.point((head_cx - 5, eye_y - 1), fill=white)  # sparkle
-        d.point((head_cx - 4, eye_y + 1), fill=(200, 240, 255, 255))
+        # Left eye white
+        d.ellipse((head_cx - 8, eye_y - 4, head_cx - 2, eye_y + 4), fill=(255, 255, 255, 255), outline=out, width=1)
+        # Iris (teal-green)
+        d.ellipse((head_cx - 7, eye_y - 3, head_cx - 3, eye_y + 3), fill=(80, 180, 160, 255))
+        # Pupil (black oval)
+        d.ellipse((head_cx - 6, eye_y - 2, head_cx - 4, eye_y + 2), fill=out)
+        # Sparkles
+        d.point((head_cx - 5, eye_y - 2), fill=(255, 255, 255, 255))
+        d.point((head_cx - 4, eye_y + 2), fill=(200, 240, 255, 255))
         # Right eye
-        d.ellipse((head_cx + 2, eye_y - 3, head_cx + 7, eye_y + 3), fill=out)
-        d.ellipse((head_cx + 3, eye_y - 2, head_cx + 6, eye_y + 2), fill=(80, 160, 220, 255))
-        d.point((head_cx + 4, eye_y - 1), fill=white)
-        d.point((head_cx + 5, eye_y + 1), fill=(200, 240, 255, 255))
+        d.ellipse((head_cx + 2, eye_y - 4, head_cx + 8, eye_y + 4), fill=(255, 255, 255, 255), outline=out, width=1)
+        d.ellipse((head_cx + 3, eye_y - 3, head_cx + 7, eye_y + 3), fill=(80, 180, 160, 255))
+        d.ellipse((head_cx + 4, eye_y - 2, head_cx + 6, eye_y + 2), fill=out)
+        d.point((head_cx + 5, eye_y - 2), fill=(255, 255, 255, 255))
+        d.point((head_cx + 4, eye_y + 2), fill=(200, 240, 255, 255))
 
-        # ----- Tiny triangular nose -----
+        # Tiny triangular pink nose
+        nose_y = eye_y + 5
         d.polygon(
-            [(head_cx - 1, eye_y + 4), (head_cx + 1, eye_y + 4), (head_cx, eye_y + 5)],
+            [(head_cx - 1, nose_y), (head_cx + 1, nose_y), (head_cx, nose_y + 2)],
             fill=pink_d,
         )
-        # ----- Cute smiley mouth -----
-        d.point((head_cx - 1, eye_y + 6), fill=out)
-        d.point((head_cx, eye_y + 7), fill=out)
-        d.point((head_cx + 1, eye_y + 6), fill=out)
+        # Tiny 'w' mouth
+        d.point((head_cx - 2, nose_y + 3), fill=out)
+        d.point((head_cx - 1, nose_y + 4), fill=out)
+        d.point((head_cx, nose_y + 3), fill=out)
+        d.point((head_cx + 1, nose_y + 4), fill=out)
+        d.point((head_cx + 2, nose_y + 3), fill=out)
 
-        # Rosy cheeks
-        d.ellipse((head_cx - 11, eye_y + 2, head_cx - 8, eye_y + 5), fill=(255, 180, 200, 180))
-        d.ellipse((head_cx + 8, eye_y + 2, head_cx + 11, eye_y + 5), fill=(255, 180, 200, 180))
+        # Rosy cheeks (soft pink dots)
+        d.ellipse((head_cx - 12, eye_y + 2, head_cx - 9, eye_y + 5), fill=(255, 180, 200, 200))
+        d.ellipse((head_cx + 9, eye_y + 2, head_cx + 12, eye_y + 5), fill=(255, 180, 200, 200))
 
-        # Whiskers (short, just 1px each)
-        d.point((head_cx - 12, eye_y + 4), fill=out)
-        d.point((head_cx - 13, eye_y + 4), fill=out)
-        d.point((head_cx + 12, eye_y + 4), fill=out)
-        d.point((head_cx + 13, eye_y + 4), fill=out)
+        # Whiskers
+        d.line((head_cx - 14, eye_y + 4, head_cx - 9, eye_y + 3), fill=out)
+        d.line((head_cx - 14, eye_y + 6, head_cx - 9, eye_y + 5), fill=out)
+        d.line((head_cx + 9, eye_y + 3, head_cx + 14, eye_y + 4), fill=out)
+        d.line((head_cx + 9, eye_y + 5, head_cx + 14, eye_y + 6), fill=out)
 
-        # ----- Variant-specific markings -----
+        # Variant-specific markings
         if variant == "orange":
             # Tabby stripes on forehead
-            d.line((head_cx - 4, head_cy - 11, head_cx - 4, head_cy - 9), fill=body_d)
-            d.line((head_cx, head_cy - 12, head_cx, head_cy - 9), fill=body_d)
-            d.line((head_cx + 4, head_cy - 11, head_cx + 4, head_cy - 9), fill=body_d)
+            d.line((head_cx - 5, head_cy - 12, head_cx - 5, head_cy - 9), fill=body_d)
+            d.line((head_cx, head_cy - 13, head_cx, head_cy - 9), fill=body_d)
+            d.line((head_cx + 5, head_cy - 12, head_cx + 5, head_cy - 9), fill=body_d)
             # Back stripes
-            d.line((15, body_top + 2, 20, body_top + 1), fill=body_d)
-            d.line((24, body_top + 2, 29, body_top + 1), fill=body_d)
+            d.line((body_cx - 8, body_top + 3, body_cx - 2, body_top + 2), fill=body_d)
+            d.line((body_cx + 2, body_top + 3, body_cx + 8, body_top + 2), fill=body_d)
         else:
-            # White cat: subtle grey shading on ear + body
-            d.line((head_cx - 10, head_cy - 3, head_cx - 9, head_cy + 1), fill=body_d)
-            d.line((head_cx + 9, head_cy - 3, head_cx + 10, head_cy + 1), fill=body_d)
+            # Subtle grey shading around head edge
+            d.line((head_cx - 12, head_cy, head_cx - 11, head_cy + 5), fill=body_d)
+            d.line((head_cx + 11, head_cy, head_cx + 12, head_cy + 5), fill=body_d)
 
         frames.append(im)
     sheet = tile_horizontal(frames)
@@ -1478,36 +1492,42 @@ def make_virus() -> None:
 
 
 def make_boss_virus() -> None:
-    """Giant central boss virus with yellow eyes — corona boss fight."""
+    """Giant central boss virus with yellow eyes and virus-shaped spikes.
+    Spikes mirror the falling mini-virus crown pattern but scaled up."""
     import math
-    w, h = 180, 180
+    w, h = 220, 220
     im = new_canvas(w, h)
     d = ImageDraw.Draw(im)
-    cx, cy = 90, 90
+    cx, cy = 110, 110
     core = (60, 200, 80, 255)
     core_d = (30, 120, 40, 255)
     core_hi = (120, 230, 140, 255)
     out = EDIE_OUTLINE
-    # Outer glow
-    for r_off, a in ((82, 30), (72, 50), (62, 70)):
-        d.ellipse((cx - r_off, cy - r_off, cx + r_off, cy + r_off), fill=(100, 220, 120, a))
-    # Spike proteins (crown) — drawn before body so body covers roots
-    for i in range(18):
-        angle = (i / 18) * math.tau
-        sx1 = cx + int(math.cos(angle) * 54)
-        sy1 = cy + int(math.sin(angle) * 54)
-        sx2 = cx + int(math.cos(angle) * 86)
-        sy2 = cy + int(math.sin(angle) * 86)
-        d.line((sx1, sy1, sx2, sy2), fill=core_d, width=4)
-        d.ellipse((sx2 - 6, sy2 - 6, sx2 + 6, sy2 + 6), fill=core_d, outline=out, width=1)
-        d.ellipse((sx2 - 3, sy2 - 3, sx2 + 3, sy2 + 3), fill=(80, 180, 90, 255))
-    # Main body
-    d.ellipse((cx - 56, cy - 56, cx + 56, cy + 56), fill=core, outline=out, width=2)
+    # Spike proteins -- same style as small virus, just 24 of them and bigger knobs
+    num_spikes = 24
+    inner_r = 58
+    outer_r = 100
+    for i in range(num_spikes):
+        angle = (i / num_spikes) * math.tau
+        sx1 = cx + int(math.cos(angle) * inner_r)
+        sy1 = cy + int(math.sin(angle) * inner_r)
+        sx2 = cx + int(math.cos(angle) * outer_r)
+        sy2 = cy + int(math.sin(angle) * outer_r)
+        # Thick stalk
+        d.line((sx1, sy1, sx2, sy2), fill=core_d, width=5)
+        d.line((sx1, sy1, sx2, sy2), fill=(50, 160, 60, 255), width=2)
+        # Knob at tip (mirrors small-virus crown knob)
+        d.ellipse((sx2 - 9, sy2 - 9, sx2 + 9, sy2 + 9), fill=core_d, outline=out, width=1)
+        d.ellipse((sx2 - 6, sy2 - 6, sx2 + 6, sy2 + 6), fill=(80, 180, 90, 255))
+        d.ellipse((sx2 - 3, sy2 - 3, sx2 + 3, sy2 + 3), fill=core_hi)
+    # Main body (bigger)
+    body_r = 62
+    d.ellipse((cx - body_r, cy - body_r, cx + body_r, cy + body_r), fill=core, outline=out, width=2)
     # Inner highlight
-    d.ellipse((cx - 44, cy - 44, cx + 24, cy + 24), fill=core_hi)
-    d.ellipse((cx - 30, cy - 30, cx + 30, cy + 30), fill=core)
+    d.ellipse((cx - 50, cy - 50, cx + 30, cy + 30), fill=core_hi)
+    d.ellipse((cx - 34, cy - 34, cx + 34, cy + 34), fill=core)
     # Inner dots
-    for (dx, dy) in ((-20, 10), (22, -6), (-10, 28), (14, 24), (-30, -8)):
+    for (dx, dy) in ((-24, 12), (26, -6), (-14, 32), (16, 28), (-34, -10), (32, 18)):
         d.ellipse((cx + dx - 3, cy + dy - 3, cx + dx + 3, cy + dy + 3), fill=core_d)
     # Yellow eyes (2 large menacing eyes)
     eye_y = cy - 6
@@ -1534,12 +1554,14 @@ def make_boss_virus() -> None:
 
 
 def make_heart_pickup() -> None:
-    """Pixel-art heart sprite sheet (4-frame pulse)."""
+    """Heart pickup using the Aurora Stone palette (purple + green accent).
+    4-frame pulse."""
     frames = []
-    red_dark = (180, 25, 40, 255)
-    red = (232, 50, 60, 255)
-    red_light = (255, 140, 140, 255)
-    white = (255, 255, 255, 255)
+    # Aurora purple core / green highlight split
+    red_dark = (90, 50, 180, 255)        # aurora-purple-deep
+    red = AURORA_PURPLE                   # main body
+    red_light = AURORA_PURPLE_HI          # lighter
+    white = AURORA_GREEN_HI               # pale green highlight
     outline = EDIE_OUTLINE
     for f in range(4):
         w = h = 36

@@ -40,6 +40,15 @@ pub struct Effects {
     pub sfx_queue: Vec<SfxCue>,
     /// Two-pulse death shake, separate from continuous shake.
     pub death_shake: Option<DeathShake>,
+    /// Metal-Slug-style stage transition wipe.
+    pub stage_wipe: Option<StageWipe>,
+}
+
+#[derive(Debug, Clone)]
+pub struct StageWipe {
+    pub remaining: f32,
+    pub total: f32,
+    pub new_stage_name: String,
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -117,6 +126,22 @@ impl Effects {
                 self.death_shake = None;
             }
         }
+
+        // Stage wipe decay
+        if let Some(sw) = &mut self.stage_wipe {
+            sw.remaining -= dt;
+            if sw.remaining <= 0.0 {
+                self.stage_wipe = None;
+            }
+        }
+    }
+
+    pub fn start_stage_wipe(&mut self, name: String) {
+        self.stage_wipe = Some(StageWipe {
+            remaining: 1.4,
+            total: 1.4,
+            new_stage_name: name,
+        });
     }
 
     pub fn trigger_death_shake(&mut self) {

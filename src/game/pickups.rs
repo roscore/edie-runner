@@ -73,7 +73,13 @@ impl PickupField {
         Self::default()
     }
 
-    pub fn update(&mut self, dt: f32, speed: f32, rng: &mut SmallRng) {
+    pub fn update(
+        &mut self,
+        dt: f32,
+        speed: f32,
+        rng: &mut SmallRng,
+        obstacles: &crate::game::obstacles::ObstacleField,
+    ) {
         let dx = speed * dt;
         for s in &mut self.stones {
             s.x -= dx;
@@ -86,27 +92,46 @@ impl PickupField {
 
         self.time_to_next -= dt;
         if self.time_to_next <= 0.0 {
-            let tier = rng.gen_range(0..3u32);
-            let y = match tier {
-                0 => GROUND_Y - PICKUP_H - 8.0,
-                1 => GROUND_Y - 110.0,
-                _ => GROUND_Y - 160.0,
-            };
-            let color = if rng.gen_bool(0.5) {
-                AuroraColor::Purple
-            } else {
-                AuroraColor::Green
-            };
-            self.stones.push(AuroraStone { x: SPAWN_X, y, color, collected: false });
-            self.time_to_next = rng.gen_range(SPAWN_INTERVAL_MIN..SPAWN_INTERVAL_MAX);
+            // Try up to 4 heights to find one that doesn't collide with an
+            // existing obstacle near the spawn x. Skip this spawn if all
+            // slots are taken -- try again in a short while.
+            let candidates = [
+                GROUND_Y - PICKUP_H - 8.0,
+                GROUND_Y - 110.0,
+                GROUND_Y - 160.0,
+                GROUND_Y - 140.0,
+            ];
+            let mut placed = false;
+            for &y in &candidates {
+                let aabb = Aabb { x: SPAWN_X, y, w: PICKUP_W, h: PICKUP_H };
+                if !obstacles.collides_with_any(&aabb, 40.0) {
+                    let color = if rng.gen_bool(0.5) {
+                        AuroraColor::Purple
+                    } else {
+                        AuroraColor::Green
+                    };
+                    self.stones.push(AuroraStone { x: SPAWN_X, y, color, collected: false });
+                    self.time_to_next = rng.gen_range(SPAWN_INTERVAL_MIN..SPAWN_INTERVAL_MAX);
+                    placed = true;
+                    break;
+                }
+            }
+            if !placed {
+                self.time_to_next = 0.5;
+            }
         }
 
         self.time_to_next_heart -= dt;
         if self.time_to_next_heart <= 0.0 {
-            // Hearts spawn at mid-air height to reward jumping
             let y = GROUND_Y - 120.0;
-            self.hearts.push(HeartPod { x: SPAWN_X, y, collected: false });
-            self.time_to_next_heart = rng.gen_range(HEART_INTERVAL_MIN..HEART_INTERVAL_MAX);
+            let aabb = Aabb { x: SPAWN_X, y, w: HEART_W, h: HEART_H };
+            if !obstacles.collides_with_any(&aabb, 40.0) {
+                self.hearts.push(HeartPod { x: SPAWN_X, y, collected: false });
+                self.time_to_next_heart =
+                    rng.gen_range(HEART_INTERVAL_MIN..HEART_INTERVAL_MAX);
+            } else {
+                self.time_to_next_heart = 0.5;
+            }
         }
     }
 
@@ -143,7 +168,7 @@ mod tests {
         let mut spawn_count = 0u32;
         let mut last_len = 0;
         for _ in 0..steps {
-            field.update(dt, 320.0, &mut rng);
+            field.update(dt, 320.0, &mut rng, &crate::game::obstacles::ObstacleField::new());
             if field.stones.len() > last_len {
                 spawn_count += 1;
             }
@@ -162,7 +187,8 @@ mod tests {
             collected: true,
         });
         let mut rng = SmallRng::seed_from_u64(0);
-        field.update(0.001, 100.0, &mut rng);
+        let obs = crate::game::obstacles::ObstacleField::new();
+        field.update(0.001, 100.0, &mut rng, &obs);
         assert!(field.stones.iter().all(|s| !s.collected));
     }
 

@@ -55,6 +55,7 @@ pub struct World {
     was_airborne: bool,
     /// Last observed difficulty tier - used to trigger tier banners on change.
     last_tier: u32,
+    last_stage: Stage,
 }
 
 impl World {
@@ -74,6 +75,7 @@ impl World {
             effects: Effects::new(),
             was_airborne: false,
             last_tier: 0,
+            last_stage: Stage::DepartmentStore,
         }
     }
 
@@ -147,7 +149,8 @@ impl World {
         self.background.update(sim_dt, speed);
         self.obstacles
             .update(sim_dt, speed, self.score.current, &mut self.rng);
-        self.pickups.update(sim_dt, speed, &mut self.rng);
+        self.pickups
+            .update(sim_dt, speed, &mut self.rng, &self.obstacles);
 
         // Accumulate fractional score (1 point per 4 px scrolled).
         self.score_accum += speed * sim_dt / 4.0;
@@ -163,6 +166,14 @@ impl World {
             let label = tier_banner_label(current_tier);
             self.effects.push_tier_banner(label, 2.0);
             self.last_tier = current_tier;
+        }
+
+        // Stage change wipe - Metal Slug style transition.
+        let current_stage = crate::game::difficulty::stage_for_tier(current_tier);
+        if current_stage != self.last_stage {
+            let name = crate::game::difficulty::stage_name(current_stage).to_string();
+            self.effects.start_stage_wipe(name);
+            self.last_stage = current_stage;
         }
 
         let player_box = self.player.hitbox();

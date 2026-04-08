@@ -9,8 +9,8 @@ use edie_runner::render::camera::Camera;
 use edie_runner::render::sprites::{
     boss_touch_buttons, draw_aurora, draw_boss_intro, draw_boss_mode, draw_countdown,
     draw_effects, draw_heart_pickup, draw_hit_flash, draw_obstacle, draw_player,
-    draw_tier_banner, draw_touch_buttons, draw_vignette, logical_rect_to_screen,
-    play_touch_buttons,
+    draw_stage_wipe, draw_tier_banner, draw_touch_buttons, draw_vignette,
+    logical_rect_to_screen, play_touch_buttons,
 };
 use edie_runner::game::state::GameState;
 use edie_runner::platform::input::Action;
@@ -250,6 +250,8 @@ async fn main() {
         draw_effects(&game.world.effects, &cam);
         // Tier banner
         draw_tier_banner(&game.world.effects, &cam);
+        // Stage wipe (Metal Slug style)
+        draw_stage_wipe(&game.world.effects, &cam);
         // Speed-tier vignette
         draw_vignette(game.world.current_speed(), &cam);
         // Hit flash
