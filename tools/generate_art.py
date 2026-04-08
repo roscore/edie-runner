@@ -1754,9 +1754,8 @@ def process_gif_assets() -> None:
     print("[EDIE] extracting gif animations")
     # Running cycle (7f): bright-eyed idle blink - also used as boss-mode EDIE
     extract_gif_to_sheet("1000027545.gif", "edie_run_anim.png")
-    # Extract only the "smile" portion of 1000027555.gif (frames 6..10)
-    # since the full GIF is actually a happy->sad transition.
-    _extract_gif_slice("1000027555.gif", "edie_happy_run.png", 6, 10)
+    # Full smile loop from 1000027555.gif (17 frames)
+    extract_gif_to_sheet("1000027555.gif", "edie_happy_run.png")
     # Title idle variant 1 (7f): looking around curiously
     extract_gif_to_sheet("1000027548.gif", "edie_title_idle.png")
     # Sad closed eyes (7f): GameOver alternate

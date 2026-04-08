@@ -47,9 +47,9 @@ pub const EDIE_BLINK_FRAMES: usize = 7;
 pub const EDIE_BLINK_FPS: f32 = 7.0;
 pub const EDIE_CHEER_FRAMES: usize = 17;
 pub const EDIE_CHEER_FPS: f32 = 14.0;
-/// edie_happy_run is a 4-frame slice of 1000027555.gif (smile portion only).
-pub const EDIE_HAPPY_FRAMES: usize = 4;
-pub const EDIE_HAPPY_FPS: f32 = 6.0;
+/// edie_happy_run is the full 17-frame smile loop from 1000027555.gif.
+pub const EDIE_HAPPY_FRAMES: usize = 17;
+pub const EDIE_HAPPY_FPS: f32 = 10.0;
 
 /// Draw one frame from a horizontally-laid-out sprite sheet that uses the
 /// generator's standard 1-px padding between frames.
