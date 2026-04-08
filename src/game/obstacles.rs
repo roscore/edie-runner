@@ -51,7 +51,7 @@ impl ObstacleKind {
             ObstacleKind::ShoppingCart => (80.0, 44.0),
             ObstacleKind::TrafficCone => (24.0, 32.0),
             ObstacleKind::SignBoard => (24.0, 24.0),
-            ObstacleKind::Cat => (40.0, 24.0),
+            ObstacleKind::Cat => (40.0, 28.0),
             ObstacleKind::Car => (96.0, 40.0),
             ObstacleKind::Deer => (48.0, 52.0),
             ObstacleKind::BalloonDrone => (40.0, 48.0),

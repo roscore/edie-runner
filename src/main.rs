@@ -7,8 +7,10 @@ use edie_runner::platform::storage::InMemoryStorage;
 use edie_runner::platform::visibility::VisibilityTracker;
 use edie_runner::render::camera::Camera;
 use edie_runner::render::sprites::{
-    draw_aurora, draw_boss_intro, draw_boss_mode, draw_countdown, draw_effects, draw_heart_pickup,
-    draw_hit_flash, draw_obstacle, draw_player, draw_tier_banner, draw_vignette,
+    boss_touch_buttons, draw_aurora, draw_boss_intro, draw_boss_mode, draw_countdown,
+    draw_effects, draw_heart_pickup, draw_hit_flash, draw_obstacle, draw_player,
+    draw_tier_banner, draw_touch_buttons, draw_vignette, logical_rect_to_screen,
+    play_touch_buttons,
 };
 use edie_runner::game::state::GameState;
 use edie_runner::platform::input::Action;
@@ -75,12 +77,87 @@ async fn main() {
         }
     };
 
+    // Skip the very first render frame after loading so the huge frame_time
+    // (which includes the load / warmup cost) doesn't pollute the accumulator.
+    let mut warmup_frames = 2u32;
+    // Track whether the player tapped any interactive area -- used as a
+    // "confirm" on Title / GameOver / Paused when no on-screen JUMP button
+    // was used.
+    let mut was_touching = false;
+
     loop {
-        let frame_time = get_frame_time();
+        let raw_frame_time = get_frame_time();
+        let frame_time = if warmup_frames > 0 {
+            warmup_frames -= 1;
+            DT
+        } else {
+            raw_frame_time
+        };
 
         if let Some(visible) = visibility.observe(frame_time) {
             game.on_visibility_change(visible);
         }
+
+        // Touch sampling -- works on mobile (multi-touch) and desktop mouse.
+        let cam_for_touch = Camera::new(screen_width(), screen_height());
+        let mut touch_points: Vec<(f32, f32)> = Vec::new();
+        for t in touches() {
+            touch_points.push((t.position.x, t.position.y));
+        }
+        if is_mouse_button_down(MouseButton::Left) {
+            let (mx, my) = mouse_position();
+            touch_points.push((mx, my));
+        }
+
+        // Touch -> button state mapping
+        let mut touch_jump = false;
+        let mut touch_duck = false;
+        let mut touch_dash = false;
+        let mut touch_left = false;
+        let mut touch_right = false;
+
+        let hit =
+            |(x, y): (f32, f32), (rx, ry, rw, rh): (f32, f32, f32, f32)| -> bool {
+                x >= rx && x <= rx + rw && y >= ry && y <= ry + rh
+            };
+
+        if matches!(game.state, GameState::BossFight) {
+            let btns = boss_touch_buttons();
+            for t in &touch_points {
+                if hit(*t, logical_rect_to_screen(btns[0].logical_rect, &cam_for_touch)) {
+                    touch_left = true;
+                }
+                if hit(*t, logical_rect_to_screen(btns[1].logical_rect, &cam_for_touch)) {
+                    touch_right = true;
+                }
+            }
+        } else if matches!(game.state, GameState::Playing) {
+            let btns = play_touch_buttons();
+            for t in &touch_points {
+                if hit(*t, logical_rect_to_screen(btns[0].logical_rect, &cam_for_touch)) {
+                    touch_duck = true;
+                }
+                if hit(*t, logical_rect_to_screen(btns[1].logical_rect, &cam_for_touch)) {
+                    touch_jump = true;
+                }
+                if hit(*t, logical_rect_to_screen(btns[2].logical_rect, &cam_for_touch)) {
+                    // Edge-triggered dash on new tap
+                    if !was_touching {
+                        touch_dash = true;
+                    }
+                }
+            }
+        } else {
+            // Title / GameOver / Paused / Help / Story / Ending: any tap acts
+            // as a confirm (fires a Jump press pulse exactly once per tap).
+            let touching = !touch_points.is_empty();
+            if touching && !was_touching {
+                touch_jump = true;
+            }
+        }
+
+        input.set_touch_buttons(touch_jump, touch_duck, touch_dash, touch_left, touch_right);
+        was_touching = !touch_points.is_empty();
 
         let actions = input.poll();
         for a in actions {
@@ -201,6 +278,25 @@ async fn main() {
             if let Some(ref boss) = game.boss {
                 draw_boss_mode(boss, &assets, &cam);
             }
+            // Touch controls: left/right dodge buttons
+            let btns = boss_touch_buttons();
+            draw_touch_buttons(
+                &btns,
+                &[touch_left, touch_right],
+                &cam,
+            );
+        }
+
+        // In-game touch buttons (only during actual Playing state)
+        if matches!(game.state, GameState::Playing) && game.countdown_remaining <= 0.0 {
+            let btns = play_touch_buttons();
+            // Show dash as pressed only when we actually had >=1 aurora
+            let dash_armed = game.world.dash.aurora > 0;
+            draw_touch_buttons(
+                &btns,
+                &[touch_duck, touch_jump, dash_armed && touch_dash],
+                &cam,
+            );
         }
 
         // Help / Story / Ending screens drawn on top of everything else

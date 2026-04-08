@@ -13,6 +13,12 @@ impl FixedStep {
         Self { accumulator: 0.0 }
     }
 
+    /// Reset the accumulator to zero. Call at state transitions that shouldn't
+    /// inherit time debt from the previous state (e.g. start of a new run).
+    pub fn reset(&mut self) {
+        self.accumulator = 0.0;
+    }
+
     /// Feed a real-time delta and return how many fixed steps to run this frame.
     pub fn advance(&mut self, frame_time: f32) -> u32 {
         let clamped = frame_time.clamp(0.0, MAX_FRAME);

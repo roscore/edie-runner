@@ -239,37 +239,102 @@ def make_shopping_cart() -> None:
 
 
 def make_cat() -> None:
-    """Sleeping orange cat — 2-frame breathing."""
+    """Sitting orange tabby cat, facing the player - 2-frame tail swish."""
     frames = []
+    orange = (220, 130, 50, 255)
+    orange_d = (150, 80, 25, 255)
+    belly = (250, 200, 130, 255)
+    pink = (240, 140, 160, 255)
+    out = EDIE_OUTLINE
+    white = EDIE_WHITE
     for f in range(2):
-        w, h = 40, 24
+        w, h = 40, 28
         im = new_canvas(w, h)
         d = ImageDraw.Draw(im)
-        orange = (220, 130, 50, 255)
-        orange_d = (160, 80, 30, 255)
-        white = EDIE_WHITE
-        outline = EDIE_OUTLINE
-        # Body — curled lump
-        breathe = f
-        d.ellipse((4, 8 - breathe, w - 5, h - 2), fill=orange, outline=outline, width=1)
-        # Tummy fade
-        d.ellipse((10, 14, w - 12, h - 4), fill=orange_d)
-        # Head — left side
-        d.ellipse((2, 4 - breathe, 16, 18 - breathe), fill=orange, outline=outline, width=1)
-        # Ears
-        d.polygon([(4, 5 - breathe), (6, 1 - breathe), (8, 5 - breathe)], fill=orange, outline=outline)
-        d.polygon([(11, 5 - breathe), (13, 1 - breathe), (15, 5 - breathe)], fill=orange, outline=outline)
-        # Closed eye (sleeping ^)
-        d.line((6, 10 - breathe, 8, 9 - breathe), fill=outline)
-        d.line((8, 9 - breathe, 10, 10 - breathe), fill=outline)
-        # Stripes on body
-        d.line((20, 14, 24, 12), fill=orange_d)
-        d.line((26, 15, 30, 13), fill=orange_d)
-        # Tail curling around
-        d.line((w - 6, 18, w - 2, 14), fill=orange, width=2)
-        d.line((w - 6, 18, w - 2, 14), fill=outline)
-        # White whisker spot
-        d.point((4, 12 - breathe), fill=white)
+        # Body (haunches, sitting)
+        # Back arch
+        d.ellipse((8, 12, 30, 26), fill=orange, outline=out, width=1)
+        # Front chest / belly
+        d.ellipse((12, 14, 26, 27), fill=belly)
+        # Front legs
+        d.rectangle((14, 20, 17, 27), fill=orange, outline=out, width=1)
+        d.rectangle((21, 20, 24, 27), fill=orange, outline=out, width=1)
+        # Paws
+        d.rectangle((13, 26, 18, 27), fill=out)
+        d.rectangle((20, 26, 25, 27), fill=out)
+        # Back haunch bump
+        d.ellipse((26, 16, 34, 25), fill=orange, outline=out, width=1)
+        # Tail — curled up behind, swishes
+        swish = f
+        tail_pts = [
+            (32, 20 + swish),
+            (36, 18 + swish),
+            (38, 12 + swish),
+            (36, 6),
+            (32, 4),
+        ]
+        for i in range(len(tail_pts) - 1):
+            d.line((tail_pts[i], tail_pts[i + 1]), fill=orange, width=3)
+            d.line((tail_pts[i], tail_pts[i + 1]), fill=out)
+        # Tail tip
+        d.ellipse((30, 2, 34, 6), fill=orange, outline=out, width=1)
+        # Head (larger, front-facing)
+        head_cx = 19
+        head_cy = 10
+        d.ellipse((head_cx - 9, head_cy - 8, head_cx + 9, head_cy + 8), fill=orange, outline=out, width=1)
+        # Cheeks
+        d.ellipse((head_cx - 8, head_cy + 1, head_cx - 2, head_cy + 6), fill=belly)
+        d.ellipse((head_cx + 2, head_cy + 1, head_cx + 8, head_cy + 6), fill=belly)
+        # Ears (triangles)
+        d.polygon(
+            [(head_cx - 9, head_cy - 6), (head_cx - 6, head_cy - 10), (head_cx - 3, head_cy - 6)],
+            fill=orange,
+            outline=out,
+        )
+        d.polygon(
+            [(head_cx + 3, head_cy - 6), (head_cx + 6, head_cy - 10), (head_cx + 9, head_cy - 6)],
+            fill=orange,
+            outline=out,
+        )
+        # Inner ears (pink)
+        d.polygon(
+            [(head_cx - 7, head_cy - 6), (head_cx - 6, head_cy - 9), (head_cx - 5, head_cy - 6)],
+            fill=pink,
+        )
+        d.polygon(
+            [(head_cx + 5, head_cy - 6), (head_cx + 6, head_cy - 9), (head_cx + 7, head_cy - 6)],
+            fill=pink,
+        )
+        # Eyes — big green with slit pupils, alert cat
+        # Eye whites
+        d.ellipse((head_cx - 6, head_cy - 3, head_cx - 2, head_cy + 1), fill=white, outline=out)
+        d.ellipse((head_cx + 2, head_cy - 3, head_cx + 6, head_cy + 1), fill=white, outline=out)
+        # Green iris
+        d.ellipse((head_cx - 5, head_cy - 2, head_cx - 3, head_cy + 0), fill=(100, 200, 120, 255))
+        d.ellipse((head_cx + 3, head_cy - 2, head_cx + 5, head_cy + 0), fill=(100, 200, 120, 255))
+        # Black slit pupils
+        d.point((head_cx - 4, head_cy - 1), fill=out)
+        d.point((head_cx + 4, head_cy - 1), fill=out)
+        # Nose
+        d.polygon(
+            [(head_cx - 1, head_cy + 2), (head_cx + 1, head_cy + 2), (head_cx, head_cy + 4)],
+            fill=pink,
+        )
+        # Mouth
+        d.line((head_cx, head_cy + 4, head_cx - 1, head_cy + 5), fill=out)
+        d.line((head_cx, head_cy + 4, head_cx + 1, head_cy + 5), fill=out)
+        # Whiskers
+        d.line((head_cx - 10, head_cy + 3, head_cx - 5, head_cy + 4), fill=out)
+        d.line((head_cx - 10, head_cy + 5, head_cx - 5, head_cy + 5), fill=out)
+        d.line((head_cx + 5, head_cy + 4, head_cx + 10, head_cy + 3), fill=out)
+        d.line((head_cx + 5, head_cy + 5, head_cx + 10, head_cy + 5), fill=out)
+        # Tabby stripes on head
+        d.line((head_cx - 3, head_cy - 7, head_cx - 3, head_cy - 5), fill=orange_d)
+        d.line((head_cx, head_cy - 8, head_cx, head_cy - 5), fill=orange_d)
+        d.line((head_cx + 3, head_cy - 7, head_cx + 3, head_cy - 5), fill=orange_d)
+        # Tabby stripe on back
+        d.line((14, 13, 20, 12), fill=orange_d)
+        d.line((22, 13, 28, 12), fill=orange_d)
         frames.append(im)
     sheet = tile_horizontal(frames)
     save_png(sheet, "obstacle_cat.png", palette_lock=False)

@@ -310,7 +310,7 @@ pub fn draw_obstacle(
         ObstacleKind::Cat => {
             let f = frame_index(elapsed, 4.0, 2);
             draw_tex_frame(
-                &assets.obstacle_cat, f, 40.0, 24.0, 1.0, o.x, o.y, cam, WHITE,
+                &assets.obstacle_cat, f, 40.0, 28.0, 1.0, o.x, o.y, cam, WHITE,
             );
         }
         ObstacleKind::Car => {
@@ -920,6 +920,71 @@ pub fn draw_countdown(remaining: f32, cam: &Camera) {
         size,
         color,
     );
+}
+
+/// On-screen touch buttons for mobile. Positions are in logical coords and
+/// drawn only if `show` is true. Returns the hit rects in LOGICAL coords so
+/// the main loop can test touches against them.
+#[derive(Debug, Clone, Copy)]
+pub struct TouchButton {
+    pub label: &'static str,
+    pub logical_rect: (f32, f32, f32, f32), // x, y, w, h
+}
+
+pub fn boss_touch_buttons() -> [TouchButton; 2] {
+    let by = 324.0;
+    let bh = 66.0;
+    [
+        TouchButton { label: "<", logical_rect: (24.0, by, 120.0, bh) },
+        TouchButton { label: ">", logical_rect: (150.0, by, 120.0, bh) },
+    ]
+}
+
+pub fn play_touch_buttons() -> [TouchButton; 3] {
+    let by = 324.0;
+    let bh = 66.0;
+    [
+        TouchButton { label: "DUCK", logical_rect: (24.0, by, 130.0, bh) },
+        TouchButton { label: "JUMP", logical_rect: (1280.0 - 24.0 - 130.0, by, 130.0, bh) },
+        TouchButton { label: "DASH", logical_rect: (1280.0 - 24.0 - 130.0 - 150.0, by, 130.0, bh) },
+    ]
+}
+
+pub fn draw_touch_buttons(buttons: &[TouchButton], pressed: &[bool], cam: &Camera) {
+    for (i, b) in buttons.iter().enumerate() {
+        let (lx, ly, lw, lh) = b.logical_rect;
+        let (sx, sy) = cam.to_screen(lx, ly);
+        let is_pressed = pressed.get(i).copied().unwrap_or(false);
+        let bg = if is_pressed {
+            Color::new(1.0, 0.85, 0.2, 0.75)
+        } else {
+            Color::new(0.1, 0.1, 0.15, 0.45)
+        };
+        draw_rectangle(sx, sy, cam.scaled(lw), cam.scaled(lh), bg);
+        draw_rectangle_lines(
+            sx,
+            sy,
+            cam.scaled(lw),
+            cam.scaled(lh),
+            3.0,
+            Color::new(1.0, 0.9, 0.6, 0.9),
+        );
+        let size = 30.0 * cam.scale;
+        let dim = measure_text(b.label, None, size as u16, 1.0);
+        let tx = sx + cam.scaled(lw) * 0.5 - dim.width * 0.5;
+        let ty = sy + cam.scaled(lh) * 0.5 + dim.height * 0.4;
+        draw_text(b.label, tx, ty, size, Color::new(0.98, 0.95, 0.85, 1.0));
+    }
+}
+
+/// Convert a logical-coordinate rect to screen space for touch hit-testing.
+pub fn logical_rect_to_screen(
+    rect: (f32, f32, f32, f32),
+    cam: &Camera,
+) -> (f32, f32, f32, f32) {
+    let (lx, ly, lw, lh) = rect;
+    let (sx, sy) = cam.to_screen(lx, ly);
+    (sx, sy, cam.scaled(lw), cam.scaled(lh))
 }
 
 /// Speed-tier vignette - darkens edges as speed climbs.

@@ -79,12 +79,19 @@ mod tests {
 
 use macroquad::prelude::*;
 
-/// Production input source: reads macroquad keyboard each frame.
+/// Production input source: reads macroquad keyboard + touch each frame.
 pub struct MacroquadInput {
     jump_was_down: bool,
     duck_was_down: bool,
     left_was_down: bool,
     right_was_down: bool,
+    /// Injected touch button states from the main loop (evaluated via
+    /// `set_touch_buttons`) before each poll.
+    touch_jump: bool,
+    touch_duck: bool,
+    touch_dash: bool,
+    touch_left: bool,
+    touch_right: bool,
 }
 
 impl MacroquadInput {
@@ -94,7 +101,28 @@ impl MacroquadInput {
             duck_was_down: false,
             left_was_down: false,
             right_was_down: false,
+            touch_jump: false,
+            touch_duck: false,
+            touch_dash: false,
+            touch_left: false,
+            touch_right: false,
         }
+    }
+
+    /// Called by main loop each frame with the current touch-button state.
+    pub fn set_touch_buttons(
+        &mut self,
+        jump: bool,
+        duck: bool,
+        dash: bool,
+        left: bool,
+        right: bool,
+    ) {
+        self.touch_jump = jump;
+        self.touch_duck = duck;
+        self.touch_dash = dash;
+        self.touch_left = left;
+        self.touch_right = right;
     }
 }
 
@@ -107,8 +135,10 @@ impl Default for MacroquadInput {
 impl InputSource for MacroquadInput {
     fn poll(&mut self) -> Vec<Action> {
         let mut out = Vec::new();
-        let jump_now = is_key_down(KeyCode::Space) || is_key_down(KeyCode::Up);
-        let duck_now = is_key_down(KeyCode::Down);
+        let jump_now = is_key_down(KeyCode::Space)
+            || is_key_down(KeyCode::Up)
+            || self.touch_jump;
+        let duck_now = is_key_down(KeyCode::Down) || self.touch_duck;
 
         if jump_now && !self.jump_was_down {
             out.push(Action::Jump);
@@ -123,16 +153,21 @@ impl InputSource for MacroquadInput {
         if !duck_now && self.duck_was_down {
             out.push(Action::DuckRelease);
         }
-        if is_key_pressed(KeyCode::LeftShift) || is_key_pressed(KeyCode::RightShift) {
+        if is_key_pressed(KeyCode::LeftShift)
+            || is_key_pressed(KeyCode::RightShift)
+            || self.touch_dash
+        {
             out.push(Action::Dash);
         }
         if is_key_pressed(KeyCode::P) {
             out.push(Action::Pause);
         }
 
-        // Horizontal movement for boss mode
-        let left_now = is_key_down(KeyCode::Left) || is_key_down(KeyCode::A);
-        let right_now = is_key_down(KeyCode::Right) || is_key_down(KeyCode::D);
+        // Horizontal movement for boss mode (keys or touch)
+        let left_now = is_key_down(KeyCode::Left) || is_key_down(KeyCode::A) || self.touch_left;
+        let right_now = is_key_down(KeyCode::Right)
+            || is_key_down(KeyCode::D)
+            || self.touch_right;
         if left_now && !self.left_was_down {
             out.push(Action::MoveLeft);
         }
@@ -159,6 +194,9 @@ impl InputSource for MacroquadInput {
         if is_key_pressed(KeyCode::B) {
             out.push(Action::DebugBoss);
         }
+
+        // Dash touch is one-shot — consumed after this poll.
+        self.touch_dash = false;
 
         self.jump_was_down = jump_now;
         self.duck_was_down = duck_now;
