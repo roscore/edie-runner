@@ -23,8 +23,8 @@ impl ObstacleKind {
     pub fn size(&self) -> (f32, f32) {
         match self {
             ObstacleKind::CoiledCable => (32.0, 32.0),
-            ObstacleKind::ChargingDock => (40.0, 96.0),
-            ObstacleKind::ToolCart => (128.0, 48.0),
+            ObstacleKind::ChargingDock => (32.0, 64.0),
+            ObstacleKind::ToolCart => (80.0, 40.0),
             ObstacleKind::SensorCone => (24.0, 32.0),
             ObstacleKind::QuadDrone => (56.0, 32.0),
             ObstacleKind::SparkBurst => (24.0, 24.0),
@@ -34,7 +34,7 @@ impl ObstacleKind {
     pub fn y_for_kind(&self) -> f32 {
         let (_, h) = self.size();
         match self {
-            ObstacleKind::QuadDrone => GROUND_Y - 96.0,
+            ObstacleKind::QuadDrone => GROUND_Y - 88.0,
             ObstacleKind::SparkBurst => GROUND_Y - 160.0,
             _ => GROUND_Y - h,
         }
