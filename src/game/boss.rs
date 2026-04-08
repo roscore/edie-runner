@@ -1,7 +1,7 @@
 //! Boss mode: central corona boss + falling virus rain + laser attacks.
 //! Triggered at score >= BOSS_TRIGGER_SCORE.
 
-use crate::game::player::{Aabb, GROUND_Y, PLAYER_H, PLAYER_W};
+use crate::game::player::{Aabb, GROUND_Y};
 use rand::rngs::SmallRng;
 use rand::Rng;
 
@@ -10,8 +10,14 @@ pub const BOSS_INTRO_DURATION: f32 = 3.5;
 pub const VIRUS_W: f32 = 60.0;
 pub const VIRUS_H: f32 = 60.0;
 pub const PLAYER_SIDE_SPEED: f32 = 520.0;
+
+// Visual EDIE size in boss mode (must match draw_boss_mode).
+pub const BOSS_EDIE_W: f32 = 56.0;
+pub const BOSS_EDIE_H: f32 = 48.0;
+pub const BOSS_EDIE_BOTTOM_INSET: f32 = 16.0;
+
 pub const PLAYER_MIN_X: f32 = 40.0;
-pub const PLAYER_MAX_X: f32 = 1280.0 - PLAYER_W - 40.0;
+pub const PLAYER_MAX_X: f32 = 1280.0 - BOSS_EDIE_W - 40.0;
 
 // Central boss
 pub const BOSS_X: f32 = 640.0;
@@ -81,7 +87,7 @@ impl BossWorld {
     pub fn new() -> Self {
         Self {
             remaining: BOSS_DURATION,
-            player_x: 640.0 - PLAYER_W * 0.5,
+            player_x: 640.0 - BOSS_EDIE_W * 0.5,
             player_facing: Facing::Right,
             viruses: Vec::new(),
             spawn_timer: 0.25,
@@ -167,7 +173,7 @@ impl BossWorld {
             self.laser_cooldown -= dt;
             if self.laser_cooldown <= 0.0 {
                 // Target where the player currently is
-                let target = self.player_x + PLAYER_W * 0.5;
+                let target = self.player_x + BOSS_EDIE_W * 0.5;
                 self.laser = Some(Laser {
                     target_x: target.clamp(60.0, 1220.0),
                     phase: LaserPhase::Warn,
@@ -176,12 +182,18 @@ impl BossWorld {
             }
         }
 
-        // Player hitbox (tight)
+        // Player hitbox -- matches the visual sprite EXACTLY (this used to
+        // be referencing PLAYER_H/GROUND_Y from the running game which made
+        // the hitbox float ~80 px above the rendered EDIE).
+        // EDIE is drawn at y = 400 - BOSS_EDIE_H - BOSS_EDIE_BOTTOM_INSET = 336,
+        // size 56x48, with the player_x being the left edge of the visual.
+        let edie_top = 400.0 - BOSS_EDIE_H - BOSS_EDIE_BOTTOM_INSET;
+        let inset = 8.0;
         let player_box = Aabb {
-            x: self.player_x + 10.0,
-            y: GROUND_Y - PLAYER_H + 12.0,
-            w: PLAYER_W - 20.0,
-            h: PLAYER_H - 20.0,
+            x: self.player_x + inset,
+            y: edie_top + inset,
+            w: BOSS_EDIE_W - 2.0 * inset,
+            h: BOSS_EDIE_H - 2.0 * inset,
         };
 
         // Virus collision

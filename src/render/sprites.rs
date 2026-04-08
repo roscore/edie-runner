@@ -554,11 +554,26 @@ pub fn draw_boss_mode(
 
     // ======================================================
     // Boss: giant corona virus, central, slight bob
+    // Visually weakens as the timer runs down.
     // ======================================================
+    // health_frac: 1.0 at start, 0.0 when timer expires
+    let health_frac =
+        (boss.remaining / crate::game::boss::BOSS_DURATION).clamp(0.0, 1.0);
+    // weakness: 0.0 at start, 1.0 at timer expiry
+    let weakness = 1.0 - health_frac;
+
+    // Damage shake (more violent as boss weakens)
+    let shake_amp = weakness * 8.0;
+    let shake_x = (boss.elapsed * 47.0).sin() * shake_amp;
+    let shake_y = (boss.elapsed * 53.0).cos() * shake_amp * 0.5;
+
     let (bx_c, by_c) = boss.boss_center();
+    let bx_c = bx_c + shake_x;
+    let by_c = by_c + shake_y;
     let boss_x = bx_c - BOSS_SIZE * 0.5;
     let boss_y = by_c - BOSS_SIZE * 0.5;
-    // Pulsing outer aura
+
+    // Aura fades as boss weakens
     let aura_scale = 1.0 + ((boss.boss_bob_t * 3.0).sin() * 0.05);
     let aura_w = BOSS_SIZE * aura_scale * 1.15;
     let aura_x = bx_c - aura_w * 0.5;
@@ -569,20 +584,64 @@ pub fn draw_boss_mode(
         say,
         cam.scaled(aura_w),
         cam.scaled(aura_w),
-        Color::new(0.2, 0.9, 0.3, 0.08),
+        Color::new(0.2, 0.9, 0.3, 0.08 * health_frac),
     );
-    // Main boss sprite
+
+    // Main boss sprite -- color drains, alpha drops, hint of red as it dies
     let (sbx, sby) = cam.to_screen(boss_x, boss_y);
+    let boss_tint = Color::new(
+        1.0 - weakness * 0.2,                  // slight desaturation
+        1.0 - weakness * 0.55,                 // green channel drops fast
+        1.0 - weakness * 0.55,
+        (0.55 + 0.45 * health_frac).max(0.45), // partial transparency near death
+    );
     draw_texture_ex(
         &assets.boss_virus,
         sbx,
         sby,
-        WHITE,
+        boss_tint,
         DrawTextureParams {
             dest_size: Some(vec2(cam.scaled(BOSS_SIZE), cam.scaled(BOSS_SIZE))),
             ..Default::default()
         },
     );
+
+    // Crack overlays appear as boss weakens (more cracks the more damaged)
+    let crack_count = (weakness * 6.0) as i32;
+    for i in 0..crack_count {
+        let seed = i as f32 * 11.7;
+        let cx0 = bx_c + (seed.sin() * BOSS_SIZE * 0.35);
+        let cy0 = by_c + (seed.cos() * BOSS_SIZE * 0.35);
+        let cx1 = cx0 + (seed * 1.7).sin() * 32.0;
+        let cy1 = cy0 + (seed * 1.7).cos() * 32.0;
+        let (x1, y1) = cam.to_screen(cx0, cy0);
+        let (x2, y2) = cam.to_screen(cx1, cy1);
+        draw_line(
+            x1,
+            y1,
+            x2,
+            y2,
+            2.0 * cam.scale,
+            Color::new(0.05, 0.05, 0.08, 0.85),
+        );
+    }
+
+    // Damage smoke/particles drifting up from boss (more = weaker)
+    let smoke_count = (weakness * 8.0) as i32;
+    for i in 0..smoke_count {
+        let drift_seed = (boss.elapsed * 1.5 + i as f32 * 0.7) % 1.5;
+        let alpha = (1.0 - drift_seed / 1.5) * 0.6;
+        let dx = ((i as f32 * 3.1).sin() * BOSS_SIZE * 0.3) + (drift_seed * 6.0).sin() * 4.0;
+        let dy = -drift_seed * 60.0;
+        let (px, py) = cam.to_screen(bx_c + dx, by_c - 40.0 + dy);
+        draw_rectangle(
+            px,
+            py,
+            cam.scaled(6.0),
+            cam.scaled(6.0),
+            Color::new(0.3, 0.3, 0.35, alpha),
+        );
+    }
 
     // ======================================================
     // Laser (warn / firing)
@@ -702,10 +761,12 @@ pub fn draw_boss_mode(
 
     // ======================================================
     // Player EDIE at bottom, with facing flip
+    // Coordinates MUST match boss.rs hitbox math (BOSS_EDIE_*).
     // ======================================================
-    let vis_w = 56.0;
-    let vis_h = 48.0;
-    let player_y = 400.0 - vis_h - 16.0;
+    use crate::game::boss::{BOSS_EDIE_BOTTOM_INSET, BOSS_EDIE_H, BOSS_EDIE_W};
+    let vis_w = BOSS_EDIE_W;
+    let vis_h = BOSS_EDIE_H;
+    let player_y = 400.0 - vis_h - BOSS_EDIE_BOTTOM_INSET;
     let frame_w = (assets.edie_run_anim.width() - 6.0) / 7.0;
     let frame_h = assets.edie_run_anim.height();
     let frame_idx = ((boss.elapsed * 10.0) as usize) % 7;
