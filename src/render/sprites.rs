@@ -236,31 +236,55 @@ pub fn draw_player(
 pub fn draw_obstacle(o: &Obstacle, assets: &AssetHandles, elapsed: f32, cam: &Camera) {
     let (w, h) = o.kind.size();
     match o.kind {
-        ObstacleKind::CoiledCable => {
-            draw_tex_at(&assets.obstacle_cable, o.x, o.y, w, h, cam, WHITE);
+        ObstacleKind::CoffeeCup => {
+            draw_tex_at(&assets.obstacle_coffee, o.x, o.y, w, h, cam, WHITE);
         }
-        ObstacleKind::ChargingDock => {
-            let f = frame_index(elapsed, DOCK_FPS, DOCK_FRAMES);
-            draw_tex_frame(
-                &assets.obstacle_dock, f, DOCK_FRAME_W, DOCK_FRAME_H, 1.0, o.x, o.y, cam, WHITE,
-            );
-        }
-        ObstacleKind::ToolCart => {
+        ObstacleKind::ShoppingCart => {
             draw_tex_at(&assets.obstacle_cart, o.x, o.y, w, h, cam, WHITE);
         }
-        ObstacleKind::SensorCone => {
+        ObstacleKind::TrafficCone => {
             draw_tex_at(&assets.obstacle_cone, o.x, o.y, w, h, cam, WHITE);
         }
-        ObstacleKind::QuadDrone => {
-            let f = frame_index(elapsed, DRONE_FPS, DRONE_FRAMES);
-            draw_tex_frame(
-                &assets.obstacle_drone, f, DRONE_FRAME_W, DRONE_FRAME_H, 1.0, o.x, o.y, cam, WHITE,
-            );
-        }
-        ObstacleKind::SparkBurst => {
+        ObstacleKind::SignBoard => {
             let f = frame_index(elapsed, SPARK_FPS, SPARK_FRAMES);
             draw_tex_frame(
-                &assets.obstacle_spark, f, SPARK_FRAME_W, SPARK_FRAME_H, 1.0, o.x, o.y, cam, WHITE,
+                &assets.obstacle_sign, f, SPARK_FRAME_W, SPARK_FRAME_H, 1.0, o.x, o.y, cam, WHITE,
+            );
+        }
+        ObstacleKind::Cat => {
+            let f = frame_index(elapsed, 4.0, 2);
+            draw_tex_frame(
+                &assets.obstacle_cat, f, 40.0, 24.0, 1.0, o.x, o.y, cam, WHITE,
+            );
+        }
+        ObstacleKind::VacuumBot => {
+            let f = frame_index(elapsed, 6.0, 4);
+            draw_tex_frame(
+                &assets.obstacle_vacuum, f, 40.0, 20.0, 1.0, o.x, o.y, cam, WHITE,
+            );
+        }
+        ObstacleKind::Amy => {
+            let f = frame_index(elapsed, 12.0, 4);
+            draw_tex_frame(
+                &assets.obstacle_amy, f, 44.0, 32.0, 1.0, o.x, o.y, cam, WHITE,
+            );
+        }
+        ObstacleKind::AliceM1 => {
+            let f = frame_index(elapsed, 6.0, 2);
+            draw_tex_frame(
+                &assets.obstacle_alicem1, f, 36.0, 36.0, 1.0, o.x, o.y, cam, WHITE,
+            );
+        }
+        ObstacleKind::Alice3 => {
+            let f = frame_index(elapsed, 4.0, 2);
+            draw_tex_frame(
+                &assets.obstacle_alice3, f, 32.0, 64.0, 1.0, o.x, o.y, cam, WHITE,
+            );
+        }
+        ObstacleKind::Alice4 => {
+            let f = frame_index(elapsed, 4.0, 2);
+            draw_tex_frame(
+                &assets.obstacle_alice4, f, 36.0, 68.0, 1.0, o.x, o.y, cam, WHITE,
             );
         }
     }

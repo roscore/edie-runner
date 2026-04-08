@@ -178,7 +178,7 @@ mod tests {
         g.handle(Action::Confirm, &mut s);
         let pbox = g.world.player.hitbox();
         let mut o = crate::game::obstacles::Obstacle::new(
-            crate::game::obstacles::ObstacleKind::CoiledCable,
+            crate::game::obstacles::ObstacleKind::CoffeeCup,
             pbox.x,
         );
         o.y = pbox.y;

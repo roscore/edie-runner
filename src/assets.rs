@@ -22,12 +22,16 @@ pub struct AssetHandles {
     pub edie_blink_alt: Texture2D,
     pub edie_cheer_anim: Texture2D,
 
-    pub obstacle_cable: Texture2D,
-    pub obstacle_dock: Texture2D,
+    pub obstacle_coffee: Texture2D,
     pub obstacle_cart: Texture2D,
     pub obstacle_cone: Texture2D,
-    pub obstacle_drone: Texture2D, // 4 frames horizontal
-    pub obstacle_spark: Texture2D, // 4 frames horizontal
+    pub obstacle_sign: Texture2D,    // 4 frames
+    pub obstacle_cat: Texture2D,     // 2 frames
+    pub obstacle_vacuum: Texture2D,  // 4 frames
+    pub obstacle_amy: Texture2D,     // 4 frames
+    pub obstacle_alicem1: Texture2D, // 2 frames
+    pub obstacle_alice3: Texture2D,  // 2 frames
+    pub obstacle_alice4: Texture2D,  // 2 frames
 
     pub aurora_purple: Texture2D, // 6 frames horizontal
     pub aurora_green: Texture2D,  // 6 frames horizontal
@@ -80,12 +84,16 @@ pub async fn load_all() -> Result<AssetHandles, LoadError> {
         edie_blink_alt: load_pixel("edie_blink_alt.png").await?,
         edie_cheer_anim: load_pixel("edie_cheer_anim.png").await?,
 
-        obstacle_cable: load_pixel("obstacle_cable.png").await?,
-        obstacle_dock: load_pixel("obstacle_dock.png").await?,
+        obstacle_coffee: load_pixel("obstacle_coffee.png").await?,
         obstacle_cart: load_pixel("obstacle_cart.png").await?,
         obstacle_cone: load_pixel("obstacle_cone.png").await?,
-        obstacle_drone: load_pixel("obstacle_drone.png").await?,
-        obstacle_spark: load_pixel("obstacle_spark.png").await?,
+        obstacle_sign: load_pixel("obstacle_sign.png").await?,
+        obstacle_cat: load_pixel("obstacle_cat.png").await?,
+        obstacle_vacuum: load_pixel("obstacle_vacuum.png").await?,
+        obstacle_amy: load_pixel("obstacle_amy.png").await?,
+        obstacle_alicem1: load_pixel("obstacle_alicem1.png").await?,
+        obstacle_alice3: load_pixel("obstacle_alice3.png").await?,
+        obstacle_alice4: load_pixel("obstacle_alice4.png").await?,
 
         aurora_purple: load_pixel("aurora_purple.png").await?,
         aurora_green: load_pixel("aurora_green.png").await?,

@@ -134,7 +134,7 @@ impl World {
             if self.dash.is_invulnerable() && kind.destroyable_by_dash() {
                 self.obstacles.obstacles[idx].alive = false;
                 self.score.add(25);
-                if matches!(kind, ObstacleKind::QuadDrone) {
+                if matches!(kind, ObstacleKind::Amy) {
                     self.dash.trigger_slowmo();
                 }
             } else if !self.dash.is_invulnerable() && !self.is_hp_invuln() {
@@ -204,7 +204,7 @@ mod tests {
         let mut w = fresh_world();
         let pbox = w.player.hitbox();
         let mut o = crate::game::obstacles::Obstacle::new(
-            ObstacleKind::CoiledCable,
+            ObstacleKind::CoffeeCup,
             pbox.x,
         );
         o.y = pbox.y;
@@ -221,7 +221,7 @@ mod tests {
         w.dash.try_start();
         let pbox = w.player.hitbox();
         let mut o = crate::game::obstacles::Obstacle::new(
-            ObstacleKind::CoiledCable,
+            ObstacleKind::CoffeeCup,
             pbox.x,
         );
         o.y = pbox.y;
@@ -238,7 +238,7 @@ mod tests {
         w.dash.try_start();
         let pbox = w.player.hitbox();
         let mut o = crate::game::obstacles::Obstacle::new(
-            ObstacleKind::ChargingDock,
+            ObstacleKind::Alice3,
             pbox.x,
         );
         o.y = pbox.y;

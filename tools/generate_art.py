@@ -192,52 +192,274 @@ def derive_edie_states(run_im: Image.Image) -> None:
 # ============================================================
 # Obstacles
 # ============================================================
-def make_coiled_cable() -> None:
-    w, h = 32, 32
+def make_coffee_cup() -> None:
+    w, h = 24, 32
     im = new_canvas(w, h)
     d = ImageDraw.Draw(im)
-    # Main coil — dark grey
-    d.ellipse((4, 8, 27, 27), fill=(80, 80, 86, 255), outline=EDIE_OUTLINE, width=1)
-    d.ellipse((9, 13, 22, 22), fill=(60, 60, 66, 255), outline=EDIE_OUTLINE, width=1)
-    # Cool accent dot
-    d.rectangle((14, 16, 16, 18), fill=COOL_ACCENT)
-    save_png(im, "obstacle_cable.png")
+    # Steam wisps
+    d.line((10, 1, 10, 4), fill=(220, 220, 220, 200))
+    d.line((13, 1, 13, 5), fill=(220, 220, 220, 200))
+    # Lid
+    d.rectangle((4, 6, w - 5, 9), fill=(170, 70, 30, 255), outline=EDIE_OUTLINE, width=1)
+    d.point((10, 7), fill=EDIE_WHITE)
+    # Cup body — Starbucks-like brown
+    d.polygon(
+        [(5, 9), (w - 6, 9), (w - 7, h - 2), (6, h - 2)],
+        fill=(120, 80, 50, 255),
+        outline=EDIE_OUTLINE,
+    )
+    # Sleeve / band
+    d.rectangle((5, 18, w - 6, 22), fill=(180, 130, 80, 255))
+    # Logo dot
+    d.point((11, 20), fill=EDIE_WHITE)
+    save_png(im, "obstacle_coffee.png", palette_lock=False)
 
 
-def make_charging_dock() -> None:
-    w, h = 32, 64
+def make_shopping_cart() -> None:
+    w, h = 80, 44
+    im = new_canvas(w, h)
+    d = ImageDraw.Draw(im)
+    # Frame outline
+    metal = (180, 180, 190, 255)
+    metal_dark = (110, 110, 120, 255)
+    # Basket
+    d.rectangle((6, 12, w - 6, h - 14), outline=EDIE_OUTLINE, width=1, fill=metal)
+    # Vertical bars
+    for bx in range(10, w - 8, 6):
+        d.line((bx, 14, bx, h - 16), fill=metal_dark)
+    # Horizontal bar
+    d.line((6, 22, w - 6, 22), fill=metal_dark)
+    # Handle
+    d.line((w - 6, 12, w - 2, 4), fill=EDIE_OUTLINE)
+    d.line((w - 5, 12, w - 1, 4), fill=metal_dark)
+    # Wheels
+    d.ellipse((10, h - 12, 18, h - 4), fill=(40, 40, 46, 255), outline=EDIE_OUTLINE, width=1)
+    d.ellipse((w - 18, h - 12, w - 10, h - 4), fill=(40, 40, 46, 255), outline=EDIE_OUTLINE, width=1)
+    save_png(im, "obstacle_cart.png", palette_lock=False)
+
+
+def make_cat() -> None:
+    """Sleeping orange cat — 2-frame breathing."""
     frames = []
-    for frame_idx, lit in enumerate([False, True]):
+    for f in range(2):
+        w, h = 40, 24
         im = new_canvas(w, h)
         d = ImageDraw.Draw(im)
-        # Base
-        d.rectangle((4, h - 8, w - 5, h - 1), fill=(70, 70, 76, 255), outline=EDIE_OUTLINE, width=1)
-        # Pole
-        d.rectangle((13, 8, 18, h - 8), fill=(90, 90, 98, 255), outline=EDIE_OUTLINE, width=1)
-        # Top pad
-        d.rectangle((6, 4, 25, 12), fill=(60, 60, 66, 255), outline=EDIE_OUTLINE, width=1)
-        # LED
-        led_color = COOL_ACCENT if lit else (40, 50, 60, 255)
-        d.rectangle((14, 7, 17, 9), fill=led_color)
+        orange = (220, 130, 50, 255)
+        orange_d = (160, 80, 30, 255)
+        white = EDIE_WHITE
+        outline = EDIE_OUTLINE
+        # Body — curled lump
+        breathe = f
+        d.ellipse((4, 8 - breathe, w - 5, h - 2), fill=orange, outline=outline, width=1)
+        # Tummy fade
+        d.ellipse((10, 14, w - 12, h - 4), fill=orange_d)
+        # Head — left side
+        d.ellipse((2, 4 - breathe, 16, 18 - breathe), fill=orange, outline=outline, width=1)
+        # Ears
+        d.polygon([(4, 5 - breathe), (6, 1 - breathe), (8, 5 - breathe)], fill=orange, outline=outline)
+        d.polygon([(11, 5 - breathe), (13, 1 - breathe), (15, 5 - breathe)], fill=orange, outline=outline)
+        # Closed eye (sleeping ^)
+        d.line((6, 10 - breathe, 8, 9 - breathe), fill=outline)
+        d.line((8, 9 - breathe, 10, 10 - breathe), fill=outline)
+        # Stripes on body
+        d.line((20, 14, 24, 12), fill=orange_d)
+        d.line((26, 15, 30, 13), fill=orange_d)
+        # Tail curling around
+        d.line((w - 6, 18, w - 2, 14), fill=orange, width=2)
+        d.line((w - 6, 18, w - 2, 14), fill=outline)
+        # White whisker spot
+        d.point((4, 12 - breathe), fill=white)
         frames.append(im)
     sheet = tile_horizontal(frames)
-    save_png(sheet, "obstacle_dock.png")
+    save_png(sheet, "obstacle_cat.png", palette_lock=False)
 
 
-def make_tool_cart() -> None:
-    w, h = 80, 40
-    im = new_canvas(w, h)
-    d = ImageDraw.Draw(im)
-    # Body
-    d.rectangle((4, 10, w - 5, h - 10), fill=(110, 80, 50, 255), outline=EDIE_OUTLINE, width=1)
-    # Top shelf
-    d.rectangle((10, 5, w - 11, 12), fill=(140, 100, 60, 255), outline=EDIE_OUTLINE, width=1)
-    # Cool accent stripe
-    d.rectangle((6, 18, w - 7, 22), fill=COOL_ACCENT)
-    # Wheels
-    d.ellipse((6, h - 12, 16, h - 2), fill=(40, 40, 46, 255), outline=EDIE_OUTLINE, width=1)
-    d.ellipse((w - 17, h - 12, w - 7, h - 2), fill=(40, 40, 46, 255), outline=EDIE_OUTLINE, width=1)
-    save_png(im, "obstacle_cart.png")
+def make_vacuum_bot() -> None:
+    """Generic round vacuum robot — 4-frame indicator blink."""
+    frames = []
+    for f in range(4):
+        w, h = 40, 20
+        im = new_canvas(w, h)
+        d = ImageDraw.Draw(im)
+        # Disc body
+        d.ellipse((1, 4, w - 2, h - 1), fill=(220, 220, 230, 255), outline=EDIE_OUTLINE, width=1)
+        # Bumper
+        d.ellipse((3, 6, w - 4, h - 3), fill=(180, 180, 190, 255))
+        # Top sensor
+        d.rectangle((w // 2 - 3, 1, w // 2 + 3, 5), fill=(70, 70, 80, 255), outline=EDIE_OUTLINE, width=1)
+        # Indicator LED — animated
+        led_colors = [
+            (60, 230, 120, 255),
+            (60, 230, 120, 255),
+            (40, 100, 60, 255),
+            (40, 100, 60, 255),
+        ]
+        d.rectangle((w // 2 - 1, 2, w // 2, 3), fill=led_colors[f])
+        save_png_no_lock = True
+        frames.append(im)
+    sheet = tile_horizontal(frames)
+    save_png(sheet, "obstacle_vacuum.png", palette_lock=False)
+
+
+def make_amy() -> None:
+    """Amy — small white flying AeiROBOT (round body, single eye, hover ring)."""
+    frames = []
+    for f in range(4):
+        w, h = 44, 32
+        im = new_canvas(w, h)
+        d = ImageDraw.Draw(im)
+        outline = EDIE_OUTLINE
+        white = EDIE_WHITE
+        # Body — egg shape
+        d.ellipse((10, 4, w - 11, h - 10), fill=white, outline=outline, width=1)
+        # Eye lens — large orange
+        d.ellipse((16, 9, 28, 19), fill=outline)
+        d.ellipse((18, 11, 26, 17), fill=EDIE_ORANGE)
+        d.point((20, 13), fill=white)
+        # Antenna
+        d.line((22, 4, 22, 1), fill=outline)
+        d.point((22, 0), fill=EDIE_ORANGE)
+        # Hover ring (animated stretch)
+        ring_y = h - 6 + (f % 2)
+        d.ellipse((6, ring_y - 2, w - 7, ring_y + 2), outline=(120, 200, 255, 255))
+        # Side thrusters
+        d.rectangle((4, 14, 9, 18), fill=(100, 180, 230, 255), outline=outline, width=1)
+        d.rectangle((w - 10, 14, w - 5, 18), fill=(100, 180, 230, 255), outline=outline, width=1)
+        frames.append(im)
+    sheet = tile_horizontal(frames)
+    save_png(sheet, "obstacle_amy.png", palette_lock=False)
+
+
+def make_alice_m1() -> None:
+    """Alice-M1 — wheeled mobile AeiROBOT (compact, antenna)."""
+    frames = []
+    for f in range(2):
+        w, h = 36, 36
+        im = new_canvas(w, h)
+        d = ImageDraw.Draw(im)
+        outline = EDIE_OUTLINE
+        white = EDIE_WHITE
+        # Body — rectangular with rounded corners
+        d.rectangle((4, 8, w - 5, h - 10), fill=white, outline=outline, width=1)
+        # Top dome
+        d.ellipse((6, 2, w - 7, 12), fill=white, outline=outline, width=1)
+        # Eye strip
+        d.rectangle((9, 14, w - 10, 18), fill=outline)
+        d.rectangle((11, 15, 13, 17), fill=EDIE_ORANGE)
+        d.rectangle((w - 14, 15, w - 12, 17), fill=EDIE_ORANGE)
+        # Body label badge
+        d.rectangle((12, 22, w - 13, 26), fill=(60, 80, 120, 255))
+        # Antenna with blinking tip
+        d.line((w // 2, 2, w // 2, -1), fill=outline)
+        tip = EDIE_ORANGE if f == 0 else (200, 80, 30, 255)
+        d.point((w // 2, 0), fill=tip)
+        # Wheels
+        d.ellipse((4, h - 10, 14, h - 1), fill=(40, 40, 46, 255), outline=outline, width=1)
+        d.ellipse((w - 14, h - 10, w - 4, h - 1), fill=(40, 40, 46, 255), outline=outline, width=1)
+        d.ellipse((7, h - 7, 11, h - 4), fill=(120, 120, 130, 255))
+        d.ellipse((w - 11, h - 7, w - 7, h - 4), fill=(120, 120, 130, 255))
+        frames.append(im)
+    sheet = tile_horizontal(frames)
+    save_png(sheet, "obstacle_alicem1.png", palette_lock=False)
+
+
+def make_alice3() -> None:
+    """Alice3 — humanoid AeiROBOT v3, white panels with orange accent."""
+    frames = []
+    for f in range(2):
+        w, h = 32, 64
+        im = new_canvas(w, h)
+        d = ImageDraw.Draw(im)
+        outline = EDIE_OUTLINE
+        white = EDIE_WHITE
+        accent = EDIE_ORANGE
+        # Head
+        d.rectangle((9, 2, w - 10, 14), fill=white, outline=outline, width=1)
+        # Visor
+        d.rectangle((11, 6, w - 12, 10), fill=outline)
+        d.rectangle((12, 7, 14, 9), fill=accent)
+        d.rectangle((17, 7, 19, 9), fill=accent)
+        # Neck
+        d.rectangle((14, 14, w - 15, 16), fill=(140, 140, 150, 255))
+        # Torso
+        d.rectangle((6, 16, w - 7, 36), fill=white, outline=outline, width=1)
+        # Chest accent
+        d.rectangle((11, 20, w - 12, 26), fill=accent)
+        d.rectangle((12, 22, w - 13, 24), fill=(180, 70, 20, 255))
+        # Body label
+        d.rectangle((9, 30, w - 10, 34), fill=(60, 80, 120, 255))
+        # Arms — slight idle sway
+        sway = f
+        d.rectangle((2, 18, 5, 36 + sway), fill=white, outline=outline, width=1)
+        d.rectangle((w - 6, 18, w - 3, 36 - sway), fill=white, outline=outline, width=1)
+        # Hips
+        d.rectangle((8, 36, w - 9, 40), fill=(140, 140, 150, 255), outline=outline, width=1)
+        # Legs
+        d.rectangle((9, 40, 14, h - 4), fill=white, outline=outline, width=1)
+        d.rectangle((w - 15, 40, w - 10, h - 4), fill=white, outline=outline, width=1)
+        # Feet
+        d.rectangle((8, h - 5, 16, h - 1), fill=outline)
+        d.rectangle((w - 17, h - 5, w - 9, h - 1), fill=outline)
+        frames.append(im)
+    sheet = tile_horizontal(frames)
+    save_png(sheet, "obstacle_alice3.png", palette_lock=False)
+
+
+def make_alice4() -> None:
+    """Alice4 — newer humanoid AeiROBOT v4, sleeker silhouette."""
+    frames = []
+    for f in range(2):
+        w, h = 36, 68
+        im = new_canvas(w, h)
+        d = ImageDraw.Draw(im)
+        outline = EDIE_OUTLINE
+        white = EDIE_WHITE
+        accent = EDIE_ORANGE
+        teal = (60, 180, 200, 255)
+        # Head — taller helmet
+        d.rectangle((10, 2, w - 11, 16), fill=white, outline=outline, width=1)
+        # Curved visor
+        d.rectangle((11, 6, w - 12, 11), fill=outline)
+        d.rectangle((12, 7, w - 13, 10), fill=teal)
+        d.point((14, 8), fill=EDIE_WHITE)
+        # Forehead emblem
+        d.point((w // 2, 4), fill=accent)
+        d.point((w // 2 - 1, 4), fill=accent)
+        # Neck
+        d.rectangle((15, 16, w - 16, 18), fill=(120, 120, 130, 255))
+        # Torso — broader shoulders
+        d.polygon(
+            [(4, 18), (w - 5, 18), (w - 7, 40), (6, 40)],
+            fill=white,
+            outline=outline,
+        )
+        # Chest panel
+        d.rectangle((11, 22, w - 12, 30), fill=accent)
+        d.rectangle((12, 24, w - 13, 26), fill=(255, 200, 100, 255))
+        # AeiROBOT badge
+        d.rectangle((10, 32, w - 11, 38), fill=(40, 60, 100, 255))
+        d.point((w // 2, 35), fill=teal)
+        # Arms with shoulder pads
+        sway = f
+        d.rectangle((1, 19, 5, 22), fill=white, outline=outline, width=1)
+        d.rectangle((w - 6, 19, w - 2, 22), fill=white, outline=outline, width=1)
+        d.rectangle((2, 22, 5, 40 + sway), fill=white, outline=outline, width=1)
+        d.rectangle((w - 6, 22, w - 3, 40 - sway), fill=white, outline=outline, width=1)
+        # Hips
+        d.rectangle((8, 40, w - 9, 44), fill=(120, 120, 130, 255), outline=outline, width=1)
+        # Legs — longer
+        d.rectangle((10, 44, 16, h - 4), fill=white, outline=outline, width=1)
+        d.rectangle((w - 17, 44, w - 11, h - 4), fill=white, outline=outline, width=1)
+        # Knee accent
+        d.rectangle((11, 54, 15, 56), fill=accent)
+        d.rectangle((w - 16, 54, w - 12, 56), fill=accent)
+        # Feet
+        d.rectangle((8, h - 5, 18, h - 1), fill=outline)
+        d.rectangle((w - 19, h - 5, w - 9, h - 1), fill=outline)
+        frames.append(im)
+    sheet = tile_horizontal(frames)
+    save_png(sheet, "obstacle_alice4.png", palette_lock=False)
 
 
 def make_sensor_cone() -> None:
@@ -254,33 +476,7 @@ def make_sensor_cone() -> None:
     save_png(im, "obstacle_cone.png")
 
 
-def make_quad_drone() -> None:
-    w, h = 56, 32
-    frames = []
-    for f in range(4):
-        im = new_canvas(w, h)
-        d = ImageDraw.Draw(im)
-        # Body — charcoal
-        d.ellipse((18, 10, 38, 22), fill=(60, 60, 66, 255), outline=EDIE_OUTLINE, width=1)
-        # Eye / lens
-        d.rectangle((26, 14, 30, 17), fill=COOL_ACCENT)
-        # Arms
-        d.line((20, 12, 6, 6), fill=EDIE_OUTLINE, width=1)
-        d.line((36, 12, 50, 6), fill=EDIE_OUTLINE, width=1)
-        d.line((20, 20, 6, 26), fill=EDIE_OUTLINE, width=1)
-        d.line((36, 20, 50, 26), fill=EDIE_OUTLINE, width=1)
-        # Rotors — animated blur
-        for cx, cy in [(6, 6), (50, 6), (6, 26), (50, 26)]:
-            if f % 2 == 0:
-                d.line((cx - 4, cy, cx + 4, cy), fill=(140, 140, 150, 255), width=1)
-            else:
-                d.line((cx, cy - 4, cx, cy + 4), fill=(140, 140, 150, 255), width=1)
-        frames.append(im)
-    sheet = tile_horizontal(frames)
-    save_png(sheet, "obstacle_drone.png")
-
-
-def make_spark_burst() -> None:
+def make_sign_board() -> None:
     w, h = 24, 24
     frames = []
     for f in range(4):
@@ -298,7 +494,7 @@ def make_spark_burst() -> None:
                 d.line((cx, cy, rx, ry), fill=HAZARD, width=1)
         frames.append(im)
     sheet = tile_horizontal(frames)
-    save_png(sheet, "obstacle_spark.png", palette_lock=False)
+    save_png(sheet, "obstacle_sign.png", palette_lock=False)
 
 
 # ============================================================
@@ -582,12 +778,16 @@ def main() -> None:
     process_gif_assets()
     print()
     print("[obstacles]")
-    make_coiled_cable()
-    make_charging_dock()
-    make_tool_cart()
+    make_coffee_cup()
+    make_shopping_cart()
     make_sensor_cone()
-    make_quad_drone()
-    make_spark_burst()
+    make_sign_board()
+    make_cat()
+    make_vacuum_bot()
+    make_amy()
+    make_alice_m1()
+    make_alice3()
+    make_alice4()
     print()
     print("[pickups]")
     make_aurora()

@@ -7,37 +7,60 @@ use rand::Rng;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ObstacleKind {
-    CoiledCable,
-    ChargingDock,
-    ToolCart,
-    SensorCone,
-    QuadDrone,
-    SparkBurst,
+    // Pangyo street obstacles (low tiers)
+    CoffeeCup,
+    ShoppingCart,
+    TrafficCone,
+    SignBoard,
+    Cat,
+    // AeiROBOT robots — appear as we approach AeiROBOT HQ
+    VacuumBot, // generic intro robot
+    Amy,       // small flying robot (replaces drone role)
+    AliceM1,   // mobile ground robot
+    Alice3,    // humanoid v3 (heavy)
+    Alice4,    // humanoid v4 (heavy)
 }
 
 impl ObstacleKind {
     pub fn destroyable_by_dash(&self) -> bool {
-        !matches!(self, ObstacleKind::ChargingDock)
+        // The bipedal humanoids (Alice3, Alice4) are too heavy to dash-smash.
+        !matches!(self, ObstacleKind::Alice3 | ObstacleKind::Alice4)
+    }
+
+    /// True if this obstacle is a robot. Used for the "approaching AeiROBOT"
+    /// scaling — higher tiers spawn more robots.
+    pub fn is_robot(&self) -> bool {
+        matches!(
+            self,
+            ObstacleKind::VacuumBot
+                | ObstacleKind::Amy
+                | ObstacleKind::AliceM1
+                | ObstacleKind::Alice3
+                | ObstacleKind::Alice4
+        )
     }
 
     pub fn size(&self) -> (f32, f32) {
         match self {
-            ObstacleKind::CoiledCable => (32.0, 32.0),
-            ObstacleKind::ChargingDock => (32.0, 64.0),
-            ObstacleKind::ToolCart => (80.0, 40.0),
-            ObstacleKind::SensorCone => (24.0, 32.0),
-            ObstacleKind::QuadDrone => (56.0, 32.0),
-            ObstacleKind::SparkBurst => (24.0, 24.0),
+            ObstacleKind::CoffeeCup => (24.0, 32.0),
+            ObstacleKind::ShoppingCart => (80.0, 44.0),
+            ObstacleKind::TrafficCone => (24.0, 32.0),
+            ObstacleKind::SignBoard => (24.0, 24.0),
+            ObstacleKind::Cat => (40.0, 24.0),
+            ObstacleKind::VacuumBot => (40.0, 20.0),
+            ObstacleKind::Amy => (44.0, 32.0),
+            ObstacleKind::AliceM1 => (36.0, 36.0),
+            ObstacleKind::Alice3 => (32.0, 64.0),
+            ObstacleKind::Alice4 => (36.0, 68.0),
         }
     }
 
     pub fn y_for_kind(&self) -> f32 {
         let (_, h) = self.size();
         match self {
-            // Drone hovers so the player MUST duck (can't walk under, can't
-            // run through standing).
-            ObstacleKind::QuadDrone => GROUND_Y - 56.0,
-            ObstacleKind::SparkBurst => GROUND_Y - 160.0,
+            // Amy hovers so the player MUST duck.
+            ObstacleKind::Amy => GROUND_Y - 56.0,
+            ObstacleKind::SignBoard => GROUND_Y - 160.0,
             _ => GROUND_Y - h,
         }
     }
@@ -90,25 +113,66 @@ impl ObstacleField {
         (speed * 1.0).max(180.0)
     }
 
+    /// Spawn weight table by tier. Higher tiers shift toward AeiROBOT bots
+    /// to convey "approaching AeiROBOT HQ".
     fn random_kind(&self, score: u32, rng: &mut SmallRng) -> ObstacleKind {
         let tier = tier_for_score(score);
-        let mut pool: Vec<ObstacleKind> = vec![
-            ObstacleKind::CoiledCable,
-            ObstacleKind::CoiledCable,
-            ObstacleKind::SensorCone,
-            ObstacleKind::ToolCart,
-        ];
+        let mut pool: Vec<ObstacleKind> = Vec::new();
+
+        // Tiers 0-1: Pangyo street level (no robots yet)
+        pool.push(ObstacleKind::CoffeeCup);
+        pool.push(ObstacleKind::CoffeeCup);
+        pool.push(ObstacleKind::Cat);
+        pool.push(ObstacleKind::Cat);
+        pool.push(ObstacleKind::TrafficCone);
+        pool.push(ObstacleKind::ShoppingCart);
+
         if tier >= 1 {
-            pool.push(ObstacleKind::ChargingDock);
-            pool.push(ObstacleKind::QuadDrone);
+            pool.push(ObstacleKind::ShoppingCart);
+            pool.push(ObstacleKind::TrafficCone);
         }
+
+        // Tier 2: vacuum bots — entering the tech district
         if tier >= 2 {
-            pool.push(ObstacleKind::QuadDrone);
-            pool.push(ObstacleKind::ChargingDock);
+            pool.push(ObstacleKind::VacuumBot);
+            pool.push(ObstacleKind::VacuumBot);
         }
+
+        // Tier 3: Amy (small flying AeiROBOT) + signboards
         if tier >= SPARK_BURST_UNLOCK_TIER {
-            pool.push(ObstacleKind::SparkBurst);
+            pool.push(ObstacleKind::SignBoard);
+            pool.push(ObstacleKind::Amy);
         }
+
+        // Tier 4: Alice-M1 (mobile AeiROBOT)
+        if tier >= 4 {
+            pool.push(ObstacleKind::AliceM1);
+            pool.push(ObstacleKind::Amy);
+            pool.push(ObstacleKind::VacuumBot);
+        }
+
+        // Tier 5: Alice3 (humanoid)
+        if tier >= 5 {
+            pool.push(ObstacleKind::Alice3);
+            pool.push(ObstacleKind::AliceM1);
+            pool.push(ObstacleKind::Amy);
+        }
+
+        // Tier 6: Alice4 (newer humanoid) — AeiROBOT zone in full effect
+        if tier >= 6 {
+            pool.push(ObstacleKind::Alice4);
+            pool.push(ObstacleKind::Alice3);
+            pool.push(ObstacleKind::AliceM1);
+        }
+
+        // Tier 7-8: dense AeiROBOT presence
+        if tier >= 7 {
+            pool.push(ObstacleKind::Alice4);
+            pool.push(ObstacleKind::Alice4);
+            pool.push(ObstacleKind::Alice3);
+            pool.push(ObstacleKind::Amy);
+        }
+
         let idx = rng.gen_range(0..pool.len());
         pool[idx]
     }
@@ -145,10 +209,31 @@ mod tests {
 
     #[test]
     fn destroyable_flags() {
-        assert!(!ObstacleKind::ChargingDock.destroyable_by_dash());
-        assert!(ObstacleKind::CoiledCable.destroyable_by_dash());
-        assert!(ObstacleKind::ToolCart.destroyable_by_dash());
-        assert!(ObstacleKind::QuadDrone.destroyable_by_dash());
+        assert!(!ObstacleKind::Alice3.destroyable_by_dash());
+        assert!(!ObstacleKind::Alice4.destroyable_by_dash());
+        assert!(ObstacleKind::CoffeeCup.destroyable_by_dash());
+        assert!(ObstacleKind::ShoppingCart.destroyable_by_dash());
+        assert!(ObstacleKind::Amy.destroyable_by_dash());
+        assert!(ObstacleKind::Cat.destroyable_by_dash());
+        assert!(ObstacleKind::VacuumBot.destroyable_by_dash());
+        assert!(ObstacleKind::AliceM1.destroyable_by_dash());
+    }
+
+    #[test]
+    fn higher_tiers_spawn_more_robots() {
+        let field = ObstacleField::new();
+        let mut rng = SmallRng::seed_from_u64(99);
+        let count_robots = |score: u32, samples: usize, rng: &mut SmallRng| {
+            (0..samples)
+                .filter(|_| field.random_kind(score, rng).is_robot())
+                .count()
+        };
+        let low = count_robots(0, 1000, &mut rng);
+        let high = count_robots(7 * 500, 1000, &mut rng);
+        assert!(
+            high > low * 2,
+            "tier 7 should produce far more robots than tier 0 (low={low}, high={high})"
+        );
     }
 
     #[test]
@@ -181,22 +266,22 @@ mod tests {
     }
 
     #[test]
-    fn spark_burst_only_at_tier_3_plus() {
+    fn signboard_only_at_tier_3_plus() {
         let mut rng = SmallRng::seed_from_u64(7);
         let field = ObstacleField::new();
         for _ in 0..200 {
             let k = field.random_kind(0, &mut rng);
-            assert_ne!(k, ObstacleKind::SparkBurst);
+            assert_ne!(k, ObstacleKind::SignBoard);
         }
-        let mut saw_spark = false;
-        for _ in 0..1000 {
+        let mut saw = false;
+        for _ in 0..2000 {
             if field.random_kind(SPARK_BURST_UNLOCK_TIER * 500, &mut rng)
-                == ObstacleKind::SparkBurst
+                == ObstacleKind::SignBoard
             {
-                saw_spark = true;
+                saw = true;
                 break;
             }
         }
-        assert!(saw_spark);
+        assert!(saw);
     }
 }
