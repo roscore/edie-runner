@@ -233,10 +233,15 @@ pub fn draw_player(
     }
 }
 
-/// Returns true if this obstacle warrants a telegraph flash (about to be
-/// impossible to react to) given the current scroll speed.
+/// Returns true if this obstacle warrants a telegraph flash.
 fn needs_telegraph(o: &Obstacle, speed: f32) -> bool {
-    if !matches!(o.kind, ObstacleKind::Amy) {
+    if !matches!(
+        o.kind,
+        ObstacleKind::Amy
+            | ObstacleKind::BalloonDrone
+            | ObstacleKind::Car
+            | ObstacleKind::Deer
+    ) {
         return false;
     }
     let dist = o.x - PLAYER_X;
@@ -244,7 +249,7 @@ fn needs_telegraph(o: &Obstacle, speed: f32) -> bool {
         return false;
     }
     let t = dist / speed;
-    t > 0.0 && t < 0.25
+    t > 0.0 && t < 0.28
 }
 
 pub fn draw_obstacle(
@@ -255,6 +260,23 @@ pub fn draw_obstacle(
     cam: &Camera,
 ) {
     let (w, h) = o.kind.size();
+
+    // Drop shadow under ground obstacles (visibility aid)
+    if o.kind.has_ground_shadow() {
+        let shadow_w = w * 0.9;
+        let shadow_x = o.x + (w - shadow_w) * 0.5;
+        let (sx, sy) = cam.to_screen(shadow_x, GROUND_Y - 3.0);
+        draw_texture_ex(
+            &assets.obstacle_shadow,
+            sx,
+            sy,
+            Color::new(0.0, 0.0, 0.0, 0.6),
+            DrawTextureParams {
+                dest_size: Some(vec2(cam.scaled(shadow_w), cam.scaled(6.0))),
+                ..Default::default()
+            },
+        );
+    }
 
     // Telegraph flash: red outline pulse when Amy is about to reach the player
     if needs_telegraph(o, current_speed) {
@@ -289,6 +311,21 @@ pub fn draw_obstacle(
             let f = frame_index(elapsed, 4.0, 2);
             draw_tex_frame(
                 &assets.obstacle_cat, f, 40.0, 24.0, 1.0, o.x, o.y, cam, WHITE,
+            );
+        }
+        ObstacleKind::Car => {
+            draw_tex_at(&assets.obstacle_car, o.x, o.y, w, h, cam, WHITE);
+        }
+        ObstacleKind::Deer => {
+            let f = frame_index(elapsed, 6.0, 2);
+            draw_tex_frame(
+                &assets.obstacle_deer, f, 48.0, 52.0, 1.0, o.x, o.y, cam, WHITE,
+            );
+        }
+        ObstacleKind::BalloonDrone => {
+            let f = frame_index(elapsed, 6.0, 4);
+            draw_tex_frame(
+                &assets.obstacle_balloon, f, 40.0, 48.0, 1.0, o.x, o.y, cam, WHITE,
             );
         }
         ObstacleKind::VacuumBot => {

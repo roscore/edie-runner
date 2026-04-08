@@ -83,8 +83,12 @@ pub fn draw_background(
         },
     );
 
-    // Stars overlay (only for outdoor stages at night)
-    let outdoor = !matches!(stage, Stage::DepartmentStore | Stage::AeiRobotHQ);
+    // Indoor stages get a flat tint (ignore day/night) and skip stars.
+    let outdoor = !matches!(
+        stage,
+        Stage::DepartmentStore | Stage::AeiRobotOffice | Stage::AeiRobotCEORoom
+    );
+
     if outdoor && star_alpha > 0.01 {
         let star_tint = Color::new(1.0, 1.0, 1.0, star_alpha);
         draw_texture_ex(
@@ -105,10 +109,10 @@ pub fn draw_background(
         Stage::PangyoStreet => &assets.stage_street,
         Stage::Highway => &assets.stage_highway,
         Stage::Ansan => &assets.stage_ansan,
-        Stage::AeiRobotHQ => &assets.stage_hq,
+        Stage::AeiRobotOffice => &assets.stage_office,
+        Stage::AeiRobotCEORoom => &assets.stage_ceo,
     };
 
-    // Indoor stages get a flat tint (ignore day/night)
     let stage_tint = if outdoor { tint } else { WHITE };
 
     // Far layer

@@ -26,12 +26,13 @@ fn tier_banner_label(tier: u32) -> String {
     match tier {
         1 => "PANGYO STREET - SIDEWALK PATROL".to_string(),
         2 => "PANGYO STREET - VACUUM BOTS".to_string(),
-        3 => "HIGHWAY - AMY TAKES FLIGHT".to_string(),
-        4 => "HIGHWAY - ALICE-M1 ROLLS IN".to_string(),
+        3 => "HIGHWAY - DEER SEASON".to_string(),
+        4 => "HIGHWAY - INCOMING TRAFFIC".to_string(),
         5 => "HANYANG ERICA - ALICE3 ONLINE".to_string(),
         6 => "HANYANG ERICA - ALICE4 ENGAGED".to_string(),
-        7 => "AEIROBOT HQ - HOME STRETCH".to_string(),
-        8 => "AEIROBOT HQ - MAXIMUM CHAOS".to_string(),
+        7 => "AEIROBOT OFFICE - HOME STRETCH".to_string(),
+        8 => "AEIROBOT CEO ROOM - MAXIMUM CHAOS".to_string(),
+        9 => "CEO ROOM - BREAK THE LIMIT".to_string(),
         _ => format!("TIER {}", tier),
     }
 }

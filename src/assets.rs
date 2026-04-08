@@ -27,11 +27,15 @@ pub struct AssetHandles {
     pub obstacle_cone: Texture2D,
     pub obstacle_sign: Texture2D,    // 4 frames
     pub obstacle_cat: Texture2D,     // 2 frames
+    pub obstacle_car: Texture2D,
+    pub obstacle_deer: Texture2D,    // 2 frames
+    pub obstacle_balloon: Texture2D, // 4 frames
     pub obstacle_vacuum: Texture2D,  // 4 frames
     pub obstacle_amy: Texture2D,     // 4 frames
     pub obstacle_alicem1: Texture2D, // 2 frames
     pub obstacle_alice3: Texture2D,  // 2 frames
     pub obstacle_alice4: Texture2D,  // 2 frames
+    pub obstacle_shadow: Texture2D,  // shared ground shadow
 
     pub aurora_purple: Texture2D, // 6 frames horizontal
     pub aurora_green: Texture2D,  // 6 frames horizontal
@@ -43,12 +47,13 @@ pub struct AssetHandles {
     pub bg_mid: Texture2D,
     pub bg_floor: Texture2D,
 
-    // Stage-specific background tiles (5 stages x 3 layers each)
+    // Stage-specific background tiles (6 stages x 3 layers each)
     pub stage_store: StageBg,
     pub stage_street: StageBg,
     pub stage_highway: StageBg,
     pub stage_ansan: StageBg,
-    pub stage_hq: StageBg,
+    pub stage_office: StageBg,
+    pub stage_ceo: StageBg,
 
     // SFX
     pub sfx_jump: macroquad::audio::Sound,
@@ -110,11 +115,15 @@ pub async fn load_all() -> Result<AssetHandles, LoadError> {
         obstacle_cone: load_pixel("obstacle_cone.png").await?,
         obstacle_sign: load_pixel("obstacle_sign.png").await?,
         obstacle_cat: load_pixel("obstacle_cat.png").await?,
+        obstacle_car: load_pixel("obstacle_car.png").await?,
+        obstacle_deer: load_pixel("obstacle_deer.png").await?,
+        obstacle_balloon: load_pixel("obstacle_balloon.png").await?,
         obstacle_vacuum: load_pixel("obstacle_vacuum.png").await?,
         obstacle_amy: load_pixel("obstacle_amy.png").await?,
         obstacle_alicem1: load_pixel("obstacle_alicem1.png").await?,
         obstacle_alice3: load_pixel("obstacle_alice3.png").await?,
         obstacle_alice4: load_pixel("obstacle_alice4.png").await?,
+        obstacle_shadow: load_pixel("edie_shadow.png").await?,
 
         aurora_purple: load_pixel("aurora_purple.png").await?,
         aurora_green: load_pixel("aurora_green.png").await?,
@@ -146,10 +155,15 @@ pub async fn load_all() -> Result<AssetHandles, LoadError> {
             mid: load_pixel("bg_ansan_mid.png").await?,
             floor: load_pixel("bg_ansan_floor.png").await?,
         },
-        stage_hq: StageBg {
-            far: load_pixel("bg_hq_far.png").await?,
-            mid: load_pixel("bg_hq_mid.png").await?,
-            floor: load_pixel("bg_hq_floor.png").await?,
+        stage_office: StageBg {
+            far: load_pixel("bg_office_far.png").await?,
+            mid: load_pixel("bg_office_mid.png").await?,
+            floor: load_pixel("bg_office_floor.png").await?,
+        },
+        stage_ceo: StageBg {
+            far: load_pixel("bg_ceo_far.png").await?,
+            mid: load_pixel("bg_ceo_mid.png").await?,
+            floor: load_pixel("bg_ceo_floor.png").await?,
         },
 
         sfx_jump: load_sound("sfx_jump.wav").await?,

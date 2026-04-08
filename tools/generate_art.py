@@ -476,6 +476,121 @@ def make_sensor_cone() -> None:
     save_png(im, "obstacle_cone.png")
 
 
+def make_car() -> None:
+    """Charging car - wide ground obstacle, bright red."""
+    w, h = 96, 40
+    im = new_canvas(w, h)
+    d = ImageDraw.Draw(im)
+    body = (220, 60, 60, 255)
+    body_d = (160, 30, 40, 255)
+    glass = (140, 200, 230, 255)
+    # Lower body
+    d.rectangle((4, 18, w - 5, h - 8), fill=body, outline=EDIE_OUTLINE, width=2)
+    # Upper cabin
+    d.rectangle((22, 6, w - 22, 20), fill=body_d, outline=EDIE_OUTLINE, width=2)
+    # Windshield
+    d.rectangle((26, 9, w - 26, 18), fill=glass)
+    # Front lights
+    d.rectangle((w - 8, 22, w - 4, 28), fill=(255, 230, 120, 255), outline=EDIE_OUTLINE, width=1)
+    d.rectangle((4, 22, 8, 28), fill=(200, 40, 40, 255), outline=EDIE_OUTLINE, width=1)
+    # Grille
+    for gx in range(w - 14, w - 5, 2):
+        d.line((gx, 24, gx, 30), fill=(40, 40, 46, 255))
+    # Wheels
+    d.ellipse((12, h - 14, 26, h - 1), fill=(40, 40, 46, 255), outline=EDIE_OUTLINE, width=2)
+    d.ellipse((14, h - 12, 24, h - 3), fill=(120, 120, 130, 255))
+    d.ellipse((w - 27, h - 14, w - 13, h - 1), fill=(40, 40, 46, 255), outline=EDIE_OUTLINE, width=2)
+    d.ellipse((w - 25, h - 12, w - 15, h - 3), fill=(120, 120, 130, 255))
+    # Motion streaks (implies charging)
+    for sy in (14, 24, 34):
+        d.line((0, sy, 3, sy), fill=(255, 255, 255, 180))
+    save_png(im, "obstacle_car.png", palette_lock=False)
+
+
+def make_deer() -> None:
+    """Leaping deer - ground mid-height obstacle, tan with antlers."""
+    w, h = 48, 52
+    frames = []
+    for f in range(2):
+        im = new_canvas(w, h)
+        d = ImageDraw.Draw(im)
+        tan = (200, 130, 70, 255)
+        tan_d = (150, 90, 40, 255)
+        out = EDIE_OUTLINE
+        # Leap height varies slightly per frame for a "jumping in" feel
+        dy = f * -1
+        # Body
+        d.ellipse((6, 18 + dy, 38, 36 + dy), fill=tan, outline=out, width=1)
+        # Chest/belly
+        d.ellipse((10, 22 + dy, 34, 34 + dy), fill=tan_d)
+        # Head
+        d.ellipse((28, 10 + dy, 44, 22 + dy), fill=tan, outline=out, width=1)
+        # Snout
+        d.rectangle((40, 15 + dy, 46, 19 + dy), fill=tan, outline=out, width=1)
+        d.point((44, 16 + dy), fill=out)
+        # Eye
+        d.point((36, 14 + dy), fill=out)
+        # Ears
+        d.polygon([(30, 10 + dy), (28, 4 + dy), (34, 10 + dy)], fill=tan, outline=out)
+        d.polygon([(36, 9 + dy), (34, 3 + dy), (40, 9 + dy)], fill=tan, outline=out)
+        # Antlers
+        d.line((32, 5 + dy, 30, 0 + dy), fill=out, width=1)
+        d.line((30, 3 + dy, 27, 1 + dy), fill=out, width=1)
+        d.line((38, 4 + dy, 40, -1 + dy), fill=out, width=1)
+        d.line((40, 2 + dy, 43, 0 + dy), fill=out, width=1)
+        # Legs (in leap pose - folded/stretched)
+        d.line((12, 34 + dy, 10, 48), fill=out, width=2)
+        d.line((18, 34 + dy, 20, 48), fill=out, width=2)
+        d.line((28, 34 + dy, 26, 48), fill=out, width=2)
+        d.line((34, 34 + dy, 36, 48), fill=out, width=2)
+        # Hooves
+        d.rectangle((9, 48, 12, 50), fill=out)
+        d.rectangle((19, 48, 22, 50), fill=out)
+        d.rectangle((25, 48, 28, 50), fill=out)
+        d.rectangle((35, 48, 38, 50), fill=out)
+        # Tail
+        d.ellipse((4, 20 + dy, 8, 24 + dy), fill=(250, 245, 230, 255))
+        frames.append(im)
+    sheet = tile_horizontal(frames)
+    save_png(sheet, "obstacle_deer.png", palette_lock=False)
+
+
+def make_balloon_drone() -> None:
+    """Balloon drone - floating pastel balloon with small drone body below."""
+    w, h = 40, 48
+    frames = []
+    for f in range(4):
+        im = new_canvas(w, h)
+        d = ImageDraw.Draw(im)
+        # Balloon (pink/orange)
+        balloon = (240, 130, 160, 255)
+        balloon_hi = (255, 200, 215, 255)
+        d.ellipse((6, 2, w - 7, 28), fill=balloon, outline=EDIE_OUTLINE, width=1)
+        # Shine
+        d.ellipse((12, 6, 16, 10), fill=balloon_hi)
+        # Tie
+        d.polygon([(18, 27), (22, 27), (20, 30)], fill=(200, 90, 120, 255), outline=EDIE_OUTLINE)
+        # String with wiggle (animated)
+        wiggle = (f % 2) - 0  # 0..1
+        d.line((20, 30, 20 + wiggle, 36), fill=EDIE_OUTLINE)
+        d.line((20 + wiggle, 36, 20, 40), fill=EDIE_OUTLINE)
+        # Small drone body
+        d.rectangle((12, 38, 28, 46), fill=(80, 90, 110, 255), outline=EDIE_OUTLINE, width=1)
+        # Eye
+        d.rectangle((16, 40, 18, 42), fill=EDIE_ORANGE)
+        d.rectangle((22, 40, 24, 42), fill=EDIE_ORANGE)
+        # Rotor blur hint
+        if f % 2 == 0:
+            d.line((8, 40, 12, 40), fill=(140, 140, 150, 255))
+            d.line((28, 40, 32, 40), fill=(140, 140, 150, 255))
+        else:
+            d.line((6, 42, 12, 42), fill=(140, 140, 150, 255))
+            d.line((28, 42, 34, 42), fill=(140, 140, 150, 255))
+        frames.append(im)
+    sheet = tile_horizontal(frames)
+    save_png(sheet, "obstacle_balloon.png", palette_lock=False)
+
+
 def make_sign_board() -> None:
     w, h = 24, 24
     frames = []
@@ -777,46 +892,127 @@ def make_stage_backgrounds() -> None:
     save_png(floor, "bg_ansan_floor.png", palette_lock=False)
 
     # ============================================================
-    # Stage 4: AeiROBOT HQ interior (sleek future tech)
+    # Stage 4a: AeiROBOT Office (open-plan workspace)
     # ============================================================
     far = new_canvas(256, 100)
     d = ImageDraw.Draw(far)
-    # Glass wall with LED accent strips
-    d.rectangle((0, 0, 256, 100), fill=(40, 50, 75, 255))
-    d.rectangle((0, 0, 256, 100), fill=(40, 50, 75, 255))
-    # Vertical light columns
-    for cx in range(16, 256, 32):
-        d.rectangle((cx, 10, cx + 4, 100), fill=(80, 120, 160, 255))
-        d.rectangle((cx + 1, 12, cx + 3, 98), fill=(120, 200, 240, 255))
-    # AeiROBOT logo panel
-    d.rectangle((96, 20, 160, 50), fill=(20, 25, 40, 255), outline=(200, 220, 240, 255), width=2)
-    d.rectangle((104, 28, 152, 42), fill=EDIE_ORANGE)
-    d.rectangle((108, 32, 148, 38), fill=(255, 200, 120, 255))
-    save_png(far, "bg_hq_far.png", palette_lock=False)
+    # Bright office wall
+    d.rectangle((0, 0, 256, 100), fill=(235, 235, 242, 255))
+    d.rectangle((0, 0, 256, 12), fill=(200, 205, 215, 255))  # ceiling band
+    # Ceiling lights
+    for lx in range(22, 256, 36):
+        d.rectangle((lx, 4, lx + 16, 8), fill=(255, 250, 210, 255))
+    # Window strip at top with blinds
+    d.rectangle((0, 14, 256, 40), fill=(180, 210, 235, 255))
+    for bx in range(0, 256, 8):
+        d.line((bx, 14, bx, 40), fill=(140, 170, 200, 255))
+    # AeiROBOT wall logo centered
+    d.rectangle((96, 48, 160, 74), fill=(30, 40, 60, 255), outline=EDIE_OUTLINE, width=2)
+    d.rectangle((102, 54, 154, 68), fill=EDIE_ORANGE)
+    # "AEI" letters as color bars
+    d.rectangle((106, 58, 110, 64), fill=EDIE_WHITE)
+    d.rectangle((114, 58, 118, 64), fill=EDIE_WHITE)
+    d.rectangle((122, 58, 126, 64), fill=EDIE_WHITE)
+    # Cubicle dividers visible
+    d.rectangle((10, 72, 50, 96), fill=(200, 180, 150, 255), outline=EDIE_OUTLINE, width=1)
+    d.rectangle((180, 72, 240, 96), fill=(200, 180, 150, 255), outline=EDIE_OUTLINE, width=1)
+    save_png(far, "bg_office_far.png", palette_lock=False)
 
     mid = new_canvas(256, 60)
     d = ImageDraw.Draw(mid)
-    d.rectangle((0, 40, 256, 60), fill=(60, 75, 100, 255))
-    # Robot assembly pods
-    for px in (30, 120, 210):
-        d.rectangle((px - 12, 20, px + 12, 45), fill=(90, 110, 140, 255), outline=EDIE_OUTLINE, width=1)
-        d.rectangle((px - 8, 24, px + 8, 40), fill=(150, 200, 240, 255))
-        d.rectangle((px - 2, 12, px + 2, 20), fill=(120, 130, 150, 255))
-        d.point((px, 30), fill=EDIE_ORANGE)
-    save_png(mid, "bg_hq_mid.png", palette_lock=False)
+    d.rectangle((0, 44, 256, 60), fill=(210, 205, 195, 255))
+    # Desks with monitors
+    for dx in (16, 88, 160, 228):
+        # Desk top
+        d.rectangle((dx - 22, 30, dx + 22, 40), fill=(160, 130, 90, 255), outline=EDIE_OUTLINE, width=1)
+        # Desk legs
+        d.rectangle((dx - 20, 40, dx - 17, 50), fill=(110, 85, 55, 255))
+        d.rectangle((dx + 17, 40, dx + 20, 50), fill=(110, 85, 55, 255))
+        # Monitor stand
+        d.rectangle((dx - 2, 22, dx + 2, 30), fill=(80, 80, 90, 255))
+        # Monitor
+        d.rectangle((dx - 12, 10, dx + 12, 24), fill=(40, 50, 70, 255), outline=EDIE_OUTLINE, width=1)
+        d.rectangle((dx - 10, 12, dx + 10, 22), fill=(120, 200, 240, 255))
+        # Chair back
+        d.rectangle((dx - 8, 42, dx + 8, 55), fill=(60, 80, 120, 255), outline=EDIE_OUTLINE, width=1)
+    save_png(mid, "bg_office_mid.png", palette_lock=False)
 
     floor = new_canvas(256, 80)
     d = ImageDraw.Draw(floor)
-    d.rectangle((0, 0, 256, 80), fill=(30, 40, 60, 255))  # dark high-tech floor
-    d.rectangle((0, 0, 256, 4), fill=(100, 180, 220, 255))
-    # Hex grid pattern
-    for ty in range(6, 80, 10):
-        off = 12 if (ty // 10) % 2 == 0 else 0
-        for tx in range(off, 256, 24):
-            d.rectangle((tx, ty, tx + 3, ty + 3), fill=(60, 90, 130, 255))
-    # Center glow line
-    d.line((0, 40, 256, 40), fill=(80, 140, 180, 255))
-    save_png(floor, "bg_hq_floor.png", palette_lock=False)
+    d.rectangle((0, 0, 256, 80), fill=(160, 150, 135, 255))  # office carpet
+    d.rectangle((0, 0, 256, 4), fill=(100, 90, 75, 255))
+    # Carpet fiber dither
+    for ty in range(8, 80, 4):
+        for tx in range((ty // 4) * 3 % 6, 256, 6):
+            d.point((tx, ty), fill=(140, 130, 115, 255))
+    save_png(floor, "bg_office_floor.png", palette_lock=False)
+
+    # ============================================================
+    # Stage 4b: AeiROBOT CEO Room (dark luxe, intimidating)
+    # ============================================================
+    far = new_canvas(256, 100)
+    d = ImageDraw.Draw(far)
+    # Dark wood panel wall
+    d.rectangle((0, 0, 256, 100), fill=(40, 30, 25, 255))
+    for px in range(0, 256, 32):
+        d.rectangle((px, 0, px + 1, 100), fill=(80, 55, 40, 255))
+    # Ceiling crown molding
+    d.rectangle((0, 0, 256, 8), fill=(80, 55, 40, 255))
+    d.rectangle((0, 8, 256, 10), fill=(120, 85, 60, 255))
+    # Giant floor-to-ceiling window with city night view
+    d.rectangle((80, 14, 176, 90), fill=(20, 25, 50, 255), outline=(150, 110, 70, 255), width=2)
+    # Distant city lights
+    import random as _r
+    rng = _r.Random(77)
+    for _ in range(60):
+        cx = rng.randint(82, 174)
+        cy = rng.randint(20, 60)
+        col = rng.choice([(255, 230, 120, 255), (200, 220, 255, 255), (255, 180, 100, 255)])
+        d.point((cx, cy), fill=col)
+    # Window divider
+    d.line((128, 14, 128, 90), fill=(150, 110, 70, 255))
+    # CEO portrait frames (left/right of window)
+    for fx in (20, 212):
+        d.rectangle((fx, 30, fx + 40, 70), fill=(120, 85, 60, 255), outline=EDIE_OUTLINE, width=2)
+        d.rectangle((fx + 4, 34, fx + 36, 66), fill=(80, 70, 60, 255))
+        # Silhouette
+        d.ellipse((fx + 14, 40, fx + 26, 52), fill=(200, 180, 160, 255))
+        d.rectangle((fx + 12, 52, fx + 28, 64), fill=(50, 50, 60, 255))
+    save_png(far, "bg_ceo_far.png", palette_lock=False)
+
+    mid = new_canvas(256, 60)
+    d = ImageDraw.Draw(mid)
+    d.rectangle((0, 40, 256, 60), fill=(30, 22, 18, 255))
+    # Executive desk centered
+    d.rectangle((64, 22, 192, 50), fill=(70, 40, 25, 255), outline=EDIE_OUTLINE, width=2)
+    # Desk top highlight
+    d.rectangle((64, 22, 192, 26), fill=(140, 90, 55, 255))
+    # Desktop computer
+    d.rectangle((100, 10, 156, 24), fill=(30, 30, 40, 255), outline=EDIE_OUTLINE, width=1)
+    d.rectangle((102, 12, 154, 22), fill=(120, 200, 240, 255))
+    # Lamp
+    d.line((76, 8, 76, 22), fill=(80, 80, 90, 255))
+    d.polygon([(70, 2), (82, 2), (78, 8), (74, 8)], fill=(240, 200, 80, 255), outline=EDIE_OUTLINE)
+    # Office chair behind desk
+    d.rectangle((120, 42, 136, 55), fill=(40, 40, 50, 255), outline=EDIE_OUTLINE, width=1)
+    # Leather couches on sides
+    d.rectangle((2, 32, 60, 48), fill=(120, 60, 40, 255), outline=EDIE_OUTLINE, width=1)
+    d.rectangle((196, 32, 254, 48), fill=(120, 60, 40, 255), outline=EDIE_OUTLINE, width=1)
+    save_png(mid, "bg_ceo_mid.png", palette_lock=False)
+
+    floor = new_canvas(256, 80)
+    d = ImageDraw.Draw(floor)
+    # Plush red carpet
+    d.rectangle((0, 0, 256, 80), fill=(120, 40, 40, 255))
+    d.rectangle((0, 0, 256, 4), fill=(180, 60, 50, 255))
+    d.rectangle((0, 4, 256, 6), fill=(220, 180, 60, 255))  # gold trim
+    # Diamond pattern
+    for ty in range(12, 80, 12):
+        for tx in range((ty // 12) * 8 % 16, 256, 16):
+            d.point((tx, ty), fill=(160, 60, 55, 255))
+            d.point((tx + 1, ty), fill=(160, 60, 55, 255))
+            d.point((tx, ty + 1), fill=(160, 60, 55, 255))
+    save_png(floor, "bg_ceo_floor.png", palette_lock=False)
 
 
 def make_background() -> None:
@@ -1141,6 +1337,9 @@ def main() -> None:
     make_sensor_cone()
     make_sign_board()
     make_cat()
+    make_car()
+    make_deer()
+    make_balloon_drone()
     make_vacuum_bot()
     make_amy()
     make_alice_m1()

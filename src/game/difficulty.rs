@@ -2,24 +2,29 @@
 
 pub const BASE_SPEED: f32 = 280.0;
 pub const SPEED_CAP: f32 = 640.0;
-/// Score at which speed reaches SPEED_CAP. Chosen so the player experiences
-/// most of the speed curve before maxing out.
-pub const SCORE_AT_CAP: u32 = 22000;
-/// Score required to advance one tier. Tuned so a player staying alive spends
-/// at least ~30 seconds in each tier at low speeds.
+/// Score at which speed reaches SPEED_CAP (end of Office stage).
+pub const SCORE_AT_CAP: u32 = 17500;
 pub const SCORE_PER_TIER: u32 = 2500;
-pub const MAX_TIER: u32 = 8;
+pub const MAX_TIER: u32 = 9;
 pub const SPARK_BURST_UNLOCK_TIER: u32 = 3;
+/// Score at which the corona boss mode is triggered.
+pub const BOSS_TRIGGER_SCORE: u32 = 50000;
 
 pub fn tier_for_score(score: u32) -> u32 {
     (score / SCORE_PER_TIER).min(MAX_TIER)
 }
 
-/// Smooth linear speed ramp from BASE_SPEED at score 0 to SPEED_CAP at
-/// SCORE_AT_CAP.
+/// Linear speed ramp from BASE_SPEED at score 0 to SPEED_CAP at SCORE_AT_CAP.
+/// Beyond the cap, speed continues climbing slowly (CEO Room torture zone).
 pub fn speed_for_score(score: u32) -> f32 {
-    let t = (score as f32 / SCORE_AT_CAP as f32).min(1.0);
-    BASE_SPEED + (SPEED_CAP - BASE_SPEED) * t
+    if score <= SCORE_AT_CAP {
+        let t = score as f32 / SCORE_AT_CAP as f32;
+        BASE_SPEED + (SPEED_CAP - BASE_SPEED) * t
+    } else {
+        // Post-cap ramp: +1 px/s per 100 score, soft ceiling via clamp.
+        let extra = (score - SCORE_AT_CAP) as f32 * 0.01;
+        (SPEED_CAP + extra).min(1100.0)
+    }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -28,7 +33,8 @@ pub enum Stage {
     PangyoStreet,
     Highway,
     Ansan,
-    AeiRobotHQ,
+    AeiRobotOffice,
+    AeiRobotCEORoom,
 }
 
 pub fn stage_for_tier(tier: u32) -> Stage {
@@ -37,17 +43,19 @@ pub fn stage_for_tier(tier: u32) -> Stage {
         1 | 2 => Stage::PangyoStreet,
         3 | 4 => Stage::Highway,
         5 | 6 => Stage::Ansan,
-        _ => Stage::AeiRobotHQ,
+        7 => Stage::AeiRobotOffice,
+        _ => Stage::AeiRobotCEORoom,
     }
 }
 
 pub fn stage_name(stage: Stage) -> &'static str {
     match stage {
-        Stage::DepartmentStore => "PANGYO DEPARTMENT STORE",
+        Stage::DepartmentStore => "PANGYO POP-UP STORE",
         Stage::PangyoStreet => "PANGYO STREET",
         Stage::Highway => "HIGHWAY TO ANSAN",
         Stage::Ansan => "HANYANG UNIV (ERICA)",
-        Stage::AeiRobotHQ => "AEIROBOT HQ",
+        Stage::AeiRobotOffice => "AEIROBOT OFFICE",
+        Stage::AeiRobotCEORoom => "AEIROBOT CEO ROOM",
     }
 }
 
@@ -71,10 +79,19 @@ mod tests {
     }
 
     #[test]
-    fn capped() {
-        for s in (0..50000).step_by(500) {
-            assert!(speed_for_score(s) <= SPEED_CAP);
+    fn capped_within_normal_range() {
+        // Up to SCORE_AT_CAP, speed should stay at or below SPEED_CAP.
+        for s in (0..=SCORE_AT_CAP).step_by(500) {
+            assert!(speed_for_score(s) <= SPEED_CAP + 0.01);
         }
+    }
+
+    #[test]
+    fn accelerates_past_cap_in_ceo_room() {
+        // Post-cap (CEO Room torture zone) speed keeps climbing.
+        assert!(speed_for_score(40000) > SPEED_CAP);
+        // But has a soft ceiling.
+        assert!(speed_for_score(999_999) <= 1100.1);
     }
 
     #[test]
