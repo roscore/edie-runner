@@ -7,6 +7,7 @@ pub mod obstacles;
 pub mod pickups;
 pub mod dash;
 pub mod background;
+pub mod boss;
 pub mod effects;
 pub mod world;
 pub mod state;

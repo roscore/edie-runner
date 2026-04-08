@@ -12,6 +12,8 @@ pub enum GameState {
     GameOver,
     Help,
     Story,
+    BossFight,
+    Ending,
 }
 
 pub const RUN_HISTORY_LEN: usize = 5;
@@ -22,15 +24,15 @@ pub struct Game {
     pub state: GameState,
     pub world: World,
     pub seed_counter: u64,
-    /// Most recent run scores, newest first. Capped at RUN_HISTORY_LEN.
     pub run_history: Vec<u32>,
-    /// Position (1-indexed) of the most recently completed run within the
-    /// best-runs leaderboard, if it qualified. Used for the "NEW #N" badge.
     pub last_run_rank: Option<usize>,
-    /// Wall-clock time at which the current Story playback started.
     pub story_start_time: f32,
-    /// When > 0, gameplay is frozen showing a 3-2-1-GO overlay.
     pub countdown_remaining: f32,
+    /// Active boss fight state (present when state == BossFight).
+    pub boss: Option<crate::game::boss::BossWorld>,
+    pub boss_input_dx: f32,
+    /// When boss break-in cinematic is playing (score hit trigger, before Boss state).
+    pub boss_intro_remaining: f32,
 }
 
 impl Game {
@@ -43,6 +45,9 @@ impl Game {
             last_run_rank: None,
             story_start_time: 0.0,
             countdown_remaining: 0.0,
+            boss: None,
+            boss_input_dx: 0.0,
+            boss_intro_remaining: 0.0,
         }
     }
 
@@ -60,6 +65,31 @@ impl Game {
     }
 
     pub fn handle<S: Storage>(&mut self, action: Action, storage: &mut S) {
+        // Boss fight: track left/right input state separately.
+        if matches!(self.state, GameState::BossFight) {
+            match action {
+                Action::MoveLeft => self.boss_input_dx = -1.0,
+                Action::MoveRight => self.boss_input_dx = 1.0,
+                Action::MoveLeftRelease => {
+                    if self.boss_input_dx < 0.0 {
+                        self.boss_input_dx = 0.0;
+                    }
+                }
+                Action::MoveRightRelease => {
+                    if self.boss_input_dx > 0.0 {
+                        self.boss_input_dx = 0.0;
+                    }
+                }
+                _ => {}
+            }
+            return;
+        }
+        if matches!(self.state, GameState::Ending) {
+            if matches!(action, Action::Confirm | Action::Jump) {
+                self.state = GameState::Title;
+            }
+            return;
+        }
         match (self.state, action) {
             (GameState::Title, Action::Confirm) | (GameState::Title, Action::Jump) => {
                 self.start_run(storage);
@@ -109,9 +139,46 @@ impl Game {
     }
 
     pub fn update<S: Storage>(&mut self, real_dt: f32, storage: &mut S) {
-        // Effects always advance — even during Pause/GameOver — so visual
-        // tails (particles, popups, death shake) play out naturally.
         self.world.effects.update(real_dt);
+
+        // Boss intro cinematic: brief flash + shake before entering BossFight.
+        if self.boss_intro_remaining > 0.0 {
+            self.boss_intro_remaining = (self.boss_intro_remaining - real_dt).max(0.0);
+            if self.boss_intro_remaining <= 0.0 {
+                self.state = GameState::BossFight;
+                self.boss = Some(crate::game::boss::BossWorld::new());
+            }
+            return;
+        }
+
+        // Boss fight update
+        if matches!(self.state, GameState::BossFight) {
+            if let Some(b) = self.boss.as_mut() {
+                use crate::game::boss::BossOutcome;
+                match b.update(real_dt, self.boss_input_dx, &mut self.world.rng) {
+                    BossOutcome::Continuing => {}
+                    BossOutcome::Hit => {
+                        self.state = GameState::GameOver;
+                        let final_score = self.world.score.current;
+                        let _ = self.world.score.save_if_new_high(storage);
+                        self.run_history.insert(0, final_score);
+                        if self.run_history.len() > RUN_HISTORY_LEN {
+                            self.run_history.truncate(RUN_HISTORY_LEN);
+                        }
+                        let best = self.best_runs();
+                        self.last_run_rank = best
+                            .iter()
+                            .position(|s| *s == final_score)
+                            .map(|i| i + 1);
+                    }
+                    BossOutcome::Survived => {
+                        self.state = GameState::Ending;
+                        let _ = self.world.score.save_if_new_high(storage);
+                    }
+                }
+            }
+            return;
+        }
 
         if self.state != GameState::Playing {
             return;
@@ -120,6 +187,15 @@ impl Game {
             self.countdown_remaining = (self.countdown_remaining - real_dt).max(0.0);
             return;
         }
+
+        // Check boss trigger BEFORE world update.
+        if self.world.score.current >= crate::game::difficulty::BOSS_TRIGGER_SCORE {
+            self.boss_intro_remaining = 1.2;
+            self.world.effects.flash(0.8, 1.2);
+            self.world.effects.trigger_death_shake();
+            return;
+        }
+
         match self.world.update(real_dt) {
             RunOutcome::Continuing => {}
             RunOutcome::Died => {
@@ -127,12 +203,10 @@ impl Game {
                 let _ = self.world.score.save_if_new_high(storage);
 
                 let final_score = self.world.score.current;
-                // Insert into history (newest first)
                 self.run_history.insert(0, final_score);
                 if self.run_history.len() > RUN_HISTORY_LEN {
                     self.run_history.truncate(RUN_HISTORY_LEN);
                 }
-                // Compute rank within best_runs (1-indexed)
                 let best = self.best_runs();
                 self.last_run_rank = best
                     .iter()

@@ -1218,6 +1218,40 @@ def make_sfx() -> None:
     write_wav("sfx_heart.wav", heart)
 
 
+def make_virus() -> None:
+    """Green corona virus - falling projectile for boss mode."""
+    w, h = 40, 40
+    frames = []
+    for f in range(4):
+        im = new_canvas(w, h)
+        d = ImageDraw.Draw(im)
+        cx, cy = 20, 20
+        core = (60, 200, 80, 255)
+        core_d = (40, 140, 50, 255)
+        core_hi = (150, 240, 160, 255)
+        out = EDIE_OUTLINE
+        # Main body
+        d.ellipse((cx - 10, cy - 10, cx + 10, cy + 10), fill=core, outline=out, width=1)
+        d.ellipse((cx - 7, cy - 7, cx + 4, cy + 4), fill=core_hi)
+        # Spike proteins (crown) — rotate per frame
+        import math
+        for i in range(8):
+            angle = (i / 8) * math.tau + (f * 0.2)
+            sx1 = cx + int(math.cos(angle) * 10)
+            sy1 = cy + int(math.sin(angle) * 10)
+            sx2 = cx + int(math.cos(angle) * 16)
+            sy2 = cy + int(math.sin(angle) * 16)
+            d.line((sx1, sy1, sx2, sy2), fill=core_d, width=2)
+            d.rectangle((sx2 - 1, sy2 - 1, sx2 + 1, sy2 + 1), fill=core_d)
+        # Inner dots
+        d.point((cx - 3, cy - 1), fill=core_d)
+        d.point((cx + 2, cy + 3), fill=core_d)
+        d.point((cx - 1, cy + 4), fill=core_d)
+        frames.append(im)
+    sheet = tile_horizontal(frames)
+    save_png(sheet, "virus.png", palette_lock=False)
+
+
 def make_heart_pickup() -> None:
     """Pixel-art heart sprite sheet (4-frame pulse)."""
     frames = []
@@ -1349,6 +1383,7 @@ def main() -> None:
     print("[pickups]")
     make_aurora()
     make_heart_pickup()
+    make_virus()
     print()
     make_background()
     make_stage_backgrounds()

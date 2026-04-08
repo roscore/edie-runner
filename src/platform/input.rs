@@ -12,6 +12,10 @@ pub enum Action {
     OpenHelp,
     OpenStory,
     Back,
+    MoveLeft,
+    MoveRight,
+    MoveLeftRelease,
+    MoveRightRelease,
 }
 
 pub trait InputSource {
@@ -78,11 +82,18 @@ use macroquad::prelude::*;
 pub struct MacroquadInput {
     jump_was_down: bool,
     duck_was_down: bool,
+    left_was_down: bool,
+    right_was_down: bool,
 }
 
 impl MacroquadInput {
     pub fn new() -> Self {
-        Self { jump_was_down: false, duck_was_down: false }
+        Self {
+            jump_was_down: false,
+            duck_was_down: false,
+            left_was_down: false,
+            right_was_down: false,
+        }
     }
 }
 
@@ -117,6 +128,24 @@ impl InputSource for MacroquadInput {
         if is_key_pressed(KeyCode::P) {
             out.push(Action::Pause);
         }
+
+        // Horizontal movement for boss mode
+        let left_now = is_key_down(KeyCode::Left) || is_key_down(KeyCode::A);
+        let right_now = is_key_down(KeyCode::Right) || is_key_down(KeyCode::D);
+        if left_now && !self.left_was_down {
+            out.push(Action::MoveLeft);
+        }
+        if !left_now && self.left_was_down {
+            out.push(Action::MoveLeftRelease);
+        }
+        if right_now && !self.right_was_down {
+            out.push(Action::MoveRight);
+        }
+        if !right_now && self.right_was_down {
+            out.push(Action::MoveRightRelease);
+        }
+        self.left_was_down = left_now;
+        self.right_was_down = right_now;
         if is_key_pressed(KeyCode::H) {
             out.push(Action::OpenHelp);
         }

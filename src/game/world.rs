@@ -108,7 +108,11 @@ impl World {
             | Action::Pause
             | Action::OpenHelp
             | Action::OpenStory
-            | Action::Back => { /* handled by state machine */ }
+            | Action::Back
+            | Action::MoveLeft
+            | Action::MoveRight
+            | Action::MoveLeftRelease
+            | Action::MoveRightRelease => { /* handled by state machine */ }
         }
     }
 

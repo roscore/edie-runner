@@ -470,7 +470,11 @@ pub fn draw_overlay(
         GameState::Title => "PRESS SPACE TO START".to_string(),
         GameState::Paused => "PRESS P OR SPACE TO RESUME".to_string(),
         GameState::GameOver => format!("SCORE {} | HI {} | SPACE TO RETRY", score.current, score.high),
-        GameState::Playing | GameState::Help | GameState::Story => return,
+        GameState::Playing
+        | GameState::Help
+        | GameState::Story
+        | GameState::BossFight
+        | GameState::Ending => return,
     };
     let sub_size = 22.0 * cam.scale;
     let (sx, sy) = cam.to_screen(LOGICAL_W * 0.5, LOGICAL_H * 0.83);
@@ -639,6 +643,106 @@ pub fn draw_help(assets: &AssetHandles, elapsed: f32, cam: &Camera) {
     let dim_f = measure_text(footer, None, footer_size as u16, 1.0);
     let (fx, fy) = cam.to_screen(LOGICAL_W * 0.5, LOGICAL_H - 24.0);
     draw_text(footer, fx - dim_f.width * 0.5, fy, footer_size, yellow);
+}
+
+/// Ending screen shown after the player survives the 60-second boss fight.
+pub fn draw_ending(assets: &AssetHandles, elapsed: f32, cam: &Camera) {
+    // Warm victory background
+    let (x0, y0) = cam.to_screen(0.0, 0.0);
+    draw_rectangle(
+        x0,
+        y0,
+        cam.scaled(LOGICAL_W),
+        cam.scaled(LOGICAL_H),
+        Color::new(0.96, 0.90, 0.75, 1.0),
+    );
+    // Sunray bands
+    for i in 0..12 {
+        let angle = i as f32 * 0.524 + elapsed * 0.3;
+        let ox = angle.cos() * 60.0;
+        let oy = angle.sin() * 60.0;
+        let (cx, cy) = cam.to_screen(640.0 + ox, 200.0 + oy);
+        draw_rectangle(
+            cx - cam.scaled(200.0),
+            cy - cam.scaled(10.0),
+            cam.scaled(400.0),
+            cam.scaled(20.0),
+            Color::new(1.0, 0.95, 0.8, 0.12),
+        );
+    }
+
+    // Big cheering EDIE
+    let mascot_size = 200.0;
+    let mx = 640.0 - mascot_size * 0.5;
+    let my = 60.0 + ((elapsed * 2.0).sin() * 6.0);
+    let frame_w = (assets.edie_cheer_anim.width() - 16.0) / 17.0;
+    let frame_h = assets.edie_cheer_anim.height();
+    let idx = ((elapsed * 12.0) as usize) % 17;
+    let (sx, sy) = cam.to_screen(mx, my);
+    draw_texture_ex(
+        &assets.edie_cheer_anim,
+        sx,
+        sy,
+        WHITE,
+        DrawTextureParams {
+            dest_size: Some(vec2(cam.scaled(mascot_size), cam.scaled(mascot_size))),
+            source: Some(Rect {
+                x: idx as f32 * (frame_w + 1.0),
+                y: 0.0,
+                w: frame_w,
+                h: frame_h,
+            }),
+            ..Default::default()
+        },
+    );
+
+    // Title text
+    let title = "EDIE MADE IT HOME";
+    let size = 52.0 * cam.scale;
+    let dim = measure_text(title, None, size as u16, 1.0);
+    let (tx, ty) = cam.to_screen(LOGICAL_W * 0.5, 300.0);
+    // Shadow
+    draw_text(
+        title,
+        tx - dim.width * 0.5 + 3.0,
+        ty + 3.0,
+        size,
+        Color::new(0.3, 0.15, 0.05, 0.5),
+    );
+    draw_text(
+        title,
+        tx - dim.width * 0.5,
+        ty,
+        size,
+        Color::new(0.95, 0.35, 0.1, 1.0),
+    );
+
+    // Subtitle
+    let sub = "EDIE survived the corona rain and reached AeiROBOT HQ.";
+    let sub_size = 20.0 * cam.scale;
+    let sd = measure_text(sub, None, sub_size as u16, 1.0);
+    let (sx2, sy2) = cam.to_screen(LOGICAL_W * 0.5, 340.0);
+    draw_text(
+        sub,
+        sx2 - sd.width * 0.5,
+        sy2,
+        sub_size,
+        Color::new(0.2, 0.15, 0.1, 1.0),
+    );
+
+    // Prompt
+    let prompt = "PRESS SPACE TO RETURN TO TITLE";
+    let psize = 18.0 * cam.scale;
+    let pd = measure_text(prompt, None, psize as u16, 1.0);
+    let (px, py) = cam.to_screen(LOGICAL_W * 0.5, 380.0);
+    let pulse = 0.6 + 0.4 * (elapsed * 3.0).sin().abs();
+    draw_text(
+        prompt,
+        px - pd.width * 0.5,
+        py,
+        psize,
+        Color::new(0.2, 0.15, 0.1, pulse),
+    );
 }
 
 /// Star Wars-style scrolling story intro. `t_in_story` is wall-clock seconds

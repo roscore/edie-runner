@@ -40,6 +40,7 @@ pub struct AssetHandles {
     pub aurora_purple: Texture2D, // 6 frames horizontal
     pub aurora_green: Texture2D,  // 6 frames horizontal
     pub heart: Texture2D,         // 4 frames pulse
+    pub virus: Texture2D,         // 4 frames (boss mode falling corona)
 
     pub bg_sky: Texture2D,
     pub bg_stars: Texture2D,
@@ -128,6 +129,7 @@ pub async fn load_all() -> Result<AssetHandles, LoadError> {
         aurora_purple: load_pixel("aurora_purple.png").await?,
         aurora_green: load_pixel("aurora_green.png").await?,
         heart: load_pixel("heart.png").await?,
+        virus: load_pixel("virus.png").await?,
 
         bg_sky: load_pixel("bg_sky.png").await?,
         bg_stars: load_pixel("bg_stars.png").await?,

@@ -7,12 +7,14 @@ use edie_runner::platform::storage::InMemoryStorage;
 use edie_runner::platform::visibility::VisibilityTracker;
 use edie_runner::render::camera::Camera;
 use edie_runner::render::sprites::{
-    draw_aurora, draw_countdown, draw_effects, draw_heart_pickup, draw_hit_flash, draw_obstacle,
-    draw_player, draw_tier_banner, draw_vignette,
+    draw_aurora, draw_boss_mode, draw_countdown, draw_effects, draw_heart_pickup, draw_hit_flash,
+    draw_obstacle, draw_player, draw_tier_banner, draw_vignette,
 };
 use edie_runner::game::state::GameState;
 use edie_runner::platform::input::Action;
-use edie_runner::render::ui::{draw_background, draw_help, draw_hud, draw_overlay, draw_story};
+use edie_runner::render::ui::{
+    draw_background, draw_ending, draw_help, draw_hud, draw_overlay, draw_story,
+};
 use edie_runner::time::{FixedStep, DT};
 use macroquad::prelude::*;
 
@@ -189,13 +191,21 @@ async fn main() {
         );
         draw_overlay(&game, &assets, wall_time, &cam);
 
-        // Help / Story screens drawn on top of everything else
+        // Boss fight overlay drawn on top of the normal world
+        if matches!(game.state, GameState::BossFight) {
+            if let Some(ref boss) = game.boss {
+                draw_boss_mode(boss, &assets, &cam);
+            }
+        }
+
+        // Help / Story / Ending screens drawn on top of everything else
         match game.state {
             GameState::Help => draw_help(&assets, wall_time, &cam),
             GameState::Story => {
                 let t = wall_time - game.story_start_time;
                 draw_story(t, &assets, &cam);
             }
+            GameState::Ending => draw_ending(&assets, wall_time, &cam),
             _ => {}
         }
 
