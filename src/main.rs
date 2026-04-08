@@ -6,7 +6,10 @@ use edie_runner::platform::input::{InputSource, MacroquadInput};
 use edie_runner::platform::storage::InMemoryStorage;
 use edie_runner::platform::visibility::VisibilityTracker;
 use edie_runner::render::camera::Camera;
-use edie_runner::render::sprites::{draw_aurora, draw_heart_pickup, draw_obstacle, draw_player};
+use edie_runner::render::sprites::{
+    draw_aurora, draw_effects, draw_heart_pickup, draw_hit_flash, draw_obstacle, draw_player,
+    draw_vignette,
+};
 use edie_runner::game::state::GameState;
 use edie_runner::platform::input::Action;
 use edie_runner::render::ui::{draw_background, draw_help, draw_hud, draw_overlay, draw_story};
@@ -110,13 +113,17 @@ async fn main() {
         }
 
         clear_background(Color::new(0.96, 0.94, 0.89, 1.0));
-        let cam = Camera::new(screen_width(), screen_height());
         let wall_time = get_time() as f32;
+        // Apply screen shake offset to the camera.
+        let (shake_ox, shake_oy) = game.world.effects.shake_offset(wall_time);
+        let cam = Camera::new(screen_width(), screen_height())
+            .with_shake(shake_ox * screen_width() / 1280.0, shake_oy * screen_width() / 1280.0);
         draw_background(&game.world.background, &assets, wall_time, &cam);
         let elapsed = game.world.elapsed;
+        let speed_for_telegraph = game.world.current_speed();
         for o in &game.world.obstacles.obstacles {
             if o.alive {
-                draw_obstacle(o, &assets, elapsed, &cam);
+                draw_obstacle(o, &assets, elapsed, speed_for_telegraph, &cam);
             }
         }
         for s in &game.world.pickups.stones {
@@ -135,6 +142,12 @@ async fn main() {
         if invuln_visible {
             draw_player(&game.world.player, &game.world.dash, &assets, elapsed, &cam);
         }
+        // Particles + score popups on top of world, under HUD
+        draw_effects(&game.world.effects, &cam);
+        // Speed-tier vignette
+        draw_vignette(game.world.current_speed(), &cam);
+        // Hit flash
+        draw_hit_flash(&game.world.effects, &cam);
         draw_hud(
             &game.world.score,
             &game.world.dash,

@@ -25,6 +25,12 @@ impl Camera {
         Self { screen_w, screen_h, scale, offset_x, offset_y }
     }
 
+    pub fn with_shake(mut self, ox: f32, oy: f32) -> Self {
+        self.offset_x += ox;
+        self.offset_y += oy;
+        self
+    }
+
     pub fn to_screen(&self, lx: f32, ly: f32) -> (f32, f32) {
         (self.offset_x + lx * self.scale, self.offset_y + ly * self.scale)
     }

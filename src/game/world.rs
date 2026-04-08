@@ -3,9 +3,10 @@
 use crate::game::background::Background;
 use crate::game::dash::{DashRequest, DashState};
 use crate::game::difficulty::speed_for_score;
+use crate::game::effects::Effects;
 use crate::game::obstacles::{ObstacleField, ObstacleKind};
 use crate::game::pickups::PickupField;
-use crate::game::player::{Player, PlayerState};
+use crate::game::player::{Player, PlayerState, GROUND_Y, PLAYER_H, PLAYER_W, PLAYER_X};
 use crate::game::score::Score;
 use crate::platform::input::Action;
 use crate::platform::storage::Storage;
@@ -28,12 +29,15 @@ pub struct World {
     pub dash: DashState,
     pub background: Background,
     pub score: Score,
+    pub effects: Effects,
     pub rng: SmallRng,
     pub elapsed: f32,
     /// Fractional score accumulator (px scrolled / 4) — flushed when ≥1.
     score_accum: f32,
     pub hp: u32,
     pub hp_invuln: f32,
+    /// Tracks whether player was airborne on previous tick, for landing detection.
+    was_airborne: bool,
 }
 
 impl World {
@@ -50,6 +54,8 @@ impl World {
             score_accum: 0.0,
             hp: 1,
             hp_invuln: 0.0,
+            effects: Effects::new(),
+            was_airborne: false,
         }
     }
 
@@ -92,10 +98,20 @@ impl World {
 
         self.elapsed += sim_dt;
         self.dash.update(real_dt);
+        self.effects.update(sim_dt);
         self.player.update(sim_dt);
         if self.hp_invuln > 0.0 {
             self.hp_invuln = (self.hp_invuln - real_dt).max(0.0);
         }
+
+        // Landing detection: airborne last tick, grounded now → dust burst
+        let is_airborne = !self.player.is_grounded();
+        if self.was_airborne && !is_airborne {
+            let foot_x = PLAYER_X + PLAYER_W * 0.5;
+            let foot_y = GROUND_Y - 2.0;
+            self.effects.dust_burst(foot_x, foot_y, 8);
+        }
+        self.was_airborne = is_airborne;
 
         let speed = self.current_speed();
         self.background.update(sim_dt, speed);
@@ -119,21 +135,34 @@ impl World {
             self.score.add(50);
         }
 
+        // Score popup spawns for collected auroras
+        for &i in &collected {
+            let s = &self.pickups.stones[i];
+            self.effects.score_popup(s.x, s.y, 50, (0.62, 0.42, 1.00));
+        }
+
         // Heart pickups
         let heart_indices = self.pickups.heart_collisions_with(&player_box);
         for &i in &heart_indices {
+            let h = self.pickups.hearts[i].clone();
             self.pickups.hearts[i].collected = true;
             if self.hp < MAX_HP {
                 self.hp += 1;
             }
             self.score.add(75);
+            self.effects.score_popup(h.x, h.y, 75, (0.95, 0.3, 0.35));
         }
 
         if let Some(idx) = self.obstacles.first_collision(&player_box) {
             let kind = self.obstacles.obstacles[idx].kind;
+            let ox = self.obstacles.obstacles[idx].x;
+            let oy = self.obstacles.obstacles[idx].y;
             if self.dash.is_invulnerable() && kind.destroyable_by_dash() {
                 self.obstacles.obstacles[idx].alive = false;
                 self.score.add(25);
+                self.effects.smash_burst(ox + 16.0, oy + 16.0);
+                self.effects.score_popup(ox, oy, 25, (1.0, 0.82, 0.2));
+                self.effects.shake(4.0, 0.12);
                 if matches!(kind, ObstacleKind::Amy) {
                     self.dash.trigger_slowmo();
                 }
@@ -141,10 +170,15 @@ impl World {
                 if self.hp > 1 {
                     self.hp -= 1;
                     self.hp_invuln = HP_INVULN_TIME;
-                    // Despawn the obstacle so we don't double-hit
                     self.obstacles.obstacles[idx].alive = false;
+                    self.effects.hit_burst(ox + 16.0, oy + 16.0);
+                    self.effects.shake(8.0, 0.2);
+                    self.effects.flash(0.35, 0.3);
                 } else {
                     self.player.hit();
+                    self.effects.hit_burst(PLAYER_X + PLAYER_W * 0.5, self.player.y + PLAYER_H * 0.5);
+                    self.effects.shake(14.0, 0.35);
+                    self.effects.flash(0.5, 0.5);
                     return RunOutcome::Died;
                 }
             }

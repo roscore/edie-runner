@@ -233,8 +233,42 @@ pub fn draw_player(
     }
 }
 
-pub fn draw_obstacle(o: &Obstacle, assets: &AssetHandles, elapsed: f32, cam: &Camera) {
+/// Returns true if this obstacle warrants a telegraph flash (about to be
+/// impossible to react to) given the current scroll speed.
+fn needs_telegraph(o: &Obstacle, speed: f32) -> bool {
+    if !matches!(o.kind, ObstacleKind::Amy) {
+        return false;
+    }
+    let dist = o.x - PLAYER_X;
+    if dist <= 0.0 || speed <= 0.0 {
+        return false;
+    }
+    let t = dist / speed;
+    t > 0.0 && t < 0.25
+}
+
+pub fn draw_obstacle(
+    o: &Obstacle,
+    assets: &AssetHandles,
+    elapsed: f32,
+    current_speed: f32,
+    cam: &Camera,
+) {
     let (w, h) = o.kind.size();
+
+    // Telegraph flash: red outline pulse when Amy is about to reach the player
+    if needs_telegraph(o, current_speed) {
+        let pulse = ((elapsed * 24.0).sin() * 0.5 + 0.5) * 0.6 + 0.2;
+        let (sx, sy) = cam.to_screen(o.x - 2.0, o.y - 2.0);
+        draw_rectangle_lines(
+            sx,
+            sy,
+            cam.scaled(w + 4.0),
+            cam.scaled(h + 4.0),
+            3.0,
+            Color::new(0.95, 0.15, 0.2, pulse),
+        );
+    }
     match o.kind {
         ObstacleKind::CoffeeCup => {
             draw_tex_at(&assets.obstacle_coffee, o.x, o.y, w, h, cam, WHITE);
@@ -313,5 +347,92 @@ pub fn draw_heart_pickup(h: &HeartPod, assets: &AssetHandles, elapsed: f32, cam:
         h.y,
         cam,
         WHITE,
+    );
+}
+
+pub fn draw_effects(effects: &crate::game::effects::Effects, cam: &Camera) {
+    for p in &effects.particles {
+        let alpha = (p.life / p.max_life).clamp(0.0, 1.0);
+        let (sx, sy) = cam.to_screen(p.x, p.y);
+        draw_rectangle(
+            sx,
+            sy,
+            cam.scaled(p.size),
+            cam.scaled(p.size),
+            Color::new(p.r, p.g, p.b, alpha),
+        );
+    }
+    for pop in &effects.popups {
+        let alpha = (pop.life / pop.max_life).clamp(0.0, 1.0);
+        let size = 26.0 * cam.scale;
+        let dim = measure_text(&pop.text, None, size as u16, 1.0);
+        let (sx, sy) = cam.to_screen(pop.x, pop.y);
+        draw_text(
+            &pop.text,
+            sx - dim.width * 0.5,
+            sy,
+            size,
+            Color::new(pop.r, pop.g, pop.b, alpha),
+        );
+    }
+}
+
+/// Fullscreen hit flash overlay.
+pub fn draw_hit_flash(effects: &crate::game::effects::Effects, cam: &Camera) {
+    if effects.hit_flash <= 0.0 {
+        return;
+    }
+    let alpha = (effects.hit_flash / 0.5) * effects.flash_max;
+    draw_rectangle(
+        0.0,
+        0.0,
+        cam.screen_w,
+        cam.screen_h,
+        Color::new(0.95, 0.15, 0.2, alpha.clamp(0.0, 0.6)),
+    );
+}
+
+/// Speed-tier vignette — darkens edges as speed climbs.
+pub fn draw_vignette(speed: f32, cam: &Camera) {
+    const BASE: f32 = 320.0;
+    const CAP: f32 = 640.0;
+    let t = ((speed - BASE) / (CAP - BASE)).clamp(0.0, 1.0);
+    if t < 0.05 {
+        return;
+    }
+    let intensity = t * 0.45;
+    // Four edge bands, each growing stronger as speed climbs
+    let band = cam.screen_h.min(cam.screen_w) * 0.18;
+    // Top
+    draw_rectangle(
+        0.0,
+        0.0,
+        cam.screen_w,
+        band,
+        Color::new(0.0, 0.0, 0.0, intensity * 0.6),
+    );
+    // Bottom
+    draw_rectangle(
+        0.0,
+        cam.screen_h - band,
+        cam.screen_w,
+        band,
+        Color::new(0.0, 0.0, 0.0, intensity * 0.6),
+    );
+    // Left
+    draw_rectangle(
+        0.0,
+        0.0,
+        band,
+        cam.screen_h,
+        Color::new(0.0, 0.0, 0.0, intensity * 0.5),
+    );
+    // Right
+    draw_rectangle(
+        cam.screen_w - band,
+        0.0,
+        band,
+        cam.screen_h,
+        Color::new(0.0, 0.0, 0.0, intensity * 0.5),
     );
 }
