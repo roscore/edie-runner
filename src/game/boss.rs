@@ -74,6 +74,7 @@ pub enum Facing {
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum BossPattern {
+    // ---- Phase 1 (green) patterns ----
     Rain,
     DiagonalVolley,
     Spiral,
@@ -81,17 +82,44 @@ pub enum BossPattern {
     /// everywhere EXCEPT inside a single "safe lane". Player moves into
     /// the safe lane to survive. Clear counter-play, no unblockable.
     SafeLaneBurst,
+    // ---- Phase 2 (purple hardcore) patterns ----
+    /// Horizontal bullets fired from both screen edges at multiple heights.
+    /// Player dodges by stepping into gaps between the horizontal lanes.
+    Crossfire,
+    /// A row of bullets fired straight down at once, with exactly one or
+    /// two slots missing. Player slides into the gap.
+    PincerGrid,
+    /// Boss paints a short 0.4s warning crosshair at the player's current
+    /// x, then fires a fast single bolt. Repeats 3 times. Move to cancel.
+    HunterBolts,
+    /// Expanding concentric rings from boss center. Player stands in the
+    /// gap between rings.
+    RingPulse,
 }
 
 /// Bounds of the currently telegraphed safe lane in SafeLaneBurst.
-/// (min_x, max_x) in logical px. Set when the burst begins.
 #[derive(Debug, Clone, Copy)]
 pub struct SafeLane {
     pub min_x: f32,
     pub max_x: f32,
-    /// Time until the burst actually fires. Negative = currently firing.
     pub warn_remaining: f32,
     pub fire_remaining: f32,
+}
+
+/// Phase 2 Hunter Bolts state: telegraphs then fires fast bolts.
+#[derive(Debug, Clone, Copy)]
+pub struct HunterShot {
+    pub target_x: f32,
+    pub warn_remaining: f32, // >0 during telegraph; 0 = fired
+    pub fired: bool,
+}
+
+/// Phase 2 Pincer Grid: a row of columns with a single gap index.
+#[derive(Debug, Clone, Copy)]
+pub struct PincerWave {
+    pub gap_col: u32,
+    pub cols: u32,
+    pub warn_remaining: f32,
 }
 
 pub struct BossWorld {
@@ -107,11 +135,14 @@ pub struct BossWorld {
     pub pattern: BossPattern,
     pub pattern_timer: f32,
     pub safe_lane: Option<SafeLane>,
-    /// 1 = green Mungchi boss (60s), 2 = hardcore purple boss (30s)
     pub phase: u8,
-    /// Brief interlude (e.g. 1.5s) between phases where player sees boss
-    /// "shatter" before phase 2 spawns. Zero outside of interlude.
     pub interlude_remaining: f32,
+    // Phase 2 specific state
+    pub hunter_shots: Vec<HunterShot>,
+    pub hunter_next: f32,
+    pub hunter_fired_count: u32,
+    pub pincer_wave: Option<PincerWave>,
+    pub ring_next: f32,
 }
 
 impl BossWorld {
@@ -131,6 +162,11 @@ impl BossWorld {
             safe_lane: None,
             phase: 1,
             interlude_remaining: 0.0,
+            hunter_shots: Vec::new(),
+            hunter_next: 0.0,
+            hunter_fired_count: 0,
+            pincer_wave: None,
+            ring_next: 0.0,
         }
     }
 
@@ -150,16 +186,21 @@ impl BossWorld {
             self.player_x += input_dx * PLAYER_SIDE_SPEED * dt;
             self.player_x = self.player_x.clamp(PLAYER_MIN_X, PLAYER_MAX_X);
             if self.interlude_remaining <= 0.0 {
-                // Enter phase 2: hardcore purple boss.
+                // Enter phase 2: hardcore purple boss with NEW patterns.
                 self.phase = 2;
                 self.remaining = BOSS_PHASE2_DURATION;
                 self.viruses.clear();
                 self.laser = None;
                 self.safe_lane = None;
-                self.pattern = BossPattern::Spiral;
-                self.pattern_timer = 4.0;
+                self.hunter_shots.clear();
+                self.hunter_next = 0.0;
+                self.hunter_fired_count = 0;
+                self.pincer_wave = None;
+                self.ring_next = 0.0;
+                self.pattern = BossPattern::Crossfire;
+                self.pattern_timer = 5.0;
                 self.spawn_timer = 0.2;
-                self.laser_cooldown = 3.0;
+                self.laser_cooldown = 4.5;
                 self.elapsed = 0.0;
             }
             return BossOutcome::Continuing;
@@ -178,17 +219,37 @@ impl BossWorld {
 
         let progress = (self.elapsed / BOSS_DURATION).clamp(0.0, 1.0);
 
-        // Rotate attack pattern. Phase 1 = 8s per pattern, phase 2 = 4s.
+        // Rotate attack pattern. Phase 1 and phase 2 have entirely
+        // separate rotations so they feel like different fights.
         self.pattern_timer -= dt;
         if self.pattern_timer <= 0.0 {
-            self.pattern = match self.pattern {
-                BossPattern::Rain => BossPattern::DiagonalVolley,
-                BossPattern::DiagonalVolley => BossPattern::Spiral,
-                BossPattern::Spiral => BossPattern::SafeLaneBurst,
-                BossPattern::SafeLaneBurst => BossPattern::Rain,
-            };
-            self.pattern_timer = if self.phase == 2 { 4.0 } else { 8.0 };
+            if self.phase == 2 {
+                self.pattern = match self.pattern {
+                    BossPattern::Crossfire => BossPattern::PincerGrid,
+                    BossPattern::PincerGrid => BossPattern::HunterBolts,
+                    BossPattern::HunterBolts => BossPattern::RingPulse,
+                    BossPattern::RingPulse => BossPattern::Crossfire,
+                    // Safety: if somehow a phase-1 pattern leaked in, jump to Crossfire.
+                    _ => BossPattern::Crossfire,
+                };
+                self.pattern_timer = 5.0;
+            } else {
+                self.pattern = match self.pattern {
+                    BossPattern::Rain => BossPattern::DiagonalVolley,
+                    BossPattern::DiagonalVolley => BossPattern::Spiral,
+                    BossPattern::Spiral => BossPattern::SafeLaneBurst,
+                    BossPattern::SafeLaneBurst => BossPattern::Rain,
+                    _ => BossPattern::Rain,
+                };
+                self.pattern_timer = 8.0;
+            }
+            // Clear pattern-specific state at rotation boundary
             self.safe_lane = None;
+            self.hunter_shots.clear();
+            self.hunter_next = 0.0;
+            self.hunter_fired_count = 0;
+            self.pincer_wave = None;
+            self.ring_next = 0.0;
         }
 
         let boss_color = if self.phase == 2 {
@@ -354,6 +415,138 @@ impl BossWorld {
                         alive: true,
                     });
                     self.spawn_timer = if p2 { 0.5 } else { 0.8 };
+                }
+            }
+
+            // ================================================================
+            // Phase 2 exclusive patterns
+            // ================================================================
+            BossPattern::Crossfire => {
+                // Horizontal bullets from left and right edges at fixed
+                // lanes. Gaps between lanes let the player survive with
+                // careful left/right placement.
+                self.spawn_timer -= dt;
+                if self.spawn_timer <= 0.0 {
+                    // Fire from a random vertical band near player height
+                    let lanes = [260.0, 295.0, 330.0, 360.0];
+                    let lane_y = lanes[rng.gen_range(0..lanes.len())];
+                    let from_left = rng.gen_bool(0.5);
+                    let count = 3u32;
+                    for i in 0..count {
+                        let x = if from_left {
+                            -40.0 - (i as f32) * 40.0
+                        } else {
+                            1280.0 + (i as f32) * 40.0
+                        };
+                        let vx = if from_left { 500.0 } else { -500.0 };
+                        self.viruses.push(Virus {
+                            x,
+                            y: lane_y,
+                            vy: 0.0,
+                            vx,
+                            color: VirusColor::Purple,
+                            alive: true,
+                        });
+                    }
+                    self.spawn_timer = 0.55;
+                }
+            }
+            BossPattern::PincerGrid => {
+                // Periodically telegraph a vertical-drop grid with a gap.
+                if self.pincer_wave.is_none() {
+                    let cols = 9u32;
+                    let gap = rng.gen_range(0..cols);
+                    self.pincer_wave = Some(PincerWave {
+                        cols,
+                        gap_col: gap,
+                        warn_remaining: 0.7,
+                    });
+                }
+                if let Some(wave) = &mut self.pincer_wave {
+                    if wave.warn_remaining > 0.0 {
+                        wave.warn_remaining -= dt;
+                        if wave.warn_remaining <= 0.0 {
+                            // Drop a bullet from every column except the gap
+                            let step = 1280.0 / (wave.cols as f32);
+                            for i in 0..wave.cols {
+                                if i == wave.gap_col {
+                                    continue;
+                                }
+                                let cx = step * (i as f32 + 0.5);
+                                self.viruses.push(Virus {
+                                    x: cx - VIRUS_W * 0.5,
+                                    y: -VIRUS_H,
+                                    vy: 460.0,
+                                    vx: 0.0,
+                                    color: VirusColor::Purple,
+                                    alive: true,
+                                });
+                            }
+                            self.pincer_wave = None;
+                        }
+                    }
+                }
+            }
+            BossPattern::HunterBolts => {
+                // Fire 3 crosshair-telegraphed bolts that lock onto the
+                // player's x at the moment of telegraph start. Moving the
+                // moment the crosshair appears guarantees a dodge.
+                self.hunter_next -= dt;
+                if self.hunter_next <= 0.0 && self.hunter_fired_count < 6 {
+                    let tx = self.player_x + BOSS_EDIE_W * 0.5;
+                    self.hunter_shots.push(HunterShot {
+                        target_x: tx.clamp(60.0, 1220.0),
+                        warn_remaining: 0.45,
+                        fired: false,
+                    });
+                    self.hunter_next = 0.75;
+                    self.hunter_fired_count += 1;
+                }
+                // Advance existing shots
+                let mut to_fire: Vec<f32> = Vec::new();
+                for shot in &mut self.hunter_shots {
+                    if !shot.fired {
+                        shot.warn_remaining -= dt;
+                        if shot.warn_remaining <= 0.0 {
+                            shot.fired = true;
+                            to_fire.push(shot.target_x);
+                        }
+                    }
+                }
+                for tx in to_fire {
+                    self.viruses.push(Virus {
+                        x: tx - VIRUS_W * 0.5,
+                        y: 160.0,
+                        vy: 620.0,
+                        vx: 0.0,
+                        color: VirusColor::Purple,
+                        alive: true,
+                    });
+                }
+                self.hunter_shots.retain(|s| !s.fired || s.warn_remaining > -0.2);
+            }
+            BossPattern::RingPulse => {
+                // Spawn an expanding 16-arm ring from boss center on a
+                // cadence. Player stands between rings.
+                self.ring_next -= dt;
+                if self.ring_next <= 0.0 {
+                    let (cx, cy) = self.boss_center();
+                    let arms = 16u32;
+                    let speed = 340.0;
+                    for i in 0..arms {
+                        let a = (i as f32) * std::f32::consts::TAU / (arms as f32);
+                        let vx = a.cos() * speed;
+                        let vy = a.sin() * speed;
+                        self.viruses.push(Virus {
+                            x: cx - VIRUS_W * 0.5,
+                            y: cy - VIRUS_H * 0.5,
+                            vy,
+                            vx,
+                            color: VirusColor::Purple,
+                            alive: true,
+                        });
+                    }
+                    self.ring_next = 1.2;
                 }
             }
         }

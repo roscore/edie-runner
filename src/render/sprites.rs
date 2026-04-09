@@ -872,6 +872,67 @@ pub fn draw_boss_mode(
     }
 
     // ======================================================
+    // Phase 2 pattern-specific telegraphs
+    // ======================================================
+    // Pincer Grid gap column highlight
+    if let Some(wave) = &boss.pincer_wave {
+        if wave.warn_remaining > 0.0 {
+            let step = 1280.0 / (wave.cols as f32);
+            // Red danger columns
+            let pulse = ((boss.elapsed * 18.0).sin() * 0.5 + 0.5) * 0.4 + 0.3;
+            for i in 0..wave.cols {
+                if i == wave.gap_col {
+                    continue;
+                }
+                let cx = step * (i as f32 + 0.5);
+                let (sxc, syc) = cam.to_screen(cx - step * 0.4, 150.0);
+                draw_rectangle(
+                    sxc,
+                    syc,
+                    cam.scaled(step * 0.8),
+                    cam.scaled(220.0),
+                    Color::new(1.0, 0.25, 0.3, pulse * 0.35),
+                );
+            }
+            // Green safe column
+            let gx = step * (wave.gap_col as f32 + 0.5);
+            let (sgx, sgy) = cam.to_screen(gx - step * 0.4, 150.0);
+            draw_rectangle(
+                sgx,
+                sgy,
+                cam.scaled(step * 0.8),
+                cam.scaled(220.0),
+                Color::new(0.3, 1.0, 0.4, 0.32),
+            );
+        }
+    }
+
+    // Hunter Bolts crosshairs
+    for shot in &boss.hunter_shots {
+        if !shot.fired && shot.warn_remaining > 0.0 {
+            let pulse = ((boss.elapsed * 24.0).sin() * 0.5 + 0.5) * 0.6 + 0.4;
+            let (hx, hy) = cam.to_screen(shot.target_x, 150.0);
+            // Vertical warning line
+            draw_rectangle(
+                hx - cam.scaled(2.0),
+                hy,
+                cam.scaled(4.0),
+                cam.scaled(250.0),
+                Color::new(1.0, 0.25, 0.3, pulse),
+            );
+            // Crosshair on player line
+            let (cxh, cyh) = cam.to_screen(shot.target_x, 340.0);
+            draw_rectangle(
+                cxh - cam.scaled(14.0),
+                cyh - cam.scaled(2.0),
+                cam.scaled(28.0),
+                cam.scaled(4.0),
+                Color::new(1.0, 0.25, 0.3, pulse),
+            );
+        }
+    }
+
+    // ======================================================
     // Viruses (green + purple)
     // ======================================================
     let green_fw = (assets.virus_green.width() - 3.0) / 4.0;
@@ -974,9 +1035,13 @@ pub fn draw_boss_mode(
     // Current pattern label
     let pattern_label = match boss.pattern {
         crate::game::boss::BossPattern::Rain => "MUNGCHI RAIN",
-        crate::game::boss::BossPattern::DiagonalVolley => "CROSSFIRE VOLLEY",
+        crate::game::boss::BossPattern::DiagonalVolley => "DIAGONAL VOLLEY",
         crate::game::boss::BossPattern::Spiral => "SPIRAL STORM",
         crate::game::boss::BossPattern::SafeLaneBurst => "SAFE LANE BURST",
+        crate::game::boss::BossPattern::Crossfire => "HORIZONTAL CROSSFIRE",
+        crate::game::boss::BossPattern::PincerGrid => "PINCER GRID",
+        crate::game::boss::BossPattern::HunterBolts => "HUNTER BOLTS",
+        crate::game::boss::BossPattern::RingPulse => "RING PULSE",
     };
     let psize = 16.0 * cam.scale;
     let pdim = measure_text(pattern_label, None, psize as u16, 1.0);

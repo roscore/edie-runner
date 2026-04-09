@@ -141,10 +141,9 @@ async fn main() {
                     touch_jump = true;
                 }
                 if hit(*t, logical_rect_to_screen(btns[2].logical_rect, &cam_for_touch)) {
-                    // Edge-triggered dash on new tap
-                    if !was_touching {
-                        touch_dash = true;
-                    }
+                    // Hold-to-extend dash: set whenever finger is down on
+                    // the dash button. The input layer edge-detects.
+                    touch_dash = true;
                 }
             }
         } else {

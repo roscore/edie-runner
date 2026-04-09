@@ -7,6 +7,7 @@ pub enum Action {
     Duck,
     DuckRelease,
     Dash,
+    DashRelease,
     Confirm,
     Pause,
     OpenHelp,
@@ -87,8 +88,7 @@ pub struct MacroquadInput {
     duck_was_down: bool,
     left_was_down: bool,
     right_was_down: bool,
-    /// Injected touch button states from the main loop (evaluated via
-    /// `set_touch_buttons`) before each poll.
+    dash_was_down: bool,
     touch_jump: bool,
     touch_duck: bool,
     touch_dash: bool,
@@ -104,6 +104,7 @@ impl MacroquadInput {
             duck_was_down: false,
             left_was_down: false,
             right_was_down: false,
+            dash_was_down: false,
             touch_jump: false,
             touch_duck: false,
             touch_dash: false,
@@ -158,12 +159,18 @@ impl InputSource for MacroquadInput {
         if !duck_now && self.duck_was_down {
             out.push(Action::DuckRelease);
         }
-        if is_key_pressed(KeyCode::LeftShift)
-            || is_key_pressed(KeyCode::RightShift)
-            || self.touch_dash
-        {
+        // Dash is now hold-to-extend. Fire Dash on any down-edge (key or
+        // touch) and DashRelease on the up-edge.
+        let dash_now = is_key_down(KeyCode::LeftShift)
+            || is_key_down(KeyCode::RightShift)
+            || self.touch_dash;
+        if dash_now && !self.dash_was_down {
             out.push(Action::Dash);
         }
+        if !dash_now && self.dash_was_down {
+            out.push(Action::DashRelease);
+        }
+        self.dash_was_down = dash_now;
         if is_key_pressed(KeyCode::P) {
             out.push(Action::Pause);
         }

@@ -106,6 +106,9 @@ impl World {
                     self.effects.sfx(SfxCue::Dash);
                 }
             }
+            Action::DashRelease => {
+                self.dash.release();
+            }
             Action::Confirm
             | Action::Pause
             | Action::OpenHelp
@@ -116,6 +119,7 @@ impl World {
             | Action::MoveLeftRelease
             | Action::MoveRightRelease
             | Action::DebugBoss => { /* handled by state machine */ }
+            _ => {}
         }
     }
 
