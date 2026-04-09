@@ -82,7 +82,7 @@ def mall_floor(d: ImageDraw.ImageDraw) -> None:
 def make_store_watch() -> Image.Image:
     im = new_canvas(256, 100)
     d = ImageDraw.Draw(im)
-    d.rectangle((0, 0, 256, 100), fill=(230, 218, 195, 255))
+    d.rectangle((0, 0, 256, 100), fill=(230, 218, 195, 255))  # unified mall wall
     shop_frame(d, (16, 18, 240, 86))
     # Display case (cream)
     d.rectangle((22, 24, 234, 80), fill=(252, 246, 230, 255))
@@ -113,7 +113,7 @@ def make_store_clothes() -> Image.Image:
     im = new_canvas(256, 100)
     d = ImageDraw.Draw(im)
     # Wall backdrop (warm beige)
-    d.rectangle((0, 0, 256, 100), fill=(232, 218, 194, 255))
+    d.rectangle((0, 0, 256, 100), fill=(230, 218, 195, 255))  # unified mall wall
     # Shop window frame
     shop_frame(d, (16, 18, 240, 86))
     # Glass interior (pale pink)
@@ -152,7 +152,7 @@ def make_store_clothes() -> Image.Image:
 def make_store_shoes() -> Image.Image:
     im = new_canvas(256, 100)
     d = ImageDraw.Draw(im)
-    d.rectangle((0, 0, 256, 100), fill=(225, 228, 238, 255))
+    d.rectangle((0, 0, 256, 100), fill=(230, 218, 195, 255))  # unified mall wall
     shop_frame(d, (16, 18, 240, 86))
     # Glass interior (cool blue)
     d.rectangle((22, 24, 234, 80), fill=(222, 230, 244, 255))
@@ -190,7 +190,7 @@ def make_store_shoes() -> Image.Image:
 def make_store_desserts() -> Image.Image:
     im = new_canvas(256, 100)
     d = ImageDraw.Draw(im)
-    d.rectangle((0, 0, 256, 100), fill=(250, 230, 220, 255))
+    d.rectangle((0, 0, 256, 100), fill=(230, 218, 195, 255))  # unified mall wall
     shop_frame(d, (16, 18, 240, 86))
     # Display-case glass (cream)
     d.rectangle((22, 24, 234, 80), fill=(252, 244, 232, 255))
@@ -235,7 +235,7 @@ def make_store_desserts() -> Image.Image:
 def make_store_phone() -> Image.Image:
     im = new_canvas(256, 100)
     d = ImageDraw.Draw(im)
-    d.rectangle((0, 0, 256, 100), fill=(220, 228, 236, 255))
+    d.rectangle((0, 0, 256, 100), fill=(230, 218, 195, 255))  # unified mall wall
     shop_frame(d, (16, 18, 240, 86))
     # Glass interior (tech cool blue)
     d.rectangle((22, 24, 234, 80), fill=(232, 240, 252, 255))
@@ -364,13 +364,10 @@ def make_all_floors() -> None:
 
 
 # ============================================================
-# Mungchi boss virus -- redrawn to match the user-supplied reference
-# photo: bright neon-green body, two ROUND angry yellow eyes with
-# slanted brows, and a HUGE Halloween-pumpkin grin spanning the lower
-# half of the body. 32 spike proteins around the perimeter. Style
-# references: Cave Story bosses, Undertale Photoshop Flowey,
-# Hyper Light Drifter mini-bosses (large central silhouette + clear
-# face features that read at a glance).
+# Mungchi boss virus v0.4.1 -- redrawn after the playtest complaint
+# that v0.4.0 had too many tentacles and the eyes had gone back to
+# round. Fewer but chunkier spikes, narrow angular demon-slit eyes
+# with a visible iris glow, and the same huge Halloween-pumpkin grin.
 # ============================================================
 def make_boss_virus_pumpkin() -> Image.Image:
     w, h = 240, 240
@@ -379,110 +376,118 @@ def make_boss_virus_pumpkin() -> Image.Image:
     cx, cy = 120, 120
     out = EDIE_OUTLINE
 
-    # Bright neon-green palette to match the reference
-    core_dark = (24, 110, 38, 255)
+    # Bright neon-green palette
+    core_dark = (20, 98, 32, 255)
     core_mid = (52, 200, 78, 255)
     core_lite = (110, 240, 130, 255)
-    core_glow = (170, 255, 180, 255)
-    eye_white = (255, 255, 250, 255)
+    core_glow = (180, 255, 190, 255)
+    eye_dark = (10, 6, 4, 255)
     eye_yellow = (255, 215, 35, 255)
-    eye_orange = (255, 155, 30, 255)
-    pupil = (24, 16, 8, 255)
-    grin_dark = (16, 8, 4, 255)
-    grin_inner = (90, 22, 12, 255)
-    tooth = (235, 240, 220, 255)
+    eye_orange = (255, 130, 25, 255)
+    eye_glow = (255, 240, 160, 255)
+    grin_dark = (14, 6, 4, 255)
+    grin_inner = (92, 22, 12, 255)
+    tooth = (238, 240, 220, 255)
 
-    # ---------- 32 spike proteins around the body ----------
-    num_spikes = 32
-    inner_r = 64
-    outer_r = 112
+    # ---------- 16 chunky spike proteins (half the v0.4.0 count) ----------
+    # Fewer, thicker spikes read as a crown rather than a tangle.
+    num_spikes = 16
+    inner_r = 68
+    outer_r = 106
     for i in range(num_spikes):
         angle = (i / num_spikes) * math.tau
         sx1 = cx + int(math.cos(angle) * inner_r)
         sy1 = cy + int(math.sin(angle) * inner_r)
         sx2 = cx + int(math.cos(angle) * outer_r)
         sy2 = cy + int(math.sin(angle) * outer_r)
-        # Stalk
-        d.line((sx1, sy1, sx2, sy2), fill=core_dark, width=6)
-        d.line((sx1, sy1, sx2, sy2), fill=core_mid, width=3)
+        # Thick single stalk
+        d.line((sx1, sy1, sx2, sy2), fill=core_dark, width=9)
+        d.line((sx1, sy1, sx2, sy2), fill=core_mid, width=5)
         # Knob at the tip
         d.ellipse(
-            (sx2 - 11, sy2 - 11, sx2 + 11, sy2 + 11),
-            fill=core_dark, outline=out, width=1,
+            (sx2 - 12, sy2 - 12, sx2 + 12, sy2 + 12),
+            fill=core_dark, outline=out, width=2,
         )
         d.ellipse(
-            (sx2 - 8, sy2 - 8, sx2 + 8, sy2 + 8),
+            (sx2 - 9, sy2 - 9, sx2 + 9, sy2 + 9),
             fill=core_mid,
         )
         d.ellipse(
-            (sx2 - 4, sy2 - 4, sx2 + 4, sy2 + 4),
+            (sx2 - 5, sy2 - 5, sx2 + 5, sy2 + 5),
             fill=core_lite,
         )
 
     # ---------- Main body ----------
-    body_r = 70
+    body_r = 72
     d.ellipse((cx - body_r, cy - body_r, cx + body_r, cy + body_r), fill=core_dark, outline=out, width=3)
-    inner_r2 = 64
-    d.ellipse((cx - inner_r2, cy - inner_r2, cx + inner_r2, cy + inner_r2), fill=core_mid)
-    # Top-left soft highlight (a la pumpkin glow)
-    d.ellipse((cx - 56, cy - 56, cx + 14, cy + 14), fill=core_lite)
-    d.ellipse((cx - 38, cy - 38, cx + 4, cy + 4), fill=core_glow)
-    # A few inner texture dots so the body isn't flat
-    for (dx, dy) in (
-        (-30, 30), (28, 22), (-18, 42), (20, 40), (-44, -8), (40, -16),
-        (-12, -42), (16, -38), (-50, 14), (44, 12),
-    ):
+    d.ellipse((cx - 66, cy - 66, cx + 66, cy + 66), fill=core_mid)
+    # Top-left soft highlight
+    d.ellipse((cx - 58, cy - 58, cx + 14, cy + 14), fill=core_lite)
+    d.ellipse((cx - 40, cy - 40, cx + 4, cy + 4), fill=core_glow)
+    # Fewer inner texture dots
+    for (dx, dy) in ((-32, 28), (28, 26), (-18, 42), (38, 10)):
         d.ellipse((cx + dx - 3, cy + dy - 3, cx + dx + 3, cy + dy + 3), fill=core_dark)
 
-    # ---------- Round angry eyes ----------
-    eye_y = cy - 14
-    eye_r_outer = 22
-    eye_r_iris = 16
-    eye_r_pupil = 6
-    for ex_off, flip in ((-26, False), (26, True)):
-        ex = cx + ex_off
-        # White sclera
+    # ---------- Angular "demon slit" eyes ----------
+    # Narrow pointed ovals slanting down-and-outward so they read as
+    # angry even without brow shapes. Vertex polygon instead of a
+    # circle so the silhouette is clearly NOT round.
+    eye_cy = cy - 16
+    def slit_eye(center_x: int, flip: bool) -> None:
+        # Diamond/lozenge shape with a pointed outer tip for menace.
+        inner_tip = (center_x - 26 if not flip else center_x + 26, eye_cy + 2)
+        outer_tip = (center_x + 26 if not flip else center_x - 26, eye_cy - 6)
+        top_mid = (center_x + (-2 if not flip else 2), eye_cy - 10)
+        bot_mid = (center_x + (4 if not flip else -4), eye_cy + 10)
+        pts = [inner_tip, top_mid, outer_tip, bot_mid]
+        # Black outer socket
+        d.polygon(pts, fill=eye_dark, outline=out)
+        # Inner orange->yellow glow (scaled inward toward the center)
+        cxe = center_x
+        inner_pts = [
+            (cxe + int((p[0] - cxe) * 0.75), eye_cy + int((p[1] - eye_cy) * 0.75))
+            for p in pts
+        ]
+        d.polygon(inner_pts, fill=eye_orange)
+        inner_pts2 = [
+            (cxe + int((p[0] - cxe) * 0.55), eye_cy + int((p[1] - eye_cy) * 0.55))
+            for p in pts
+        ]
+        d.polygon(inner_pts2, fill=eye_yellow)
+        # Bright core highlight
         d.ellipse(
-            (ex - eye_r_outer, eye_y - eye_r_outer, ex + eye_r_outer, eye_y + eye_r_outer),
-            fill=eye_white, outline=out, width=3,
-        )
-        # Yellow iris
-        d.ellipse(
-            (ex - eye_r_iris, eye_y - eye_r_iris, ex + eye_r_iris, eye_y + eye_r_iris),
-            fill=eye_yellow,
-        )
-        d.ellipse(
-            (ex - eye_r_iris + 3, eye_y - eye_r_iris + 3, ex + eye_r_iris - 3, eye_y + eye_r_iris - 3),
-            fill=eye_orange,
-        )
-        # Black pupil
-        d.ellipse(
-            (ex - eye_r_pupil, eye_y - eye_r_pupil, ex + eye_r_pupil, eye_y + eye_r_pupil),
-            fill=pupil,
-        )
-        # White highlight glint
-        hx = ex - 4 if not flip else ex + 4
-        d.rectangle((hx - 2, eye_y - 5, hx, eye_y - 2), fill=eye_white)
-
-    # Angry slanted brows (V shape) above the eyes
-    for ex_off, slant in ((-26, -1), (26, 1)):
-        ex = cx + ex_off
-        bx1 = ex - 22
-        by1 = eye_y - 30 + (10 if slant > 0 else 0)
-        bx2 = ex + 22
-        by2 = eye_y - 30 + (10 if slant < 0 else 0)
-        d.polygon(
-            [(bx1, by1), (bx2, by2), (bx2, by2 + 6), (bx1, by1 + 6)],
-            fill=core_dark,
+            (cxe - 3, eye_cy - 2, cxe + 3, eye_cy + 3),
+            fill=eye_glow,
         )
 
-    # ---------- Huge pumpkin grin spanning the lower half ----------
-    # Mouth bounding box
-    mouth_top = cy + 14
-    mouth_bottom = cy + 56
-    mouth_left = cx - 56
-    mouth_right = cx + 56
-    # Outer dark mouth (lip)
+    slit_eye(cx - 28, flip=False)
+    slit_eye(cx + 28, flip=True)
+
+    # Angry slanted brow bars above each slit so the whole face reads
+    # as glaring down at the player.
+    for ex_off, slant in ((-28, -1), (28, 1)):
+        ex = cx + ex_off
+        if slant < 0:
+            pts = [
+                (ex - 26, eye_cy - 26),
+                (ex + 22, eye_cy - 16),
+                (ex + 22, eye_cy - 10),
+                (ex - 26, eye_cy - 20),
+            ]
+        else:
+            pts = [
+                (ex - 22, eye_cy - 16),
+                (ex + 26, eye_cy - 26),
+                (ex + 26, eye_cy - 20),
+                (ex - 22, eye_cy - 10),
+            ]
+        d.polygon(pts, fill=core_dark)
+
+    # ---------- Huge pumpkin grin ----------
+    mouth_top = cy + 16
+    mouth_bottom = cy + 58
+    mouth_left = cx - 58
+    mouth_right = cx + 58
     d.polygon(
         [
             (mouth_left, mouth_top + 4),
@@ -493,7 +498,6 @@ def make_boss_virus_pumpkin() -> Image.Image:
         fill=grin_dark,
         outline=out,
     )
-    # Inner darker red void
     d.polygon(
         [
             (mouth_left + 4, mouth_top + 8),
@@ -503,7 +507,6 @@ def make_boss_virus_pumpkin() -> Image.Image:
         ],
         fill=grin_inner,
     )
-    # Top jagged teeth
     tooth_step = 11
     for i in range(11):
         tx = mouth_left + 6 + i * tooth_step
@@ -516,7 +519,6 @@ def make_boss_virus_pumpkin() -> Image.Image:
             fill=tooth,
             outline=out,
         )
-    # Bottom jagged teeth (offset by half-step so they interlock)
     for i in range(10):
         tx = mouth_left + 12 + i * tooth_step
         d.polygon(
@@ -723,22 +725,24 @@ def make_audio_extras() -> None:
 # Main
 # ============================================================
 def main() -> None:
-    # ---- Store shop far layer (all 5 share the seamless edge-pillar
-    #      template so the 5-shop cycle tiles continuously). The watch
-    #      variant overrides the default bg_store_far.png produced by
-    #      tools/generate_art.py so the base tile also has matching edges.
+    # ---- Store shop far/mid layer ----
+    # v0.3.0 cycled 5 distinct shop variants, but the content mismatch
+    # between tiles caused a visible "sliding" discontinuity on scroll.
+    # v0.4.1 reverts to a single watch-shop tile that tiles seamlessly
+    # with itself. Any stale variant PNGs on disk are removed so the
+    # Rust loader (which globs v2..v8) won't pick them up.
     save(make_store_watch(), "bg_store_far.png")
-    save(make_store_clothes(), "bg_store_far_v2.png")
-    save(make_store_shoes(), "bg_store_far_v3.png")
-    save(make_store_desserts(), "bg_store_far_v4.png")
-    save(make_store_phone(), "bg_store_far_v5.png")
-    # Override the default mid too so the uniform stanchion stride chains
-    # across every tile without a weird boundary gap.
     save(make_store_mid((170, 30, 40, 255)), "bg_store_mid.png")
-    save(make_store_mid((40, 70, 130, 255)), "bg_store_mid_v2.png")
-    save(make_store_mid((200, 120, 150, 255)), "bg_store_mid_v3.png")
-    save(make_store_mid((40, 100, 160, 255)), "bg_store_mid_v4.png")
-    save(make_store_mid((110, 150, 90, 255)), "bg_store_mid_v5.png")
+    for stale in (
+        "bg_store_far_v2.png", "bg_store_far_v3.png",
+        "bg_store_far_v4.png", "bg_store_far_v5.png",
+        "bg_store_mid_v2.png", "bg_store_mid_v3.png",
+        "bg_store_mid_v4.png", "bg_store_mid_v5.png",
+    ):
+        p = GEN / stale
+        if p.exists():
+            p.unlink()
+            print(f"  rm {stale}")
 
     # ---- Hanyang ERICA main gate: a one-shot landmark, not a tile
     #      variant. The background draw loop renders it exactly once per
