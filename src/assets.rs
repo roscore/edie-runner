@@ -105,17 +105,21 @@ pub struct AssetHandles {
     pub sfx_dash: macroquad::audio::Sound,
     pub sfx_smash: macroquad::audio::Sound,
     pub sfx_heart: macroquad::audio::Sound,
+    pub sfx_bgm: macroquad::audio::Sound,
+    pub sfx_beep: macroquad::audio::Sound,
+    pub sfx_whoosh: macroquad::audio::Sound,
 }
 
 pub struct StageBg {
     pub far: Texture2D,
     pub mid: Texture2D,
     pub floor: Texture2D,
-    /// Shift-wrapped tint variants used for anti-repeat tiling. `far` and
-    /// `mid` cycle through [base, far_variants[0..3]] / [base,
-    /// mid_variants[0..3]] based on tile index.
-    pub far_variants: [Texture2D; 3],
-    pub mid_variants: [Texture2D; 3],
+    /// Optional extra far-layer patterns. Render cycles through
+    /// `[base, ...far_variants]` per tile so stages with multiple
+    /// shopfronts (store) or landmarks (ansan) don't visibly repeat.
+    pub far_variants: Vec<Texture2D>,
+    /// Optional extra mid-layer variants used in sync with `far_variants`.
+    pub mid_variants: Vec<Texture2D>,
 }
 
 #[derive(Debug)]
@@ -136,24 +140,33 @@ fn tex(name: &str) -> Result<Texture2D, LoadError> {
     Ok(t)
 }
 
-/// Load the three-layer parallax background for a stage, pulling in 3
-/// shift-wrapped tint variants per layer so the renderer can cycle
-/// through `[base, v2, v3, v4]` to avoid visible tile repetition.
+/// Load the three-layer parallax background for a stage. `far_variants`
+/// and `mid_variants` are loaded by filename convention: `bg_<key>_<layer>_v<N>.png`
+/// starting at v2. Missing files silently stop the lookup so stages only
+/// need to ship as many variants as they have hand-drawn.
 fn load_stage(key: &str) -> Result<StageBg, LoadError> {
+    let mut far_variants: Vec<Texture2D> = Vec::new();
+    for n in 2..=8 {
+        let name = format!("bg_{key}_far_v{n}.png");
+        match tex(&name) {
+            Ok(t) => far_variants.push(t),
+            Err(_) => break,
+        }
+    }
+    let mut mid_variants: Vec<Texture2D> = Vec::new();
+    for n in 2..=8 {
+        let name = format!("bg_{key}_mid_v{n}.png");
+        match tex(&name) {
+            Ok(t) => mid_variants.push(t),
+            Err(_) => break,
+        }
+    }
     Ok(StageBg {
         far: tex(&format!("bg_{key}_far.png"))?,
         mid: tex(&format!("bg_{key}_mid.png"))?,
         floor: tex(&format!("bg_{key}_floor.png"))?,
-        far_variants: [
-            tex(&format!("bg_{key}_far_v2.png"))?,
-            tex(&format!("bg_{key}_far_v3.png"))?,
-            tex(&format!("bg_{key}_far_v4.png"))?,
-        ],
-        mid_variants: [
-            tex(&format!("bg_{key}_mid_v2.png"))?,
-            tex(&format!("bg_{key}_mid_v3.png"))?,
-            tex(&format!("bg_{key}_mid_v4.png"))?,
-        ],
+        far_variants,
+        mid_variants,
     })
 }
 
@@ -242,5 +255,8 @@ pub async fn load_all() -> Result<AssetHandles, LoadError> {
         sfx_dash: snd("sfx_dash.wav").await?,
         sfx_smash: snd("sfx_smash.wav").await?,
         sfx_heart: snd("sfx_heart.wav").await?,
+        sfx_bgm: snd("sfx_bgm.wav").await?,
+        sfx_beep: snd("sfx_beep.wav").await?,
+        sfx_whoosh: snd("sfx_whoosh.wav").await?,
     })
 }

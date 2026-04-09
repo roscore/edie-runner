@@ -70,6 +70,10 @@ pub enum SfxCue {
     Dash,
     Smash,
     Heart,
+    /// Countdown beep (3-2-1) and confirm tone.
+    Beep,
+    /// Stage transition whoosh.
+    Whoosh,
 }
 
 #[derive(Debug, Clone)]

@@ -359,13 +359,19 @@ impl BossWorld {
                 // blanket everything outside it with viruses. Player reads
                 // the warning and steps into the safe lane.
                 if self.safe_lane.is_none() {
-                    // Pick a lane centered somewhere, width depends on phase
-                    let lane_w = if p2 { 200.0 } else { 260.0 };
+                    // Pick a lane centered somewhere, width depends on phase.
+                    // Wider lanes + a longer telegraph so the player has
+                    // enough wall-clock time to actually traverse the
+                    // screen at PLAYER_SIDE_SPEED (520 px/s). The screen
+                    // is 1280 px wide; even from corner-to-corner the
+                    // worst case is ~2.5s. Phase-1 gets 2.4s warn, phase-2
+                    // gets 1.8s -- both comfortably reachable.
+                    let lane_w = if p2 { 240.0 } else { 320.0 };
                     let cx = rng.gen_range((lane_w * 0.5 + 40.0)..(1240.0 - lane_w * 0.5));
                     self.safe_lane = Some(SafeLane {
                         min_x: cx - lane_w * 0.5,
                         max_x: cx + lane_w * 0.5,
-                        warn_remaining: if p2 { 0.9 } else { 1.2 },
+                        warn_remaining: if p2 { 1.8 } else { 2.4 },
                         fire_remaining: 0.0,
                     });
                 }
@@ -465,7 +471,9 @@ impl BossWorld {
                     self.pincer_wave = Some(PincerWave {
                         cols,
                         gap_col: gap,
-                        warn_remaining: 0.7,
+                        // 1.1s telegraph so the player can actually slide
+                        // into the safe column from anywhere on screen.
+                        warn_remaining: 1.1,
                     });
                 }
                 if let Some(wave) = &mut self.pincer_wave {
