@@ -6,6 +6,8 @@ cd "$(dirname "$0")/.."
 if command -v python >/dev/null 2>&1; then
     echo "[1/4] Regenerating art assets..."
     python tools/generate_art.py
+    echo "[1/4] Regenerating background tile variants..."
+    python tools/generate_bg_variants.py
 else
     echo "[1/4] SKIP: python not found; using existing assets/gen/"
 fi

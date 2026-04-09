@@ -111,6 +111,11 @@ pub struct StageBg {
     pub far: Texture2D,
     pub mid: Texture2D,
     pub floor: Texture2D,
+    /// Shift-wrapped tint variants used for anti-repeat tiling. `far` and
+    /// `mid` cycle through [base, far_variants[0..3]] / [base,
+    /// mid_variants[0..3]] based on tile index.
+    pub far_variants: [Texture2D; 3],
+    pub mid_variants: [Texture2D; 3],
 }
 
 #[derive(Debug)]
@@ -129,6 +134,27 @@ fn tex(name: &str) -> Result<Texture2D, LoadError> {
     let t = Texture2D::from_file_with_format(&bytes, None);
     t.set_filter(FilterMode::Nearest);
     Ok(t)
+}
+
+/// Load the three-layer parallax background for a stage, pulling in 3
+/// shift-wrapped tint variants per layer so the renderer can cycle
+/// through `[base, v2, v3, v4]` to avoid visible tile repetition.
+fn load_stage(key: &str) -> Result<StageBg, LoadError> {
+    Ok(StageBg {
+        far: tex(&format!("bg_{key}_far.png"))?,
+        mid: tex(&format!("bg_{key}_mid.png"))?,
+        floor: tex(&format!("bg_{key}_floor.png"))?,
+        far_variants: [
+            tex(&format!("bg_{key}_far_v2.png"))?,
+            tex(&format!("bg_{key}_far_v3.png"))?,
+            tex(&format!("bg_{key}_far_v4.png"))?,
+        ],
+        mid_variants: [
+            tex(&format!("bg_{key}_mid_v2.png"))?,
+            tex(&format!("bg_{key}_mid_v3.png"))?,
+            tex(&format!("bg_{key}_mid_v4.png"))?,
+        ],
+    })
 }
 
 async fn snd(name: &str) -> Result<macroquad::audio::Sound, LoadError> {
@@ -202,41 +228,13 @@ pub async fn load_all() -> Result<AssetHandles, LoadError> {
         bg_mid: tex("bg_mid.png")?,
         bg_floor: tex("bg_floor.png")?,
 
-        stage_store: StageBg {
-            far: tex("bg_store_far.png")?,
-            mid: tex("bg_store_mid.png")?,
-            floor: tex("bg_store_floor.png")?,
-        },
-        stage_street: StageBg {
-            far: tex("bg_street_far.png")?,
-            mid: tex("bg_street_mid.png")?,
-            floor: tex("bg_street_floor.png")?,
-        },
-        stage_techpark: StageBg {
-            far: tex("bg_techpark_far.png")?,
-            mid: tex("bg_techpark_mid.png")?,
-            floor: tex("bg_techpark_floor.png")?,
-        },
-        stage_highway: StageBg {
-            far: tex("bg_highway_far.png")?,
-            mid: tex("bg_highway_mid.png")?,
-            floor: tex("bg_highway_floor.png")?,
-        },
-        stage_ansan: StageBg {
-            far: tex("bg_ansan_far.png")?,
-            mid: tex("bg_ansan_mid.png")?,
-            floor: tex("bg_ansan_floor.png")?,
-        },
-        stage_office: StageBg {
-            far: tex("bg_office_far.png")?,
-            mid: tex("bg_office_mid.png")?,
-            floor: tex("bg_office_floor.png")?,
-        },
-        stage_factory: StageBg {
-            far: tex("bg_factory_far.png")?,
-            mid: tex("bg_factory_mid.png")?,
-            floor: tex("bg_factory_floor.png")?,
-        },
+        stage_store: load_stage("store")?,
+        stage_street: load_stage("street")?,
+        stage_techpark: load_stage("techpark")?,
+        stage_highway: load_stage("highway")?,
+        stage_ansan: load_stage("ansan")?,
+        stage_office: load_stage("office")?,
+        stage_factory: load_stage("factory")?,
 
         sfx_jump: snd("sfx_jump.wav").await?,
         sfx_hit: snd("sfx_hit.wav").await?,

@@ -139,30 +139,34 @@ pub fn draw_background(
         Color::new(0.70, 0.70, 0.76, 1.0)
     };
 
-    // Helper: draw a tiled parallax layer with optional spacing between
-    // tiles. `tile_w` is the draw width of one tile; `tile_stride` is how
-    // far apart successive tiles are placed (>= tile_w gives a visible gap
-    // in between). Alternating flip_x breaks up the silhouette further.
+    // Helper: draw a tiled parallax layer. `variants` is a small slice of
+    // textures to cycle through -- consecutive tiles pick the next variant
+    // via `tile_index % variants.len()` so the backdrop never reads as a
+    // single pattern repeating. Alternating flip_x doubles that variation.
     fn draw_parallax_layer(
-        tex: &macroquad::texture::Texture2D,
+        variants: &[&macroquad::texture::Texture2D],
         offset: f32,
         tile_w: f32,
-        tile_stride: f32,
         y: f32,
         h: f32,
         tint: Color,
         cam: &Camera,
     ) {
-        let base_tile = (offset / tile_stride).floor() as i64;
-        let start_x = -(offset - base_tile as f32 * tile_stride);
+        let base_tile = (offset / tile_w).floor() as i64;
+        let start_x = -(offset - base_tile as f32 * tile_w);
         let mut i: i64 = 0;
         let mut x = start_x;
+        let n = variants.len().max(1) as i64;
         while x < LOGICAL_W {
             let (px, py) = cam.to_screen(x, y);
             let absolute_idx = base_tile + i;
-            let flip_x = absolute_idx.rem_euclid(2) == 1;
+            let variant_idx = absolute_idx.rem_euclid(n) as usize;
+            // Flip every other full cycle so the pattern rhythm isn't
+            // strictly a fixed N-beat loop.
+            let cycle = absolute_idx.div_euclid(n);
+            let flip_x = cycle.rem_euclid(2) == 1;
             draw_texture_ex(
-                tex,
+                variants[variant_idx],
                 px,
                 py,
                 tint,
@@ -172,40 +176,36 @@ pub fn draw_background(
                     ..Default::default()
                 },
             );
-            x += tile_stride;
+            x += tile_w;
             i += 1;
         }
     }
 
-    // Far layer: draw the tile at its natural 384 px width and *space it
-    // out* with a 640 px stride so there are clear gaps between silhouettes
-    // instead of a stretched repeating blob.
-    draw_parallax_layer(
+    // Far layer: cycle through 4 variants (base + 3 shift-wrap variants)
+    // at the natural 256 -> 384 tile size. Continuous tiling (no gaps) so
+    // the horizon reads as one cohesive band.
+    let far_set: [&macroquad::texture::Texture2D; 4] = [
         &stage_bg.far,
-        bg.far_offset,
-        384.0,
-        640.0,
-        200.0,
-        100.0,
-        bg_tint,
-        cam,
-    );
+        &stage_bg.far_variants[0],
+        &stage_bg.far_variants[1],
+        &stage_bg.far_variants[2],
+    ];
+    draw_parallax_layer(&far_set, bg.far_offset, 384.0, 200.0, 100.0, bg_tint, cam);
 
-    // Mid layer: same trick, slightly tighter stride so benches / trees /
-    // desks feel denser than the skyline but still breathe.
+    // Mid layer: same 4-variant cycle, extra desaturation to keep it
+    // recessed behind the gameplay plane.
     let mid_tint = desat(bg_tint, 0.30);
-    draw_parallax_layer(
+    let mid_set: [&macroquad::texture::Texture2D; 4] = [
         &stage_bg.mid,
-        bg.mid_offset,
-        384.0,
-        560.0,
-        270.0,
-        60.0,
-        mid_tint,
-        cam,
-    );
+        &stage_bg.mid_variants[0],
+        &stage_bg.mid_variants[1],
+        &stage_bg.mid_variants[2],
+    ];
+    draw_parallax_layer(&mid_set, bg.mid_offset, 384.0, 270.0, 60.0, mid_tint, cam);
 
-    // Floor — muted tint so sprites read above it.
+    // Floor — muted tint so sprites read above it. No variants for the
+    // floor: the player walks directly on it and any break in pattern
+    // reads as a pit or a seam.
     let floor_tint = if outdoor {
         Color::new(
             0.55 + 0.45 * dimmed.r,
@@ -216,12 +216,10 @@ pub fn draw_background(
     } else {
         Color::new(0.80, 0.80, 0.84, 1.0)
     };
-    // Floor is continuous (no gaps) -- the player is close to it so any
-    // hole would read as a pit. Keep natural 384 px tile.
+    let floor_set: [&macroquad::texture::Texture2D; 1] = [&stage_bg.floor];
     draw_parallax_layer(
-        &stage_bg.floor,
+        &floor_set,
         bg.floor_offset,
-        384.0,
         384.0,
         320.0,
         80.0,
