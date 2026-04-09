@@ -14,9 +14,38 @@ pub enum GameState {
     Story,
     BossFight,
     Ending,
+    /// Name entry for a qualifying leaderboard score. Only reached after
+    /// GameOver when `leaderboard.qualifies(final_score)` is true.
+    NameEntry,
 }
 
 pub const RUN_HISTORY_LEN: usize = 5;
+
+fn next_name_char(c: char) -> char {
+    // Cycle: A..Z, then back to A. Anything else -> 'A'.
+    if ('A'..='Z').contains(&c) {
+        if c == 'Z' {
+            'A'
+        } else {
+            (c as u8 + 1) as char
+        }
+    } else {
+        'A'
+    }
+}
+
+fn prev_name_char(c: char) -> char {
+    if ('A'..='Z').contains(&c) {
+        if c == 'A' {
+            'Z'
+        } else {
+            (c as u8 - 1) as char
+        }
+    } else {
+        'A'
+    }
+}
+
 pub const STORY_DURATION: f32 = 52.0;
 pub const COUNTDOWN_DURATION: f32 = 2.5;
 
@@ -35,14 +64,18 @@ pub struct Game {
     pub boss_intro_remaining: f32,
     /// True if the last completed boss fight went all the way through phase 2.
     pub last_ending_true: bool,
-    /// True if the current run was started via the debug shortcut (B key
-    /// from title / game over). Runs flagged this way do not contribute
-    /// to the score history / high score / best runs.
     pub debug_run: bool,
+    pub leaderboard: crate::game::leaderboard::Leaderboard,
+    /// Scratch pad for the name entry screen: 3 chars, one active cursor.
+    pub name_buf: [char; 3],
+    pub name_cursor: usize,
+    /// Score being entered (snapshotted at GameOver transition).
+    pub pending_score: u32,
 }
 
 impl Game {
     pub fn new<S: Storage>(seed: u64, storage: &S) -> Self {
+        let leaderboard = crate::game::leaderboard::Leaderboard::load(storage);
         Self {
             state: GameState::Title,
             world: World::new(seed, storage),
@@ -56,6 +89,10 @@ impl Game {
             boss_intro_remaining: 0.0,
             last_ending_true: false,
             debug_run: false,
+            leaderboard,
+            name_buf: ['A', 'A', 'A'],
+            name_cursor: 0,
+            pending_score: 0,
         }
     }
 
@@ -73,6 +110,41 @@ impl Game {
     }
 
     pub fn handle<S: Storage>(&mut self, action: Action, storage: &mut S) {
+        // Name entry takes over input while active.
+        if matches!(self.state, GameState::NameEntry) {
+            match action {
+                Action::NameUp | Action::Jump => {
+                    let c = self.name_buf[self.name_cursor];
+                    self.name_buf[self.name_cursor] = next_name_char(c);
+                }
+                Action::NameDown | Action::Duck => {
+                    let c = self.name_buf[self.name_cursor];
+                    self.name_buf[self.name_cursor] = prev_name_char(c);
+                }
+                Action::NameNext | Action::MoveRight | Action::Dash => {
+                    if self.name_cursor + 1 < self.name_buf.len() {
+                        self.name_cursor += 1;
+                    } else {
+                        self.commit_name_entry(storage);
+                    }
+                }
+                Action::NamePrev | Action::MoveLeft => {
+                    if self.name_cursor > 0 {
+                        self.name_cursor -= 1;
+                    }
+                }
+                Action::NameCommit | Action::Confirm => {
+                    self.commit_name_entry(storage);
+                }
+                Action::Back => {
+                    // Skip name entry entirely -> back to GameOver screen
+                    self.state = GameState::GameOver;
+                }
+                _ => {}
+            }
+            return;
+        }
+
         // Boss fight: track left/right input state separately.
         if matches!(self.state, GameState::BossFight) {
             match action {
@@ -159,6 +231,33 @@ impl Game {
         }
     }
 
+    fn commit_name_entry<S: Storage>(&mut self, storage: &mut S) {
+        let name: String = self.name_buf.iter().collect();
+        let entry = crate::game::leaderboard::Entry {
+            name,
+            score: self.pending_score,
+            ts: 0,
+        };
+        self.leaderboard.insert(storage, entry);
+        self.state = GameState::GameOver;
+    }
+
+    /// Called after any run ends (death, boss hit) with the final score.
+    /// Returns true if the run qualified and we transitioned to NameEntry.
+    fn try_enter_name_entry(&mut self, final_score: u32) -> bool {
+        if self.debug_run || final_score == 0 {
+            return false;
+        }
+        if !self.leaderboard.qualifies(final_score) {
+            return false;
+        }
+        self.pending_score = final_score;
+        self.name_buf = ['A', 'A', 'A'];
+        self.name_cursor = 0;
+        self.state = GameState::NameEntry;
+        true
+    }
+
     fn start_run<S: Storage>(&mut self, storage: &S) {
         self.seed_counter = self.seed_counter.wrapping_add(1);
         self.world = World::new(self.seed_counter, storage);
@@ -190,10 +289,8 @@ impl Game {
                 match b.update(real_dt, self.boss_input_dx, &mut self.world.rng) {
                     BossOutcome::Continuing => {}
                     BossOutcome::Hit => {
-                        self.state = GameState::GameOver;
+                        let final_score = self.world.score.current;
                         if !self.debug_run {
-                            let final_score = self.world.score.current;
-                            let _ = self.world.score.save_if_new_high(storage);
                             self.run_history.insert(0, final_score);
                             if self.run_history.len() > RUN_HISTORY_LEN {
                                 self.run_history.truncate(RUN_HISTORY_LEN);
@@ -206,13 +303,27 @@ impl Game {
                         } else {
                             self.last_run_rank = None;
                         }
+                        self.state = GameState::GameOver;
+                        self.try_enter_name_entry(final_score);
                     }
                     BossOutcome::Survived => {
                         let phase = self.boss.as_ref().map(|b| b.phase).unwrap_or(1);
                         self.last_ending_true = phase >= 2;
                         self.state = GameState::Ending;
                         if !self.debug_run {
-                            let _ = self.world.score.save_if_new_high(storage);
+                            let final_score = self.world.score.current;
+                            // Ending also qualifies for leaderboard, but
+                            // we skip the name entry while the ending
+                            // cinematic plays. Auto-insert as "WIN" if it
+                            // qualifies so the board reflects the clear.
+                            if self.leaderboard.qualifies(final_score) {
+                                let entry = crate::game::leaderboard::Entry {
+                                    name: if phase >= 2 { "DR!".to_string() } else { "WIN".to_string() },
+                                    score: final_score,
+                                    ts: 0,
+                                };
+                                self.leaderboard.insert(storage, entry);
+                            }
                         }
                     }
                 }
@@ -237,10 +348,8 @@ impl Game {
         match self.world.update(real_dt) {
             RunOutcome::Continuing => {}
             RunOutcome::Died => {
-                self.state = GameState::GameOver;
+                let final_score = self.world.score.current;
                 if !self.debug_run {
-                    let _ = self.world.score.save_if_new_high(storage);
-                    let final_score = self.world.score.current;
                     self.run_history.insert(0, final_score);
                     if self.run_history.len() > RUN_HISTORY_LEN {
                         self.run_history.truncate(RUN_HISTORY_LEN);
@@ -253,6 +362,8 @@ impl Game {
                 } else {
                     self.last_run_rank = None;
                 }
+                self.state = GameState::GameOver;
+                self.try_enter_name_entry(final_score);
             }
         }
     }
@@ -315,8 +426,11 @@ mod tests {
         g.world.obstacles.obstacles.push(o);
         g.world.score.current = 999;
         g.update(DT, &mut s);
-        assert_eq!(g.state, GameState::GameOver);
-        assert!(s.get(crate::game::score::STORAGE_KEY).is_some());
+        // Any qualifying score enters NameEntry first; GameOver otherwise.
+        assert!(matches!(
+            g.state,
+            GameState::GameOver | GameState::NameEntry
+        ));
     }
 
     #[test]

@@ -511,20 +511,20 @@ pub fn draw_overlay(
         | GameState::Help
         | GameState::Story
         | GameState::BossFight
-        | GameState::Ending => return,
+        | GameState::Ending
+        | GameState::NameEntry => return,
     };
     let sub_size = 22.0 * cam.scale;
     let (sx, sy) = cam.to_screen(LOGICAL_W * 0.5, LOGICAL_H * 0.83);
     let dim_sub = measure_text(&sub, None, sub_size as u16, 1.0);
     draw_text(&sub, sx - dim_sub.width * 0.5, sy, sub_size, WHITE);
 
-    // Run history dashboard - Title and GameOver
+    // Persistent leaderboard — Title and GameOver (overrides old run history).
     if matches!(state, GameState::Title | GameState::GameOver) {
-        let best = game.best_runs();
-        if !best.is_empty() {
-            let dash_label = "BEST RUNS";
+        if !game.leaderboard.entries.is_empty() {
+            let dash_label = "LEADERBOARD";
             let dash_size = 16.0 * cam.scale;
-            let (lx, ly) = cam.to_screen(LOGICAL_W * 0.5, LOGICAL_H * 0.90);
+            let (lx, ly) = cam.to_screen(LOGICAL_W * 0.5, LOGICAL_H * 0.88);
             let dim_label = measure_text(dash_label, None, dash_size as u16, 1.0);
             draw_text(
                 dash_label,
@@ -533,16 +533,16 @@ pub fn draw_overlay(
                 dash_size,
                 Color::new(0.85, 0.82, 0.7, 1.0),
             );
-
-            // Render up to 5 scores in a horizontal row, "1234 / 890 / 456"
-            let row: Vec<String> = best
+            let row: Vec<String> = game
+                .leaderboard
+                .entries
                 .iter()
                 .enumerate()
-                .map(|(i, s)| format!("#{} {}", i + 1, s))
+                .map(|(i, e)| format!("#{} {} {:06}", i + 1, e.name, e.score))
                 .collect();
-            let joined = row.join("    ");
+            let joined = row.join("   ");
             let row_size = 18.0 * cam.scale;
-            let (rx, ry) = cam.to_screen(LOGICAL_W * 0.5, LOGICAL_H * 0.95);
+            let (rx, ry) = cam.to_screen(LOGICAL_W * 0.5, LOGICAL_H * 0.94);
             let dim_row = measure_text(&joined, None, row_size as u16, 1.0);
             draw_text(&joined, rx - dim_row.width * 0.5, ry, row_size, WHITE);
         }
@@ -574,6 +574,96 @@ pub fn draw_overlay(
             hy,
             hint_size,
             Color::new(0.9, 0.85, 0.55, 0.95),
+        );
+    }
+}
+
+/// Name entry screen - 3-char leaderboard name input.
+pub fn draw_name_entry(game: &Game, elapsed: f32, cam: &Camera) {
+    let (x0, y0) = cam.to_screen(0.0, 0.0);
+    draw_rectangle(
+        x0,
+        y0,
+        cam.scaled(LOGICAL_W),
+        cam.scaled(LOGICAL_H),
+        Color::new(0.0, 0.0, 0.0, 0.75),
+    );
+
+    let header = "NEW HIGH SCORE";
+    let hsize = 42.0 * cam.scale;
+    let hdim = measure_text(header, None, hsize as u16, 1.0);
+    let (hx, hy) = cam.to_screen(LOGICAL_W * 0.5, 80.0);
+    draw_text(
+        header,
+        hx - hdim.width * 0.5,
+        hy,
+        hsize,
+        Color::new(1.0, 0.85, 0.2, 1.0),
+    );
+
+    let score_txt = format!("{:06}", game.pending_score);
+    let ssize = 34.0 * cam.scale;
+    let sdim = measure_text(&score_txt, None, ssize as u16, 1.0);
+    let (sxh, syh) = cam.to_screen(LOGICAL_W * 0.5, 130.0);
+    draw_text(
+        &score_txt,
+        sxh - sdim.width * 0.5,
+        syh,
+        ssize,
+        Color::new(1.0, 1.0, 1.0, 1.0),
+    );
+
+    // 3-character slots
+    let slot_w = 72.0;
+    let slot_gap = 16.0;
+    let total_w = slot_w * 3.0 + slot_gap * 2.0;
+    let start_x = LOGICAL_W * 0.5 - total_w * 0.5;
+    let slot_y = 180.0;
+    let slot_h = 96.0;
+    for i in 0..3usize {
+        let sx_l = start_x + (slot_w + slot_gap) * i as f32;
+        let (sxp, syp) = cam.to_screen(sx_l, slot_y);
+        let is_cursor = i == game.name_cursor;
+        let bg = if is_cursor {
+            let pulse = 0.5 + 0.5 * (elapsed * 6.0).sin().abs();
+            Color::new(1.0, 0.85, 0.2, 0.25 + 0.25 * pulse)
+        } else {
+            Color::new(0.1, 0.1, 0.15, 0.55)
+        };
+        draw_rectangle(sxp, syp, cam.scaled(slot_w), cam.scaled(slot_h), bg);
+        draw_rectangle_lines(
+            sxp,
+            syp,
+            cam.scaled(slot_w),
+            cam.scaled(slot_h),
+            3.0,
+            Color::new(1.0, 0.9, 0.5, 0.9),
+        );
+        let letter = game.name_buf[i].to_string();
+        let lsize = 60.0 * cam.scale;
+        let ldim = measure_text(&letter, None, lsize as u16, 1.0);
+        let tx = sxp + cam.scaled(slot_w) * 0.5 - ldim.width * 0.5;
+        let ty = syp + cam.scaled(slot_h) * 0.5 + ldim.height * 0.4;
+        draw_text(&letter, tx, ty, lsize, Color::new(1.0, 1.0, 1.0, 1.0));
+    }
+
+    let help_lines = [
+        "UP / SPACE : next letter",
+        "DOWN : previous letter",
+        "RIGHT / SHIFT : next slot  (last -> submit)",
+        "LEFT : previous slot",
+        "ENTER : submit    ESC : skip",
+    ];
+    let hinted_size = 18.0 * cam.scale;
+    for (i, line) in help_lines.iter().enumerate() {
+        let dim = measure_text(line, None, hinted_size as u16, 1.0);
+        let (lx, ly) = cam.to_screen(LOGICAL_W * 0.5, 308.0 + (i as f32) * 20.0);
+        draw_text(
+            line,
+            lx - dim.width * 0.5,
+            ly,
+            hinted_size,
+            Color::new(0.9, 0.9, 0.9, 0.85),
         );
     }
 }

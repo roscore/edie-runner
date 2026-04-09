@@ -3,7 +3,7 @@
 use edie_runner::assets::{load_all, AssetHandles};
 use edie_runner::game::state::Game;
 use edie_runner::platform::input::{InputSource, MacroquadInput};
-use edie_runner::platform::storage::InMemoryStorage;
+use edie_runner::platform::storage::BrowserStorage;
 use edie_runner::platform::visibility::VisibilityTracker;
 use edie_runner::render::camera::Camera;
 use edie_runner::render::sprites::{
@@ -15,7 +15,8 @@ use edie_runner::render::sprites::{
 use edie_runner::game::state::GameState;
 use edie_runner::platform::input::Action;
 use edie_runner::render::ui::{
-    draw_background, draw_ending, draw_help, draw_hud, draw_overlay, draw_story,
+    draw_background, draw_ending, draw_help, draw_hud, draw_name_entry, draw_overlay,
+    draw_story,
 };
 use edie_runner::time::{FixedStep, DT};
 use macroquad::prelude::*;
@@ -51,7 +52,7 @@ async fn show_loading_then_load() -> Result<AssetHandles, String> {
 
 #[macroquad::main(window_conf)]
 async fn main() {
-    let mut storage = InMemoryStorage::new();
+    let mut storage = BrowserStorage::new();
     let mut input = MacroquadInput::new();
     let mut visibility = VisibilityTracker::new();
     let mut step = FixedStep::new();
@@ -307,7 +308,7 @@ async fn main() {
             );
         }
 
-        // Help / Story / Ending screens drawn on top of everything else
+        // Help / Story / Ending / NameEntry screens drawn on top of everything
         match game.state {
             GameState::Help => draw_help(&assets, wall_time, &cam),
             GameState::Story => {
@@ -315,6 +316,7 @@ async fn main() {
                 draw_story(t, &assets, &cam);
             }
             GameState::Ending => draw_ending(&assets, wall_time, game.last_ending_true, &cam),
+            GameState::NameEntry => draw_name_entry(&game, wall_time, &cam),
             _ => {}
         }
 

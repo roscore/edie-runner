@@ -9,5 +9,6 @@ pub mod dash;
 pub mod background;
 pub mod boss;
 pub mod effects;
+pub mod leaderboard;
 pub mod world;
 pub mod state;

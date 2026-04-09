@@ -18,6 +18,11 @@ pub enum Action {
     MoveLeftRelease,
     MoveRightRelease,
     DebugBoss,
+    NameUp,
+    NameDown,
+    NameNext,
+    NamePrev,
+    NameCommit,
 }
 
 pub trait InputSource {
