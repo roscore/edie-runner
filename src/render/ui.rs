@@ -111,7 +111,7 @@ pub fn draw_background(
         Stage::Highway => &assets.stage_highway,
         Stage::Ansan => &assets.stage_ansan,
         Stage::AeiRobotOffice => &assets.stage_office,
-        Stage::AeiRobotCEORoom => &assets.stage_ceo,
+        Stage::AeiRobotFactory => &assets.stage_factory,
     };
 
     let stage_tint = if outdoor { tint } else { WHITE };
@@ -646,6 +646,55 @@ pub fn draw_help(assets: &AssetHandles, elapsed: f32, cam: &Camera) {
     draw_text(footer, fx - dim_f.width * 0.5, fy, footer_size, yellow);
 }
 
+/// Draw a healthy AeiROBOT lineup across the stage floor for the ending.
+fn draw_ending_crowd(assets: &AssetHandles, elapsed: f32, cam: &Camera) {
+    use crate::render::sprites::{draw_anim_sheet, EDIE_HAPPY_FRAMES, EDIE_HAPPY_FPS};
+    // Line of healthy AeiROBOTs across the back
+    let robots: [(&macroquad::texture::Texture2D, f32, f32, f32); 5] = [
+        (&assets.obstacle_alice4, 120.0, 68.0, 27.0),
+        (&assets.obstacle_alice3, 240.0, 64.0, 25.0),
+        (&assets.obstacle_amy,     340.0, 60.0, 24.0),
+        (&assets.obstacle_alicem1, 440.0, 64.0, 28.0),
+        (&assets.obstacle_boxbot,  540.0, 40.0, 44.0),
+    ];
+    for (i, (tex, cx, h, w)) in robots.iter().enumerate() {
+        let bob = ((elapsed * 1.8 + i as f32 * 0.7).sin() * 3.0).round();
+        let ly = 232.0 - h + bob;
+        let lx = cx - w * 0.5;
+        let (sx, sy) = cam.to_screen(lx, ly);
+        macroquad::prelude::draw_texture_ex(
+            tex,
+            sx,
+            sy,
+            macroquad::prelude::WHITE,
+            macroquad::prelude::DrawTextureParams {
+                dest_size: Some(macroquad::prelude::vec2(cam.scaled(*w), cam.scaled(*h))),
+                ..Default::default()
+            },
+        );
+    }
+    // Row of welcoming mini EDIEs across the foreground
+    let mini_w = 56.0;
+    let mini_h = 48.0;
+    let mini_y = 252.0;
+    let positions = [140.0, 220.0, 300.0, 380.0, 760.0, 840.0, 920.0, 1000.0];
+    for (i, mx) in positions.iter().enumerate() {
+        let bob = ((elapsed * 3.0 + i as f32 * 0.9).sin() * 2.0).round();
+        draw_anim_sheet(
+            &assets.edie_happy_run,
+            EDIE_HAPPY_FRAMES,
+            EDIE_HAPPY_FPS,
+            elapsed + i as f32 * 0.2,
+            *mx,
+            mini_y + bob,
+            mini_w,
+            mini_h,
+            cam,
+            macroquad::prelude::WHITE,
+        );
+    }
+}
+
 /// Ending screen shown after the player survives the 60-second boss fight.
 pub fn draw_ending(assets: &AssetHandles, elapsed: f32, cam: &Camera) {
     // Warm sunrise gradient (3 bands)
@@ -716,6 +765,9 @@ pub fn draw_ending(assets: &AssetHandles, elapsed: f32, cam: &Camera) {
             Color::new(1.0, 0.55, 0.65, 0.85),
         );
     }
+
+    // Welcome crowd: healthy robots and mini EDIEs
+    draw_ending_crowd(assets, elapsed, cam);
 
     // Big cheering EDIE, gently bobbing
     let mascot_size = 220.0;

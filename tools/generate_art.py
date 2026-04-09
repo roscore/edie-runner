@@ -601,6 +601,86 @@ def make_pigeon() -> None:
     save_png(sheet, "obstacle_pigeon.png", palette_lock=False)
 
 
+def _make_infected_variant(src_name: str, out_name: str) -> None:
+    """Load a healthy robot sprite and produce an infected variant:
+    desaturate + push toward sickly green, sprinkle virus spots, glowing
+    red eye replacements where the sprite has bright accents."""
+    src = GEN / src_name
+    if not src.exists():
+        return
+    im = Image.open(src).convert("RGBA")
+    a = np.array(im)
+    h, w = a.shape[:2]
+    out = a.copy()
+    for y in range(h):
+        for x in range(w):
+            r, g, b, al = a[y, x]
+            if al < 10:
+                continue
+            # Desaturate toward sickly green-grey
+            lum = int(0.3 * r + 0.59 * g + 0.11 * b)
+            nr = int(lum * 0.55 + 20)
+            ng = int(lum * 0.85 + 40)
+            nb = int(lum * 0.55 + 20)
+            out[y, x] = (
+                max(0, min(255, nr)),
+                max(0, min(255, ng)),
+                max(0, min(255, nb)),
+                al,
+            )
+    # Overlay procedural virus spots (deterministic per output name)
+    import hashlib
+
+    seed = int(hashlib.md5(out_name.encode()).hexdigest(), 16) & 0xFFFF
+    import random as _r
+
+    rng = _r.Random(seed)
+    for _ in range(8):
+        cx = rng.randint(2, w - 3)
+        cy = rng.randint(2, h - 3)
+        if a[cy, cx, 3] < 10:
+            continue
+        # Dark green spot core
+        for dx in (-1, 0, 1):
+            for dy in (-1, 0, 1):
+                nx, ny = cx + dx, cy + dy
+                if 0 <= nx < w and 0 <= ny < h and a[ny, nx, 3] > 0:
+                    out[ny, nx] = (35, 110, 45, 255)
+        # Bright highlight
+        if a[cy, cx, 3] > 0:
+            out[cy, cx] = (120, 220, 130, 255)
+    # Red glowing eye pixels wherever the original had the brightest accent
+    # (find the single brightest pixel and replace a 1-pixel neighborhood)
+    brightest = (0, 0, 0)
+    for y in range(h):
+        for x in range(w):
+            if a[y, x, 3] < 200:
+                continue
+            lum = int(a[y, x, 0]) + int(a[y, x, 1]) + int(a[y, x, 2])
+            if lum > brightest[2]:
+                brightest = (x, y, lum)
+    bx, by, _ = brightest
+    if brightest[2] > 0:
+        for dx in (-1, 0, 1):
+            for dy in (0,):
+                nx, ny = bx + dx, by + dy
+                if 0 <= nx < w and 0 <= ny < h and a[ny, nx, 3] > 0:
+                    out[ny, nx] = (240, 60, 60, 255)
+    save_png(Image.fromarray(out, "RGBA"), out_name, palette_lock=False)
+
+
+def make_infected_robots() -> None:
+    print("[infected] deriving virus-infected robot variants")
+    for name in (
+        "obstacle_amy.png",
+        "obstacle_alicem1.png",
+        "obstacle_alice3.png",
+        "obstacle_alice4.png",
+        "obstacle_boxbot.png",
+    ):
+        _make_infected_variant(name, name.replace("obstacle_", "obstacle_infected_"))
+
+
 def process_robot_refs() -> None:
     """Downsample the user-provided AeiROBOT reference PNGs into game-ready
     sprites, preserving their silhouette and palette."""
@@ -1439,93 +1519,116 @@ def make_stage_backgrounds() -> None:
     save_png(floor, "bg_office_floor.png", palette_lock=False)
 
     # ============================================================
-    # Stage 4b: AeiROBOT CEO Room (dark luxe, intimidating)
+    # Stage 4b: AeiROBOT Production Factory (virus outbreak origin)
+    # Industrial assembly line with hanging arms + infection warnings
     # ============================================================
     far = new_canvas(256, 100)
     d = ImageDraw.Draw(far)
-    # Dark wood panel wall
-    d.rectangle((0, 0, 256, 100), fill=(40, 30, 25, 255))
-    for px in range(0, 256, 32):
-        d.rectangle((px, 0, px + 1, 100), fill=(80, 55, 40, 255))
-    # Ceiling crown molding
-    d.rectangle((0, 0, 256, 8), fill=(80, 55, 40, 255))
-    d.rectangle((0, 8, 256, 10), fill=(120, 85, 60, 255))
-    # Giant floor-to-ceiling window with city night view
-    d.rectangle((80, 14, 176, 90), fill=(20, 25, 50, 255), outline=(150, 110, 70, 255), width=2)
-    # Distant city lights
-    import random as _r
-    rng = _r.Random(77)
-    for _ in range(60):
-        cx = rng.randint(82, 174)
-        cy = rng.randint(20, 60)
-        col = rng.choice([(255, 230, 120, 255), (200, 220, 255, 255), (255, 180, 100, 255)])
-        d.point((cx, cy), fill=col)
-    # Cracked glass pattern (virus breach)
-    d.line((80, 40, 128, 30), fill=(220, 220, 240, 200))
-    d.line((128, 30, 176, 60), fill=(220, 220, 240, 200))
-    d.line((128, 30, 100, 70), fill=(220, 220, 240, 200))
-    d.line((128, 30, 160, 75), fill=(220, 220, 240, 200))
-    # Window divider
-    d.line((128, 14, 128, 90), fill=(150, 110, 70, 255))
-    # Red ALERT band across top
-    d.rectangle((0, 0, 256, 6), fill=(180, 30, 30, 255))
-    d.rectangle((0, 2, 256, 3), fill=(255, 80, 80, 255))
-    # Warning triangles
-    for cx, cy in ((50, 28), (218, 28), (50, 82), (218, 82)):
+    # Concrete factory wall
+    d.rectangle((0, 0, 256, 100), fill=(78, 82, 90, 255))
+    # Horizontal girder band near the top
+    d.rectangle((0, 10, 256, 18), fill=(120, 125, 135, 255), outline=EDIE_OUTLINE, width=1)
+    d.rectangle((0, 12, 256, 14), fill=(170, 175, 185, 255))
+    # Bolts along girder
+    for bx in range(8, 256, 16):
+        d.ellipse((bx, 14, bx + 2, 16), fill=(40, 40, 45, 255))
+    # Pipes running along the back wall (green coolant)
+    d.rectangle((0, 24, 256, 30), fill=(60, 130, 90, 255), outline=EDIE_OUTLINE, width=1)
+    d.rectangle((0, 26, 256, 28), fill=(100, 180, 130, 255))
+    # Pipe joints
+    for jx in range(20, 256, 48):
+        d.rectangle((jx, 22, jx + 6, 32), fill=(50, 110, 75, 255), outline=EDIE_OUTLINE, width=1)
+    # Suspension gantries overhead
+    for gx in (30, 130, 220):
+        d.rectangle((gx, 18, gx + 4, 40), fill=(90, 95, 105, 255), outline=EDIE_OUTLINE, width=1)
+        d.rectangle((gx - 6, 38, gx + 10, 44), fill=(80, 85, 95, 255), outline=EDIE_OUTLINE, width=1)
+        # Hanging chain
+        for cy in range(44, 58, 3):
+            d.point((gx + 2, cy), fill=(40, 40, 45, 255))
+        # Claw
         d.polygon(
-            [(cx, cy - 5), (cx - 5, cy + 4), (cx + 5, cy + 4)],
-            fill=(230, 200, 40, 255),
+            [(gx - 2, 58), (gx + 2, 64), (gx + 6, 58)],
+            fill=(140, 140, 150, 255),
             outline=EDIE_OUTLINE,
         )
-        d.rectangle((cx - 1, cy - 2, cx + 1, cy + 1), fill=EDIE_OUTLINE)
-    # Red glitch scan lines
-    for gy in (20, 45, 68):
-        for gx in range(0, 80, 10):
-            d.rectangle((gx, gy, gx + 5, gy + 1), fill=(220, 50, 50, 180))
-        for gx in range(180, 256, 10):
-            d.rectangle((gx, gy, gx + 5, gy + 1), fill=(220, 50, 50, 180))
-    # CEO portrait frames (left/right of window)
-    for fx in (20, 212):
-        d.rectangle((fx, 30, fx + 40, 70), fill=(120, 85, 60, 255), outline=EDIE_OUTLINE, width=2)
-        d.rectangle((fx + 4, 34, fx + 36, 66), fill=(80, 70, 60, 255))
-        # Silhouette
-        d.ellipse((fx + 14, 40, fx + 26, 52), fill=(200, 180, 160, 255))
-        d.rectangle((fx + 12, 52, fx + 28, 64), fill=(50, 50, 60, 255))
-    save_png(far, "bg_ceo_far.png", palette_lock=False)
+    # Rear assembly cells (glowing interior)
+    for cx in (60, 160):
+        d.rectangle((cx, 50, cx + 44, 84), fill=(40, 45, 55, 255), outline=EDIE_OUTLINE, width=2)
+        d.rectangle((cx + 4, 54, cx + 40, 80), fill=(80, 100, 130, 255))
+        # Robot torso in progress
+        d.rectangle((cx + 16, 58, cx + 28, 72), fill=(220, 220, 230, 255), outline=EDIE_OUTLINE, width=1)
+        d.rectangle((cx + 18, 60, cx + 26, 64), fill=(180, 180, 195, 255))
+        # Sparks
+        d.point((cx + 10, 66), fill=(255, 220, 100, 255))
+        d.point((cx + 34, 70), fill=(255, 200, 100, 255))
+    # Infection: sickly green corona glow leaking from vents
+    for vx, vy in ((18, 82), (116, 88), (232, 84)):
+        for r_off, alpha in ((8, 120), (5, 180), (2, 255)):
+            d.ellipse(
+                (vx - r_off, vy - r_off, vx + r_off, vy + r_off),
+                fill=(80, 200, 100, alpha // 3 if r_off > 5 else alpha),
+            )
+    # BIOHAZARD warning panels near top corners
+    for bx in (6, 228):
+        d.rectangle((bx, 32, bx + 22, 48), fill=(240, 220, 40, 255), outline=EDIE_OUTLINE, width=2)
+        # Biohazard trefoil simplified: 3 dots + center ring
+        d.ellipse((bx + 9, 35, bx + 13, 39), fill=(0, 0, 0, 255))
+        d.ellipse((bx + 5, 41, bx + 9, 45), fill=(0, 0, 0, 255))
+        d.ellipse((bx + 13, 41, bx + 17, 45), fill=(0, 0, 0, 255))
+        d.ellipse((bx + 9, 40, bx + 13, 44), fill=(240, 220, 40, 255))
+    # Red ALERT band top
+    d.rectangle((0, 0, 256, 4), fill=(200, 40, 40, 255))
+    d.rectangle((0, 2, 256, 3), fill=(255, 100, 100, 255))
+    save_png(far, "bg_factory_far.png", palette_lock=False)
 
     mid = new_canvas(256, 60)
     d = ImageDraw.Draw(mid)
-    d.rectangle((0, 40, 256, 60), fill=(30, 22, 18, 255))
-    # Executive desk centered
-    d.rectangle((64, 22, 192, 50), fill=(70, 40, 25, 255), outline=EDIE_OUTLINE, width=2)
-    # Desk top highlight
-    d.rectangle((64, 22, 192, 26), fill=(140, 90, 55, 255))
-    # Desktop computer
-    d.rectangle((100, 10, 156, 24), fill=(30, 30, 40, 255), outline=EDIE_OUTLINE, width=1)
-    d.rectangle((102, 12, 154, 22), fill=(120, 200, 240, 255))
-    # Lamp
-    d.line((76, 8, 76, 22), fill=(80, 80, 90, 255))
-    d.polygon([(70, 2), (82, 2), (78, 8), (74, 8)], fill=(240, 200, 80, 255), outline=EDIE_OUTLINE)
-    # Office chair behind desk
-    d.rectangle((120, 42, 136, 55), fill=(40, 40, 50, 255), outline=EDIE_OUTLINE, width=1)
-    # Leather couches on sides
-    d.rectangle((2, 32, 60, 48), fill=(120, 60, 40, 255), outline=EDIE_OUTLINE, width=1)
-    d.rectangle((196, 32, 254, 48), fill=(120, 60, 40, 255), outline=EDIE_OUTLINE, width=1)
-    save_png(mid, "bg_ceo_mid.png", palette_lock=False)
+    # Assembly conveyor band
+    d.rectangle((0, 28, 256, 44), fill=(50, 55, 65, 255), outline=EDIE_OUTLINE, width=1)
+    # Conveyor rollers
+    for rx in range(4, 256, 16):
+        d.ellipse((rx, 34, rx + 12, 46), fill=(90, 95, 105, 255), outline=EDIE_OUTLINE, width=1)
+        d.ellipse((rx + 3, 37, rx + 9, 43), fill=(140, 145, 155, 255))
+    # Conveyor belt top surface
+    d.rectangle((0, 26, 256, 30), fill=(35, 40, 50, 255))
+    # Half-assembled robot chassis moving along
+    for cx in (20, 96, 172, 248):
+        d.rectangle((cx, 14, cx + 24, 28), fill=(210, 210, 225, 255), outline=EDIE_OUTLINE, width=1)
+        d.rectangle((cx + 4, 18, cx + 10, 22), fill=(60, 140, 90, 255))  # infected green LED
+        d.rectangle((cx + 14, 18, cx + 20, 22), fill=(60, 140, 90, 255))
+        # Exposed wires
+        d.line((cx + 12, 28, cx + 12, 32), fill=(180, 50, 50, 255))
+        d.line((cx + 16, 28, cx + 16, 32), fill=(220, 200, 40, 255))
+    # Floor-standing coolant tanks at edges
+    for tx in (2, 232):
+        d.rectangle((tx, 34, tx + 20, 58), fill=(80, 130, 100, 255), outline=EDIE_OUTLINE, width=1)
+        d.rectangle((tx + 2, 36, tx + 18, 42), fill=(100, 180, 130, 255))
+        d.rectangle((tx + 4, 38, tx + 16, 40), fill=(180, 240, 200, 255))
+    # Virus leak pooling
+    for py in (50, 53, 56):
+        for px in range(72, 200, 12):
+            d.point((px, py), fill=(70, 180, 90, 200))
+    save_png(mid, "bg_factory_mid.png", palette_lock=False)
 
     floor = new_canvas(256, 80)
     d = ImageDraw.Draw(floor)
-    # Plush red carpet
-    d.rectangle((0, 0, 256, 80), fill=(120, 40, 40, 255))
-    d.rectangle((0, 0, 256, 4), fill=(180, 60, 50, 255))
-    d.rectangle((0, 4, 256, 6), fill=(220, 180, 60, 255))  # gold trim
-    # Diamond pattern
-    for ty in range(12, 80, 12):
-        for tx in range((ty // 12) * 8 % 16, 256, 16):
-            d.point((tx, ty), fill=(160, 60, 55, 255))
-            d.point((tx + 1, ty), fill=(160, 60, 55, 255))
-            d.point((tx, ty + 1), fill=(160, 60, 55, 255))
-    save_png(floor, "bg_ceo_floor.png", palette_lock=False)
+    # Dark industrial steel floor
+    d.rectangle((0, 0, 256, 80), fill=(48, 52, 60, 255))
+    d.rectangle((0, 0, 256, 4), fill=(80, 85, 95, 255))
+    # Diamond plate pattern
+    for ty in range(8, 80, 10):
+        for tx in range((ty // 10) * 6 % 12, 256, 12):
+            d.rectangle((tx, ty, tx + 3, ty + 3), fill=(70, 75, 85, 255))
+            d.point((tx + 1, ty + 1), fill=(100, 105, 115, 255))
+    # Yellow hazard stripe along top edge
+    for sx in range(0, 256, 16):
+        d.rectangle((sx, 4, sx + 8, 9), fill=(230, 190, 40, 255))
+        d.rectangle((sx + 8, 4, sx + 16, 9), fill=(40, 40, 45, 255))
+    # Oil puddles (sickly green, infection leak)
+    for (ox, oy, orad) in ((40, 28, 6), (120, 44, 8), (200, 20, 5), (90, 60, 7)):
+        d.ellipse((ox - orad, oy - orad, ox + orad, oy + orad), fill=(40, 120, 60, 200))
+        d.ellipse((ox - orad + 2, oy - orad + 1, ox - 1, oy), fill=(90, 190, 110, 255))
+    save_png(floor, "bg_factory_floor.png", palette_lock=False)
 
 
 def make_background() -> None:
@@ -2029,6 +2132,7 @@ def main() -> None:
     make_alice3()
     make_alice4()
     process_robot_refs()
+    make_infected_robots()
     print()
     print("[pickups]")
     make_aurora()

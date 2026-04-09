@@ -225,9 +225,16 @@ async fn main() {
         }
         let elapsed = game.world.elapsed;
         let speed_for_telegraph = game.world.current_speed();
+        // Robots are virus-infected in stages leading up to the boss fight.
+        let infected = matches!(
+            game.world.current_stage(),
+            edie_runner::game::difficulty::Stage::Ansan
+                | edie_runner::game::difficulty::Stage::AeiRobotOffice
+                | edie_runner::game::difficulty::Stage::AeiRobotFactory
+        );
         for o in &game.world.obstacles.obstacles {
             if o.alive {
-                draw_obstacle(o, &assets, elapsed, speed_for_telegraph, &cam);
+                draw_obstacle(o, &assets, elapsed, speed_for_telegraph, infected, &cam);
             }
         }
         for s in &game.world.pickups.stones {

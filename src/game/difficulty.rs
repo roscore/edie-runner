@@ -36,7 +36,7 @@ pub enum Stage {
     Highway,
     Ansan,
     AeiRobotOffice,
-    AeiRobotCEORoom,
+    AeiRobotFactory,
 }
 
 pub fn stage_for_tier(tier: u32) -> Stage {
@@ -47,7 +47,7 @@ pub fn stage_for_tier(tier: u32) -> Stage {
         3 | 4 => Stage::Highway,
         5 | 6 => Stage::Ansan,
         7 => Stage::AeiRobotOffice,
-        _ => Stage::AeiRobotCEORoom,
+        _ => Stage::AeiRobotFactory,
     }
 }
 
@@ -59,7 +59,7 @@ pub fn stage_name(stage: Stage) -> &'static str {
         Stage::Highway => "HIGHWAY TO ANSAN",
         Stage::Ansan => "HANYANG UNIV (ERICA)",
         Stage::AeiRobotOffice => "AEIROBOT OFFICE",
-        Stage::AeiRobotCEORoom => "AEIROBOT CEO ROOM",
+        Stage::AeiRobotFactory => "AEIROBOT PRODUCTION FACTORY",
     }
 }
 

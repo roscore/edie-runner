@@ -276,6 +276,7 @@ pub fn draw_obstacle(
     assets: &AssetHandles,
     elapsed: f32,
     current_speed: f32,
+    infected: bool,
     cam: &Camera,
 ) {
     let (w, h) = o.kind.size();
@@ -396,22 +397,25 @@ pub fn draw_obstacle(
             );
         }
         ObstacleKind::BoxBot => {
+            let tex = if infected { &assets.obstacle_infected_boxbot } else { &assets.obstacle_boxbot };
             let f = frame_index(elapsed, 4.0, 2);
-            draw_tex_frame(
-                &assets.obstacle_boxbot, f, 44.0, 40.0, 1.0, o.x, o.y, cam, WHITE,
-            );
+            draw_tex_frame(tex, f, 44.0, 40.0, 1.0, o.x, o.y, cam, WHITE);
         }
         ObstacleKind::Amy => {
-            draw_tex_at(&assets.obstacle_amy, o.x, o.y, w, h, cam, WHITE);
+            let tex = if infected { &assets.obstacle_infected_amy } else { &assets.obstacle_amy };
+            draw_tex_at(tex, o.x, o.y, w, h, cam, WHITE);
         }
         ObstacleKind::AliceM1 => {
-            draw_tex_at(&assets.obstacle_alicem1, o.x, o.y, w, h, cam, WHITE);
+            let tex = if infected { &assets.obstacle_infected_alicem1 } else { &assets.obstacle_alicem1 };
+            draw_tex_at(tex, o.x, o.y, w, h, cam, WHITE);
         }
         ObstacleKind::Alice3 => {
-            draw_tex_at(&assets.obstacle_alice3, o.x, o.y, w, h, cam, WHITE);
+            let tex = if infected { &assets.obstacle_infected_alice3 } else { &assets.obstacle_alice3 };
+            draw_tex_at(tex, o.x, o.y, w, h, cam, WHITE);
         }
         ObstacleKind::Alice4 => {
-            draw_tex_at(&assets.obstacle_alice4, o.x, o.y, w, h, cam, WHITE);
+            let tex = if infected { &assets.obstacle_infected_alice4 } else { &assets.obstacle_alice4 };
+            draw_tex_at(tex, o.x, o.y, w, h, cam, WHITE);
         }
     }
 }

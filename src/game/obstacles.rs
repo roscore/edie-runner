@@ -248,7 +248,7 @@ impl ObstacleField {
                 pool.push(ObstacleKind::Alice3);
                 pool.push(ObstacleKind::SignBoard);
             }
-            Stage::AeiRobotCEORoom => {
+            Stage::AeiRobotFactory => {
                 pool.push(ObstacleKind::Alice3);
                 pool.push(ObstacleKind::Alice3);
                 pool.push(ObstacleKind::Alice4);
@@ -342,7 +342,7 @@ impl ObstacleField {
             // CEO Room is extreme: tighter spacing + less random extra.
             let stage = stage_for_tier(tier_for_score(score));
             let (density, jitter) = match stage {
-                Stage::AeiRobotCEORoom => (0.55, 120.0),
+                Stage::AeiRobotFactory => (0.55, 120.0),
                 Stage::AeiRobotOffice => (0.80, 160.0),
                 _ => (1.0, 200.0),
             };

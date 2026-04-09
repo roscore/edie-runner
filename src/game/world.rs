@@ -31,8 +31,8 @@ fn tier_banner_label(tier: u32) -> String {
         5 => "HANYANG ERICA - ALICE3 ONLINE".to_string(),
         6 => "HANYANG ERICA - ALICE4 ENGAGED".to_string(),
         7 => "AEIROBOT OFFICE - HOME STRETCH".to_string(),
-        8 => "AEIROBOT CEO ROOM - MAXIMUM CHAOS".to_string(),
-        9 => "CEO ROOM - BREAK THE LIMIT".to_string(),
+        8 => "AEIROBOT FACTORY - INFECTED".to_string(),
+        9 => "FACTORY - CRITICAL INFECTION".to_string(),
         _ => format!("TIER {}", tier),
     }
 }
