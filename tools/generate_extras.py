@@ -428,104 +428,101 @@ def make_boss_virus_pumpkin() -> Image.Image:
     for (dx, dy) in ((-32, 28), (28, 26), (-18, 42), (38, 10)):
         d.ellipse((cx + dx - 3, cy + dy - 3, cx + dx + 3, cy + dy + 3), fill=core_dark)
 
-    # ---------- Angular "demon slit" eyes ----------
-    # Narrow pointed ovals slanting down-and-outward so they read as
-    # angry even without brow shapes. Vertex polygon instead of a
-    # circle so the silhouette is clearly NOT round.
-    eye_cy = cy - 16
-    def slit_eye(center_x: int, flip: bool) -> None:
-        # Diamond/lozenge shape with a pointed outer tip for menace.
-        inner_tip = (center_x - 26 if not flip else center_x + 26, eye_cy + 2)
-        outer_tip = (center_x + 26 if not flip else center_x - 26, eye_cy - 6)
-        top_mid = (center_x + (-2 if not flip else 2), eye_cy - 10)
-        bot_mid = (center_x + (4 if not flip else -4), eye_cy + 10)
-        pts = [inner_tip, top_mid, outer_tip, bot_mid]
-        # Black outer socket
-        d.polygon(pts, fill=eye_dark, outline=out)
-        # Inner orange->yellow glow (scaled inward toward the center)
-        cxe = center_x
-        inner_pts = [
-            (cxe + int((p[0] - cxe) * 0.75), eye_cy + int((p[1] - eye_cy) * 0.75))
-            for p in pts
+    # ---------- Jack-o-lantern triangular eyes ----------
+    # Matching the Halloween-pumpkin reference: two downward-pointing
+    # triangular cutouts, not slits and not round cartoon eyes. Yellow
+    # glow inside so they read as carved + lit.
+    def pumpkin_eye(center_x: int, center_y: int) -> None:
+        # Outer jagged triangle (base at top, point at bottom).
+        outer = [
+            (center_x - 16, center_y - 13),
+            (center_x - 11, center_y - 15),
+            (center_x - 4, center_y - 13),
+            (center_x + 3, center_y - 15),
+            (center_x + 11, center_y - 13),
+            (center_x + 16, center_y - 11),
+            (center_x + 9, center_y - 2),
+            (center_x + 2, center_y + 10),
+            (center_x - 2, center_y + 10),
+            (center_x - 9, center_y - 2),
+            (center_x - 16, center_y - 11),
         ]
-        d.polygon(inner_pts, fill=eye_orange)
-        inner_pts2 = [
-            (cxe + int((p[0] - cxe) * 0.55), eye_cy + int((p[1] - eye_cy) * 0.55))
-            for p in pts
+        d.polygon(outer, fill=eye_dark, outline=out)
+        # Inner orange glow triangle.
+        inner1 = [
+            (center_x - 12, center_y - 10),
+            (center_x + 12, center_y - 10),
+            (center_x + 7, center_y - 2),
+            (center_x + 1, center_y + 7),
+            (center_x - 1, center_y + 7),
+            (center_x - 7, center_y - 2),
         ]
-        d.polygon(inner_pts2, fill=eye_yellow)
-        # Bright core highlight
+        d.polygon(inner1, fill=eye_orange)
+        # Yellow inner core.
+        inner2 = [
+            (center_x - 9, center_y - 7),
+            (center_x + 9, center_y - 7),
+            (center_x + 5, center_y - 1),
+            (center_x, center_y + 4),
+            (center_x - 5, center_y - 1),
+        ]
+        d.polygon(inner2, fill=eye_yellow)
+        # Bright glow center.
         d.ellipse(
-            (cxe - 3, eye_cy - 2, cxe + 3, eye_cy + 3),
+            (center_x - 3, center_y - 4, center_x + 3, center_y + 1),
             fill=eye_glow,
         )
 
-    slit_eye(cx - 28, flip=False)
-    slit_eye(cx + 28, flip=True)
+    pumpkin_eye(cx - 28, cy - 14)
+    pumpkin_eye(cx + 28, cy - 14)
 
-    # Angry slanted brow bars above each slit so the whole face reads
-    # as glaring down at the player.
-    for ex_off, slant in ((-28, -1), (28, 1)):
-        ex = cx + ex_off
-        if slant < 0:
-            pts = [
-                (ex - 26, eye_cy - 26),
-                (ex + 22, eye_cy - 16),
-                (ex + 22, eye_cy - 10),
-                (ex - 26, eye_cy - 20),
-            ]
-        else:
-            pts = [
-                (ex - 22, eye_cy - 16),
-                (ex + 26, eye_cy - 26),
-                (ex + 26, eye_cy - 20),
-                (ex - 22, eye_cy - 10),
-            ]
-        d.polygon(pts, fill=core_dark)
-
-    # ---------- Huge pumpkin grin ----------
-    mouth_top = cy + 16
-    mouth_bottom = cy + 58
-    mouth_left = cx - 58
-    mouth_right = cx + 58
+    # ---------- Smaller Halloween-pumpkin grin ----------
+    # Playtest complaint: the old mouth was too big, nearly spanning the
+    # whole body width. Shrunk to roughly 60% the previous width and
+    # nested a little lower on the body.
+    mouth_top = cy + 20
+    mouth_bottom = cy + 48
+    mouth_left = cx - 34
+    mouth_right = cx + 34
     d.polygon(
         [
             (mouth_left, mouth_top + 4),
             (mouth_right, mouth_top + 4),
-            (mouth_right - 6, mouth_bottom),
-            (mouth_left + 6, mouth_bottom),
+            (mouth_right - 4, mouth_bottom),
+            (mouth_left + 4, mouth_bottom),
         ],
         fill=grin_dark,
         outline=out,
     )
     d.polygon(
         [
-            (mouth_left + 4, mouth_top + 8),
-            (mouth_right - 4, mouth_top + 8),
-            (mouth_right - 10, mouth_bottom - 4),
-            (mouth_left + 10, mouth_bottom - 4),
+            (mouth_left + 3, mouth_top + 7),
+            (mouth_right - 3, mouth_top + 7),
+            (mouth_right - 7, mouth_bottom - 3),
+            (mouth_left + 7, mouth_bottom - 3),
         ],
         fill=grin_inner,
     )
-    tooth_step = 11
-    for i in range(11):
-        tx = mouth_left + 6 + i * tooth_step
+    # Fewer, slightly smaller teeth.
+    tooth_step = 9
+    for i in range(7):
+        tx = mouth_left + 4 + i * tooth_step
         d.polygon(
             [
                 (tx, mouth_top + 4),
                 (tx + tooth_step - 1, mouth_top + 4),
-                (tx + tooth_step // 2, mouth_top + 16),
+                (tx + tooth_step // 2, mouth_top + 13),
             ],
             fill=tooth,
             outline=out,
         )
-    for i in range(10):
-        tx = mouth_left + 12 + i * tooth_step
+    for i in range(6):
+        tx = mouth_left + 9 + i * tooth_step
         d.polygon(
             [
                 (tx, mouth_bottom - 2),
                 (tx + tooth_step - 1, mouth_bottom - 2),
-                (tx + tooth_step // 2, mouth_bottom - 14),
+                (tx + tooth_step // 2, mouth_bottom - 11),
             ],
             fill=tooth,
             outline=out,
