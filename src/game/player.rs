@@ -4,8 +4,11 @@
 pub const GROUND_Y: f32 = 320.0;
 pub const GRAVITY: f32 = 2400.0;
 pub const JUMP_INITIAL_VY: f32 = -780.0;
-pub const JUMP_HOLD_EXTRA_VY: f32 = -260.0;
-pub const JUMP_HOLD_MAX_TIME: f32 = 0.120;
+/// Strong upward thrust while jump is held -- the delta between a held
+/// jump and a tap should be *obvious*. At -1600 px/s for 0.2 s we add
+/// ~320 px/s of upward velocity, nearly doubling apex height.
+pub const JUMP_HOLD_EXTRA_VY: f32 = -1600.0;
+pub const JUMP_HOLD_MAX_TIME: f32 = 0.20;
 pub const COYOTE_TIME: f32 = 0.080;
 pub const DUCK_HITBOX_SHRINK: f32 = 0.45;
 pub const HITBOX_INSET: f32 = 6.0;

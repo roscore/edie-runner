@@ -425,9 +425,69 @@ pub fn draw_obstacle(
             draw_tex_at(tex, o.x, o.y, w, h, cam, WHITE);
         }
         ObstacleKind::SoccerBall => {
-            let f = frame_index(elapsed, 10.0, 2);
-            draw_tex_frame(
-                &assets.obstacle_soccerball, f, 24.0, 24.0, 1.0, o.x, o.y, cam, WHITE,
+            // High-visibility treatment: pulsing neon halo + streaking
+            // motion trail under the rolling ball so it reads against the
+            // busy Factory background and hordes of Alice bots.
+            let f = frame_index(elapsed, 12.0, 2);
+            let cx = o.x + w * 0.5;
+            let cy = o.y + h * 0.5;
+            let pulse = 0.55 + 0.35 * ((elapsed * 18.0).sin() * 0.5 + 0.5);
+            let (gx, gy) = cam.to_screen(cx, cy);
+            // Outer yellow glow
+            draw_circle(
+                gx,
+                gy,
+                cam.scaled(w * 0.85),
+                Color::new(1.0, 0.92, 0.25, 0.22 * pulse),
+            );
+            // Inner red warning halo
+            draw_circle(
+                gx,
+                gy,
+                cam.scaled(w * 0.65),
+                Color::new(1.0, 0.25, 0.15, 0.35 * pulse),
+            );
+            // Motion streak behind the ball (toward +x since ball rolls left)
+            for i in 0..4i32 {
+                let tx = cx + (i as f32 + 1.0) * 10.0;
+                let (stx, sty) = cam.to_screen(tx, cy);
+                draw_circle(
+                    stx,
+                    sty,
+                    cam.scaled(w * 0.35 - i as f32 * 2.0),
+                    Color::new(1.0, 0.88, 0.2, 0.18 - i as f32 * 0.04),
+                );
+            }
+            // Scale the 24x24 source frame up to the obstacle's display
+            // size so changes to size() propagate.
+            let (bsx, bsy) = cam.to_screen(o.x, o.y);
+            let src_w = 24.0f32;
+            let src_h = 24.0f32;
+            draw_texture_ex(
+                &assets.obstacle_soccerball,
+                bsx,
+                bsy,
+                WHITE,
+                DrawTextureParams {
+                    dest_size: Some(vec2(cam.scaled(w), cam.scaled(h))),
+                    source: Some(Rect {
+                        x: f as f32 * (src_w + 1.0),
+                        y: 0.0,
+                        w: src_w,
+                        h: src_h,
+                    }),
+                    ..Default::default()
+                },
+            );
+            // Bright outline on top so the ball pops against anything
+            let (bx, by) = cam.to_screen(o.x - 2.0, o.y - 2.0);
+            draw_rectangle_lines(
+                bx,
+                by,
+                cam.scaled(w + 4.0),
+                cam.scaled(h + 4.0),
+                2.0,
+                Color::new(1.0, 0.95, 0.3, 0.85),
             );
         }
     }
@@ -1124,63 +1184,43 @@ pub fn draw_hit_flash(effects: &crate::game::effects::Effects, cam: &Camera) {
     );
 }
 
-/// Metal-Slug style stage transition wipe. Plays over the world for ~1.4s
-/// when the player enters a new stage. Black bars slide in, the new stage
-/// name flashes in the middle, then bars slide out.
+/// Stage transition: subtle full-screen dim, no obstructive bars, with the
+/// new stage name floating in center. Keeps gameplay visible the whole
+/// time so obstacles never "pop in" out of nowhere.
 pub fn draw_stage_wipe(effects: &crate::game::effects::Effects, cam: &Camera) {
     let wipe = match &effects.stage_wipe {
         Some(w) => w,
         None => return,
     };
     let t = 1.0 - (wipe.remaining / wipe.total); // 0..1
-    // Three phases: slide-in 0..0.2, HOLD 0.2..0.8, slide-out 0.8..1.0.
-    // With a 2.6s total that gives ~0.5s in, ~1.55s hold, ~0.5s out.
-    let (bar_in, bar_hold, bar_out) = (0.20, 0.80, 1.0);
-    let bar_progress = if t < bar_in {
-        (t / bar_in).clamp(0.0, 1.0)
-    } else if t < bar_hold {
-        1.0
-    } else {
-        (1.0 - (t - bar_hold) / (bar_out - bar_hold)).clamp(0.0, 1.0)
-    };
 
-    let bar_h = 1280.0; // slant length, diagonal feel
-    let max_w = 720.0;
-    let w = max_w * bar_progress;
-    // Top bar slides in from left, bottom bar from right (for diagonal X)
-    let (tlx, tly) = cam.to_screen(0.0, 0.0);
+    // Ease in-and-out curve for the dim overlay (peaks around t=0.5).
+    let dim_curve = (t * std::f32::consts::PI).sin().clamp(0.0, 1.0);
+    let dim = 0.35 * dim_curve;
+    let (x0, y0) = cam.to_screen(0.0, 0.0);
     draw_rectangle(
-        tlx,
-        tly,
-        cam.scaled(w),
-        cam.scaled(200.0),
-        Color::new(0.02, 0.02, 0.04, 1.0),
+        x0,
+        y0,
+        cam.scaled(1280.0),
+        cam.scaled(400.0),
+        Color::new(0.02, 0.02, 0.04, dim),
     );
-    let (blx, bly) = cam.to_screen(1280.0 - w, 200.0);
-    draw_rectangle(
-        blx,
-        bly,
-        cam.scaled(w),
-        cam.scaled(200.0),
-        Color::new(0.02, 0.02, 0.04, 1.0),
-    );
-    // Thin bright trim on the leading edges
-    let trim = Color::new(1.0, 0.82, 0.2, 1.0);
-    let (tx, ty) = cam.to_screen(w - 3.0, 0.0);
-    draw_rectangle(tx, ty, cam.scaled(3.0), cam.scaled(200.0), trim);
-    let (bx, by) = cam.to_screen(1280.0 - w, 200.0);
-    draw_rectangle(bx, by, cam.scaled(3.0), cam.scaled(200.0), trim);
 
-    // Text appears while bars are held (now much longer)
-    if t > 0.18 && t < 0.88 {
-        let fade = if t < 0.26 {
-            ((t - 0.18) / 0.08).clamp(0.0, 1.0)
-        } else if t > 0.80 {
-            (1.0 - (t - 0.80) / 0.08).clamp(0.0, 1.0)
-        } else {
-            1.0
-        };
-        // "NOW ENTERING" label
+    // Accent sweep: a thin bright horizontal line crossing the screen once.
+    let sweep_t = (t * 1.2).clamp(0.0, 1.0);
+    let sweep_x = -120.0 + sweep_t * (1280.0 + 240.0);
+    let (ssx, ssy) = cam.to_screen(sweep_x, 0.0);
+    draw_rectangle(
+        ssx,
+        ssy,
+        cam.scaled(4.0),
+        cam.scaled(400.0),
+        Color::new(1.0, 0.9, 0.3, 0.45 * dim_curve),
+    );
+
+    // Text fades in then out, matching the dim curve.
+    let fade = dim_curve;
+    if fade > 0.02 {
         let label = "NOW ENTERING";
         let lsize = 22.0 * cam.scale;
         let ldim = measure_text(label, None, lsize as u16, 1.0);
@@ -1192,26 +1232,23 @@ pub fn draw_stage_wipe(effects: &crate::game::effects::Effects, cam: &Camera) {
             lsize,
             Color::new(1.0, 0.85, 0.2, fade),
         );
-        // Stage name
-        let size = 46.0 * cam.scale;
-        let dim = measure_text(&wipe.new_stage_name, None, size as u16, 1.0);
-        let (tx, ty) = cam.to_screen(640.0, 220.0);
-        // Shadow
+        let size = 44.0 * cam.scale;
+        let dim_t = measure_text(&wipe.new_stage_name, None, size as u16, 1.0);
+        let (tx, ty) = cam.to_screen(640.0, 210.0);
         draw_text(
             &wipe.new_stage_name,
-            tx - dim.width * 0.5 + 3.0,
+            tx - dim_t.width * 0.5 + 3.0,
             ty + 3.0,
             size,
-            Color::new(0.0, 0.0, 0.0, fade * 0.7),
+            Color::new(0.0, 0.0, 0.0, fade * 0.6),
         );
         draw_text(
             &wipe.new_stage_name,
-            tx - dim.width * 0.5,
+            tx - dim_t.width * 0.5,
             ty,
             size,
             Color::new(1.0, 1.0, 1.0, fade),
         );
-        let _ = bar_h;
     }
 }
 

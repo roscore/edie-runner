@@ -152,47 +152,34 @@ impl World {
 
         let speed = self.current_speed();
         self.background.update(sim_dt, speed);
-        // Stage boundary handling.
-        let wipe_active = self.effects.is_stage_wiping();
-        const PREWIPE_WINDOW: u32 = 400;
-        let score = self.score.current;
-        let tier_now = tier_for_score(score);
-        let stage_now = crate::game::difficulty::stage_for_tier(tier_now);
-        let into_tier = score % crate::game::difficulty::SCORE_PER_TIER;
-        let distance_to_next = crate::game::difficulty::SCORE_PER_TIER - into_tier;
-        let next_tier = (tier_now + 1).min(crate::game::difficulty::MAX_TIER);
-        let next_stage = crate::game::difficulty::stage_for_tier(next_tier);
-        let crossing_stage = next_stage != stage_now;
-        let prewipe_block = crossing_stage && distance_to_next <= PREWIPE_WINDOW;
 
-        if wipe_active {
-            // Let existing obstacles scroll off. Keep updating their motion
-            // but do not spawn new ones. Collisions still work; the player
-            // handles any stragglers.
-            self.obstacles
-                .update(sim_dt, speed, score, &mut self.rng);
-            self.pickups
-                .update(sim_dt, speed, &mut self.rng, &self.obstacles);
-            // Drain obstacles that have passed the player so they can't
-            // build up off-screen.
-            self.obstacles
-                .obstacles
-                .retain(|o| o.x + o.kind.size().0 > -80.0);
-        } else if prewipe_block {
-            // Pre-wipe window: advance existing obstacles but block new
-            // spawns. Call the obstacle update with a "spawn suppressed"
-            // signal by temporarily forcing next_spawn_gap very high.
+        // Stage transitions: the visual wipe is short and unobtrusive, so
+        // we only suppress new obstacle spawns during the early "slide-in"
+        // slice of the wipe. The rest of the time we keep spawning so the
+        // new stage is already populated when the wipe clears -- no
+        // embarrassing empty screen after transitions.
+        let score = self.score.current;
+        let suppress_spawns = self
+            .effects
+            .stage_wipe
+            .as_ref()
+            .map(|w| {
+                let elapsed = w.total - w.remaining;
+                // Only block spawns during the first half of the wipe; let
+                // later frames queue up obstacles that will be visible by
+                // the time the player sees the new stage.
+                elapsed < w.total * 0.5
+            })
+            .unwrap_or(false);
+
+        if suppress_spawns {
             let saved_gap = self.obstacles.next_spawn_gap;
             self.obstacles.next_spawn_gap = f32::INFINITY;
             self.obstacles
                 .update(sim_dt, speed, score, &mut self.rng);
-            // Restore only if no spawn was triggered (spawn trigger resets
-            // the gap internally; we always set to a finite value for
-            // post-wipe resumption).
             if self.obstacles.next_spawn_gap.is_infinite() {
                 self.obstacles.next_spawn_gap = saved_gap;
             }
-            // Also suppress pickup spawns in the pre-wipe window.
             let saved_heart = self.pickups.time_to_next_heart;
             let saved_aurora = self.pickups.time_to_next;
             self.pickups.time_to_next_heart = f32::INFINITY;
@@ -228,14 +215,13 @@ impl World {
             self.last_tier = current_tier;
         }
 
-        // Stage change wipe - Metal Slug style transition.
-        // We trigger the wipe the moment we enter a new stage, AND we
-        // suppress new obstacle spawns for a pre-wipe window so the stage
-        // boundary feels smooth (no pop-out of obstacles mid-wipe).
+        // Stage change wipe - quick, tasteful transition. Total duration is
+        // short enough that gameplay barely pauses, and spawns keep flowing
+        // through the back half so the new stage is already populated.
         let current_stage = crate::game::difficulty::stage_for_tier(current_tier);
         if current_stage != self.last_stage {
             let name = crate::game::difficulty::stage_name(current_stage).to_string();
-            self.effects.start_stage_wipe(name, 2.6);
+            self.effects.start_stage_wipe(name, 1.4);
             self.last_stage = current_stage;
         }
 

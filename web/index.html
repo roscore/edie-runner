@@ -49,6 +49,30 @@
       })();
     </script>
     <script src="https://not-fl3.github.io/miniquad-samples/mq_js_bundle.js"></script>
+    <!-- Must come after mq_js_bundle (so miniquad_add_plugin exists) and
+         before load() (so the plugin is registered when the wasm is
+         instantiated). -->
+    <script src="edie_plugin.js"></script>
+    <script>
+      // Proactively resume the AudioContext on first user interaction so
+      // sounds actually play on mobile Safari / Chrome autoplay policy.
+      (function () {
+        function kick() {
+          try {
+            var Ctx = window.AudioContext || window.webkitAudioContext;
+            if (!Ctx) return;
+            if (!window.__edie_audio_ctx) {
+              window.__edie_audio_ctx = new Ctx();
+            }
+            var ctx = window.__edie_audio_ctx;
+            if (ctx && ctx.state === 'suspended') ctx.resume();
+          } catch (e) {}
+        }
+        ['touchstart', 'touchend', 'mousedown', 'keydown'].forEach(function (ev) {
+          document.addEventListener(ev, kick, { passive: true });
+        });
+      })();
+    </script>
     <script>load("edie_runner.wasm");</script>
 </body>
 </html>

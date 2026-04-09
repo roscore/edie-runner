@@ -225,6 +225,12 @@ impl Game {
                 self.state = GameState::Story;
             }
             (GameState::Playing, _) => {
+                // During the 3-2-1-GO countdown, discard world actions so
+                // held keys from the title screen / gameover screen don't
+                // jump or duck EDIE the instant the run begins.
+                if self.countdown_remaining > 0.0 {
+                    return;
+                }
                 self.world.apply_action(action);
             }
             _ => {}
@@ -267,6 +273,10 @@ impl Game {
         self.boss_input_dx = 0.0;
         self.boss_intro_remaining = 0.0;
         self.debug_run = false;
+        // Explicit clean slate: player is grounded, not holding jump.
+        self.world.player.jump_held = false;
+        self.world.player.duck_held = false;
+        self.world.player.vy = 0.0;
     }
 
     pub fn update<S: Storage>(&mut self, real_dt: f32, storage: &mut S) {
@@ -291,6 +301,7 @@ impl Game {
                     BossOutcome::Hit => {
                         let final_score = self.world.score.current;
                         if !self.debug_run {
+                            let _ = self.world.score.save_if_new_high(storage);
                             self.run_history.insert(0, final_score);
                             if self.run_history.len() > RUN_HISTORY_LEN {
                                 self.run_history.truncate(RUN_HISTORY_LEN);
@@ -311,6 +322,7 @@ impl Game {
                         self.last_ending_true = phase >= 2;
                         self.state = GameState::Ending;
                         if !self.debug_run {
+                            let _ = self.world.score.save_if_new_high(storage);
                             let final_score = self.world.score.current;
                             // Ending also qualifies for leaderboard, but
                             // we skip the name entry while the ending
@@ -350,6 +362,8 @@ impl Game {
             RunOutcome::Died => {
                 let final_score = self.world.score.current;
                 if !self.debug_run {
+                    // Persist the high score so reloads keep it.
+                    let _ = self.world.score.save_if_new_high(storage);
                     self.run_history.insert(0, final_score);
                     if self.run_history.len() > RUN_HISTORY_LEN {
                         self.run_history.truncate(RUN_HISTORY_LEN);

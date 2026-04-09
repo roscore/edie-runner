@@ -114,9 +114,9 @@ pub fn draw_background(
         Stage::AeiRobotFactory => &assets.stage_factory,
     };
 
-    // Background tint: dimmed + desaturated so foreground sprites pop.
-    // For outdoor stages we multiply onto the day/night color; for indoor
-    // stages we use a flat muted tone.
+    // Background tint: heavily dimmed + desaturated so foreground sprites
+    // pop. Lower saturation + slightly cooler tint so the eye reads the
+    // parallax as a distant backdrop and not a busy playable layer.
     let stage_tint = if outdoor { tint } else { WHITE };
     let desat = |c: Color, strength: f32| {
         let gray = 0.3 * c.r + 0.59 * c.g + 0.11 * c.b;
@@ -127,61 +127,76 @@ pub fn draw_background(
             1.0,
         )
     };
-    let base_bg = desat(stage_tint, 0.55);
-    let bg_dim = 0.78;
+    let base_bg = desat(stage_tint, 0.80);
+    let bg_dim = 0.68;
     let dimmed = Color::new(
-        base_bg.r * bg_dim + 0.06,
-        base_bg.g * bg_dim + 0.06,
-        base_bg.b * bg_dim + 0.06,
+        base_bg.r * bg_dim + 0.10,
+        base_bg.g * bg_dim + 0.10,
+        base_bg.b * bg_dim + 0.12,
         1.0,
     );
     let bg_tint = if outdoor { dimmed } else {
-        Color::new(0.76, 0.76, 0.80, 1.0)
+        Color::new(0.70, 0.70, 0.76, 1.0)
     };
 
-    // Far layer: original position (y=200, h=100), wider tiles for spacing.
-    let far_tile_w = 384.0;
-    let far_y = 200.0;
-    let far_h = 100.0;
-    let mut x = -(bg.far_offset % far_tile_w);
-    while x < LOGICAL_W {
-        let (px, py) = cam.to_screen(x, far_y);
-        draw_texture_ex(
-            &stage_bg.far,
-            px,
-            py,
-            bg_tint,
-            DrawTextureParams {
-                dest_size: Some(vec2(cam.scaled(far_tile_w), cam.scaled(far_h))),
-                ..Default::default()
-            },
-        );
-        x += far_tile_w;
+    // Helper: draw a tiled parallax layer with alternating flipped tiles so
+    // the backdrop reads different even when sharing one texture.
+    fn draw_parallax_layer(
+        tex: &macroquad::texture::Texture2D,
+        offset: f32,
+        tile_w: f32,
+        y: f32,
+        h: f32,
+        tint: Color,
+        cam: &Camera,
+    ) {
+        let base_tile = (offset / tile_w).floor() as i64;
+        let start_x = -(offset - base_tile as f32 * tile_w);
+        let mut i: i64 = 0;
+        let mut x = start_x;
+        while x < LOGICAL_W {
+            let (px, py) = cam.to_screen(x, y);
+            let absolute_idx = base_tile + i;
+            let flip_x = absolute_idx.rem_euclid(2) == 1;
+            draw_texture_ex(
+                tex,
+                px,
+                py,
+                tint,
+                DrawTextureParams {
+                    dest_size: Some(vec2(cam.scaled(tile_w), cam.scaled(h))),
+                    flip_x,
+                    ..Default::default()
+                },
+            );
+            x += tile_w;
+            i += 1;
+        }
     }
 
-    // Mid layer: back to its original position sitting ON the floor
-    // (y=270, h=60, bottom at 330). This is where it naturally belongs --
-    // trees / benches / desks are ground-level props. Keep it visually
-    // receded by desaturating extra hard.
-    let mid_tile_w = 384.0;
-    let mid_y = 270.0;
-    let mid_h = 60.0;
+    // Far layer: wide tile so the same silhouette doesn't repeat across one
+    // screen. 768 px means only ~1.67 tiles visible at once.
+    draw_parallax_layer(
+        &stage_bg.far,
+        bg.far_offset,
+        768.0,
+        200.0,
+        100.0,
+        bg_tint,
+        cam,
+    );
+
+    // Mid layer: wider tile + flip alternation for extra variety.
     let mid_tint = desat(bg_tint, 0.30);
-    let mut x = -(bg.mid_offset % mid_tile_w);
-    while x < LOGICAL_W {
-        let (px, py) = cam.to_screen(x, mid_y);
-        draw_texture_ex(
-            &stage_bg.mid,
-            px,
-            py,
-            mid_tint,
-            DrawTextureParams {
-                dest_size: Some(vec2(cam.scaled(mid_tile_w), cam.scaled(mid_h))),
-                ..Default::default()
-            },
-        );
-        x += mid_tile_w;
-    }
+    draw_parallax_layer(
+        &stage_bg.mid,
+        bg.mid_offset,
+        640.0,
+        270.0,
+        60.0,
+        mid_tint,
+        cam,
+    );
 
     // Floor — muted tint so sprites read above it.
     let floor_tint = if outdoor {
@@ -194,24 +209,17 @@ pub fn draw_background(
     } else {
         Color::new(0.80, 0.80, 0.84, 1.0)
     };
-    let floor_tile_w = 384.0;
-    let floor_y = 320.0;
-    let floor_h = 80.0;
-    let mut x = -(bg.floor_offset % floor_tile_w);
-    while x < LOGICAL_W {
-        let (px, py) = cam.to_screen(x, floor_y);
-        draw_texture_ex(
-            &stage_bg.floor,
-            px,
-            py,
-            floor_tint,
-            DrawTextureParams {
-                dest_size: Some(vec2(cam.scaled(floor_tile_w), cam.scaled(floor_h))),
-                ..Default::default()
-            },
-        );
-        x += floor_tile_w;
-    }
+    // Floor keeps its original 384 px tile -- the player is close to it so
+    // stretching looks bad; alternating flip keeps it looking varied.
+    draw_parallax_layer(
+        &stage_bg.floor,
+        bg.floor_offset,
+        384.0,
+        320.0,
+        80.0,
+        floor_tint,
+        cam,
+    );
 }
 
 pub fn draw_hud(
@@ -266,16 +274,9 @@ pub fn draw_hud(
                     ..Default::default()
                 },
             );
-        } else {
-            draw_rectangle_lines(
-                sx,
-                sy,
-                cam.scaled(heart_size),
-                cam.scaled(heart_size),
-                2.0,
-                Color::new(0.4, 0.1, 0.15, 0.5),
-            );
         }
+        // Empty slots render nothing -- the old dark-red square outline read
+        // as an untextured debug box.
     }
 
     // Aurora gauge (top-left, below hearts) - three pulsing slots using the real
@@ -306,23 +307,6 @@ pub fn draw_hud(
         let (sx, sy) = cam.to_screen(lx, ly);
         let filled = i < dash.aurora;
 
-        // Slot frame - rounded square background
-        draw_rectangle(
-            sx - cam.scaled(2.0),
-            sy - cam.scaled(2.0),
-            cam.scaled(slot_size + 4.0),
-            cam.scaled(slot_size + 4.0),
-            Color::new(0.1, 0.1, 0.1, 0.25),
-        );
-        draw_rectangle_lines(
-            sx - cam.scaled(2.0),
-            sy - cam.scaled(2.0),
-            cam.scaled(slot_size + 4.0),
-            cam.scaled(slot_size + 4.0),
-            2.0,
-            Color::new(0.1, 0.1, 0.1, 0.6),
-        );
-
         if filled {
             draw_texture_ex(
                 &assets.aurora_purple,
@@ -336,13 +320,12 @@ pub fn draw_hud(
                 },
             );
         } else {
-            // Empty slot - faded core
-            draw_rectangle(
-                sx + cam.scaled(slot_size * 0.3),
-                sy + cam.scaled(slot_size * 0.3),
-                cam.scaled(slot_size * 0.4),
-                cam.scaled(slot_size * 0.4),
-                Color::new(0.62, 0.42, 1.00, 0.15),
+            // Empty slot -- small faint circle hint, no debug-looking square.
+            draw_circle(
+                sx + cam.scaled(slot_size * 0.5),
+                sy + cam.scaled(slot_size * 0.5),
+                cam.scaled(4.0),
+                Color::new(0.62, 0.42, 1.00, 0.22),
             );
         }
     }
@@ -574,6 +557,21 @@ pub fn draw_overlay(
             hy,
             hint_size,
             Color::new(0.9, 0.85, 0.55, 0.95),
+        );
+    }
+
+    // Build/version stamp in the bottom-right corner on Title only.
+    if matches!(state, GameState::Title) {
+        let version = format!("v{}", env!("CARGO_PKG_VERSION"));
+        let size = 16.0 * cam.scale;
+        let dim_v = measure_text(&version, None, size as u16, 1.0);
+        let (vx, vy) = cam.to_screen(LOGICAL_W - 16.0, LOGICAL_H - 12.0);
+        draw_text(
+            &version,
+            vx - dim_v.width,
+            vy,
+            size,
+            Color::new(0.95, 0.9, 0.55, 0.85),
         );
     }
 }

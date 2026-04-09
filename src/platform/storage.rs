@@ -49,21 +49,84 @@ mod tests {
     }
 }
 
-/// In-memory "browser" storage. The localStorage bridge will be re-added
-/// in a follow-up commit once the JS plugin is verified in isolation; for
-/// now we keep the game bulletproof by only using an in-memory map.
+// =====================================================================
+// BrowserStorage: wasm localStorage bridge, native HashMap fallback.
+// =====================================================================
+#[cfg(all(feature = "graphics", target_arch = "wasm32"))]
+mod js_bridge {
+    extern "C" {
+        pub fn edie_ls_set(
+            key_ptr: *const u8,
+            key_len: usize,
+            val_ptr: *const u8,
+            val_len: usize,
+        );
+        pub fn edie_ls_get(
+            key_ptr: *const u8,
+            key_len: usize,
+            out_ptr: *mut u8,
+            out_cap: usize,
+        ) -> i32;
+    }
+}
+
 #[cfg(feature = "graphics")]
 pub struct BrowserStorage {
-    map: std::cell::RefCell<std::collections::HashMap<String, String>>,
+    // In-session cache so the same value round-trips even if localStorage
+    // is unavailable (private browsing, cookies disabled, non-wasm tests).
+    cache: std::cell::RefCell<std::collections::HashMap<String, String>>,
 }
 
 #[cfg(feature = "graphics")]
 impl BrowserStorage {
     pub fn new() -> Self {
         Self {
-            map: std::cell::RefCell::new(std::collections::HashMap::new()),
+            cache: std::cell::RefCell::new(std::collections::HashMap::new()),
         }
     }
+
+    #[cfg(target_arch = "wasm32")]
+    fn ls_get(key: &str) -> Option<String> {
+        // 16 KiB is well above what our leaderboard + high score needs.
+        let mut buf = vec![0u8; 16 * 1024];
+        let key_bytes = key.as_bytes();
+        let n = unsafe {
+            js_bridge::edie_ls_get(
+                key_bytes.as_ptr(),
+                key_bytes.len(),
+                buf.as_mut_ptr(),
+                buf.len(),
+            )
+        };
+        if n < 0 {
+            return None;
+        }
+        let n = n as usize;
+        buf.truncate(n);
+        String::from_utf8(buf).ok()
+    }
+
+    #[cfg(target_arch = "wasm32")]
+    fn ls_set(key: &str, value: &str) {
+        let key_bytes = key.as_bytes();
+        let val_bytes = value.as_bytes();
+        unsafe {
+            js_bridge::edie_ls_set(
+                key_bytes.as_ptr(),
+                key_bytes.len(),
+                val_bytes.as_ptr(),
+                val_bytes.len(),
+            );
+        }
+    }
+
+    #[cfg(not(target_arch = "wasm32"))]
+    fn ls_get(_key: &str) -> Option<String> {
+        None
+    }
+
+    #[cfg(not(target_arch = "wasm32"))]
+    fn ls_set(_key: &str, _value: &str) {}
 }
 
 #[cfg(feature = "graphics")]
@@ -76,11 +139,24 @@ impl Default for BrowserStorage {
 #[cfg(feature = "graphics")]
 impl Storage for BrowserStorage {
     fn get(&self, key: &str) -> Option<String> {
-        self.map.borrow().get(key).cloned()
+        // 1. In-session cache (fast path, also covers failed localStorage).
+        if let Some(v) = self.cache.borrow().get(key).cloned() {
+            return Some(v);
+        }
+        // 2. Real localStorage via the JS bridge (wasm only).
+        if let Some(v) = Self::ls_get(key) {
+            self.cache
+                .borrow_mut()
+                .insert(key.to_string(), v.clone());
+            return Some(v);
+        }
+        None
     }
+
     fn set(&mut self, key: &str, value: &str) {
-        self.map
+        self.cache
             .borrow_mut()
             .insert(key.to_string(), value.to_string());
+        Self::ls_set(key, value);
     }
 }
