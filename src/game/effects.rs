@@ -136,12 +136,16 @@ impl Effects {
         }
     }
 
-    pub fn start_stage_wipe(&mut self, name: String) {
+    pub fn start_stage_wipe(&mut self, name: String, duration: f32) {
         self.stage_wipe = Some(StageWipe {
-            remaining: 1.4,
-            total: 1.4,
+            remaining: duration,
+            total: duration,
             new_stage_name: name,
         });
+    }
+
+    pub fn is_stage_wiping(&self) -> bool {
+        self.stage_wipe.is_some()
     }
 
     pub fn trigger_death_shake(&mut self) {

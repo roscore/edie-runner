@@ -559,12 +559,44 @@ def make_sports_car() -> None:
     save_png(im, "obstacle_sportscar.png", palette_lock=False)
 
 
-def make_chandelier() -> None:
-    """Hanging department-store chandelier - 44x56, 2 frame sway."""
+def make_soccer_ball() -> None:
+    """Classic black/white soccer ball - 24x24, 2 frame roll."""
     frames = []
-    brass = (200, 170, 70, 255)
-    brass_d = (140, 110, 40, 255)
-    glass = (255, 240, 200, 255)
+    out = EDIE_OUTLINE
+    white = (245, 245, 250, 255)
+    black = (35, 35, 42, 255)
+    for f in range(2):
+        w, h = 24, 24
+        im = new_canvas(w, h)
+        d = ImageDraw.Draw(im)
+        cx, cy = 12, 12
+        d.ellipse((1, 1, 22, 22), fill=white, outline=out, width=1)
+        # Pentagon blocks -- rotate between frames
+        if f == 0:
+            d.polygon([(cx, 4), (16, 9), (14, 14), (10, 14), (8, 9)], fill=black)
+            d.polygon([(4, 14), (8, 16), (6, 20)], fill=black)
+            d.polygon([(20, 14), (16, 16), (18, 20)], fill=black)
+        else:
+            d.polygon([(cx, 5), (17, 10), (15, 15), (9, 15), (7, 10)], fill=black)
+            d.polygon([(5, 13), (9, 15), (7, 19)], fill=black)
+            d.polygon([(19, 13), (15, 15), (17, 19)], fill=black)
+        # Motion streaks
+        d.line((0, 10, 2, 10), fill=(255, 255, 255, 200))
+        d.line((0, 14, 2, 14), fill=(255, 255, 255, 200))
+        frames.append(im)
+    sheet = tile_horizontal(frames)
+    save_png(sheet, "obstacle_soccerball.png", palette_lock=False)
+
+
+def make_mall_balloon() -> None:
+    """Promotional shop balloon cluster hanging in the mall - 44x56, 2-frame sway."""
+    frames = []
+    red = (230, 60, 70, 255)
+    red_hi = (255, 150, 150, 255)
+    blue = (70, 150, 220, 255)
+    blue_hi = (170, 210, 250, 255)
+    yellow = (240, 200, 60, 255)
+    yellow_hi = (255, 230, 140, 255)
     out = EDIE_OUTLINE
     for f in range(2):
         w, h = 44, 56
@@ -572,57 +604,36 @@ def make_chandelier() -> None:
         d = ImageDraw.Draw(im)
         sway = f
         cx = w // 2 + sway
-        # Ceiling mount + chain
-        d.rectangle((cx - 3, 0, cx + 3, 3), fill=(90, 90, 100, 255), outline=out, width=1)
-        for cy in range(3, 15, 3):
-            d.line((cx, cy, cx + (cy % 2), cy + 2), fill=(70, 70, 80, 255))
-        # Top cap
+        # Short chain attaching to ceiling
+        d.rectangle((cx - 2, 0, cx + 2, 3), fill=(90, 90, 100, 255), outline=out, width=1)
+        d.line((cx, 3, cx, 10), fill=(60, 60, 70, 255))
+        # Top balloon (red)
+        d.ellipse((cx - 8, 8, cx + 8, 24), fill=red, outline=out, width=1)
+        d.ellipse((cx - 5, 11, cx - 2, 15), fill=red_hi)
+        d.polygon([(cx - 2, 24), (cx + 2, 24), (cx, 26)], fill=(180, 40, 50, 255))
+        # Left balloon (blue)
+        d.ellipse((2, 18, 18, 34), fill=blue, outline=out, width=1)
+        d.ellipse((5, 21, 8, 25), fill=blue_hi)
+        d.polygon([(9, 34), (13, 34), (11, 36)], fill=(50, 120, 180, 255))
+        # Right balloon (yellow)
+        d.ellipse((w - 19, 18, w - 3, 34), fill=yellow, outline=out, width=1)
+        d.ellipse((w - 16, 21, w - 13, 25), fill=yellow_hi)
+        d.polygon([(w - 15, 34), (w - 11, 34), (w - 13, 36)], fill=(180, 150, 30, 255))
+        # Strings meeting at a bottom knot
+        knot_y = 42 + sway
+        d.line((cx, 26, cx, knot_y), fill=out)
+        d.line((11, 36, cx, knot_y), fill=out)
+        d.line((w - 13, 36, cx, knot_y), fill=out)
+        # Tassel ribbon below the knot
+        d.rectangle((cx - 1, knot_y, cx + 1, knot_y + 6), fill=red)
         d.polygon(
-            [(cx - 4, 14), (cx + 4, 14), (cx + 6, 18), (cx - 6, 18)],
-            fill=brass_d,
+            [(cx - 3, knot_y + 6), (cx + 3, knot_y + 6), (cx, knot_y + 12)],
+            fill=red_hi,
             outline=out,
         )
-        # Central brass stem
-        d.rectangle((cx - 2, 18, cx + 2, 28), fill=brass, outline=out, width=1)
-        # Main crystal body
-        d.polygon(
-            [
-                (cx - 16, 26),
-                (cx + 16, 26),
-                (cx + 14, 38),
-                (cx - 14, 38),
-            ],
-            fill=brass,
-            outline=out,
-        )
-        d.polygon(
-            [
-                (cx - 14, 27),
-                (cx + 14, 27),
-                (cx + 12, 36),
-                (cx - 12, 36),
-            ],
-            fill=brass_d,
-        )
-        # Dangling crystals
-        for dx, dy in ((-14, 38), (-7, 40), (0, 42), (7, 40), (14, 38)):
-            px = cx + dx
-            py = dy
-            d.line((px, py, px, py + 6), fill=brass, width=1)
-            d.polygon(
-                [(px - 2, py + 6), (px + 2, py + 6), (px, py + 12)],
-                fill=glass,
-                outline=out,
-            )
-            d.point((px, py + 8), fill=(255, 255, 255, 255))
-        # 3 candle bulbs above the ring
-        for bx in (cx - 10, cx, cx + 10):
-            d.rectangle((bx - 1, 20, bx + 1, 24), fill=glass, outline=out, width=1)
-            d.point((bx, 19), fill=(255, 220, 120, 255))
-            d.point((bx, 18), fill=(255, 200, 80, 255))
         frames.append(im)
     sheet = tile_horizontal(frames)
-    save_png(sheet, "obstacle_chandelier.png", palette_lock=False)
+    save_png(sheet, "obstacle_mallballoon.png", palette_lock=False)
 
 
 def make_pigeon() -> None:
@@ -2191,7 +2202,8 @@ def main() -> None:
     make_deer()
     make_balloon_drone()
     make_pigeon()
-    make_chandelier()
+    make_mall_balloon()
+    make_soccer_ball()
     make_box_bot()
     # Procedural fallbacks first -- then real PNGs overwrite if present.
     make_amy()

@@ -15,7 +15,7 @@ pub enum ObstacleKind {
     CatOrange,
     CatWhite,
     Pigeon, // duck-forcing bird for Pangyo street stages
-    Chandelier, // hanging department-store chandelier (duck-forcing)
+    MallBalloon, // promotional balloon cluster hanging in the mall (duck-forcing)
     // Highway vehicles
     Car,     // charging generic car
     Truck,   // large slow truck
@@ -31,6 +31,9 @@ pub enum ObstacleKind {
     AliceM1,   // mobile ground robot
     Alice3,    // humanoid v3
     Alice4,    // humanoid v4
+    /// Fast rolling soccer ball kicked by Alice3/4 in the Factory stage.
+    /// Low ground-level projectile, charges at the player.
+    SoccerBall,
 }
 
 impl ObstacleKind {
@@ -59,7 +62,7 @@ impl ObstacleKind {
             ObstacleKind::CatOrange => (48.0, 40.0),
             ObstacleKind::CatWhite => (48.0, 40.0),
             ObstacleKind::Pigeon => (36.0, 32.0),
-            ObstacleKind::Chandelier => (44.0, 56.0),
+            ObstacleKind::MallBalloon => (44.0, 56.0),
             ObstacleKind::Car => (96.0, 40.0),
             ObstacleKind::Truck => (128.0, 56.0),
             ObstacleKind::Bus => (144.0, 52.0),
@@ -72,6 +75,7 @@ impl ObstacleKind {
             ObstacleKind::AliceM1 => (28.0, 64.0),
             ObstacleKind::Alice3 => (25.0, 64.0),
             ObstacleKind::Alice4 => (27.0, 68.0),
+            ObstacleKind::SoccerBall => (24.0, 24.0),
         }
     }
 
@@ -83,8 +87,8 @@ impl ObstacleKind {
             // and ducking escapes.
             ObstacleKind::BalloonDrone => GROUND_Y - 82.0,
             ObstacleKind::Pigeon => GROUND_Y - 82.0 - (h - 48.0),
-            // Chandelier hangs from ceiling, bottom in the duck-forcing band
-            ObstacleKind::Chandelier => GROUND_Y - 74.0 - (h - 48.0),
+            // Mall balloon hovers in the duck-forcing band
+            ObstacleKind::MallBalloon => GROUND_Y - 82.0 - (h - 48.0),
             ObstacleKind::SignBoard => GROUND_Y - 160.0,
             _ => GROUND_Y - h,
         }
@@ -97,7 +101,7 @@ impl ObstacleKind {
             ObstacleKind::BalloonDrone
                 | ObstacleKind::SignBoard
                 | ObstacleKind::Pigeon
-                | ObstacleKind::Chandelier
+                | ObstacleKind::MallBalloon
         )
     }
 }
@@ -182,8 +186,8 @@ impl ObstacleField {
                 pool.push(ObstacleKind::CoffeeCup);
                 pool.push(ObstacleKind::TrafficCone);
                 pool.push(ObstacleKind::ShoppingCart);
-                pool.push(ObstacleKind::Chandelier);
-                pool.push(ObstacleKind::Chandelier);
+                pool.push(ObstacleKind::MallBalloon);
+                pool.push(ObstacleKind::MallBalloon);
             }
             Stage::PangyoStreet => {
                 // Street: cats allowed (alongside pigeons).
@@ -274,6 +278,7 @@ impl ObstacleField {
     pub fn update(&mut self, dt: f32, speed: f32, score: u32, rng: &mut SmallRng) {
         use crate::game::difficulty::{stage_for_tier, Stage};
         let dx = speed * dt;
+        let mut new_spawns: Vec<Obstacle> = Vec::new();
         for o in &mut self.obstacles {
             o.age += dt;
             // Baseline scroll
@@ -294,6 +299,43 @@ impl ObstacleField {
                         o.extra_vx = -(rng.gen_range(120.0..220.0));
                         o.pattern_t = 1.0;
                     }
+                }
+                ObstacleKind::AliceM1 => {
+                    // Factory+: rush at the player with a brief wind-up.
+                    use crate::game::difficulty::{stage_for_tier, Stage};
+                    let stage = stage_for_tier(tier_for_score(score));
+                    if matches!(
+                        stage,
+                        Stage::AeiRobotFactory
+                    ) && o.pattern_t <= 0.0
+                        && o.age > 0.45
+                    {
+                        o.extra_vx = -(rng.gen_range(220.0..320.0));
+                        o.pattern_t = 1.0;
+                    }
+                }
+                ObstacleKind::Alice3 | ObstacleKind::Alice4 => {
+                    // Factory+: after a short wind-up, kick a soccer ball.
+                    use crate::game::difficulty::{stage_for_tier, Stage};
+                    let stage = stage_for_tier(tier_for_score(score));
+                    if matches!(stage, Stage::AeiRobotFactory)
+                        && o.pattern_t <= 0.0
+                        && o.age > 0.35
+                        && o.x < 1100.0
+                    {
+                        // Mark kicked
+                        o.pattern_t = 1.0;
+                        // Spawn a soccer ball traveling left faster than scroll.
+                        let mut ball = Obstacle::new(
+                            ObstacleKind::SoccerBall,
+                            o.x - 6.0,
+                        );
+                        ball.extra_vx = -220.0;
+                        new_spawns.push(ball);
+                    }
+                }
+                ObstacleKind::SoccerBall => {
+                    // Keep rolling; no extra logic.
                 }
                 ObstacleKind::SportsCar => {
                     // Instantly floors it - very fast surge from first frame.
@@ -339,6 +381,7 @@ impl ObstacleField {
             }
         }
         self.obstacles.retain(|o| o.alive && o.x + o.kind.size().0 > -50.0);
+        self.obstacles.extend(new_spawns);
 
         self.scrolled_since_spawn += dx;
         if self.scrolled_since_spawn >= self.next_spawn_gap {
@@ -398,12 +441,13 @@ mod tests {
             ObstacleKind::CatOrange,
             ObstacleKind::CatWhite,
             ObstacleKind::Pigeon,
-            ObstacleKind::Chandelier,
+            ObstacleKind::MallBalloon,
             ObstacleKind::BoxBot,
             ObstacleKind::Amy,
             ObstacleKind::AliceM1,
             ObstacleKind::Alice3,
             ObstacleKind::Alice4,
+            ObstacleKind::SoccerBall,
         ] {
             assert!(kind.destroyable_by_dash(), "{:?} should be destroyable", kind);
         }

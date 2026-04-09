@@ -114,12 +114,24 @@ pub fn draw_background(
         Stage::AeiRobotFactory => &assets.stage_factory,
     };
 
+    // Dim and flatten the background tint so gameplay sprites pop in front
+    // of it. Multiplied onto the day/night tint for outdoor stages.
     let stage_tint = if outdoor { tint } else { WHITE };
+    let bg_dim = 0.72;
+    let dimmed = Color::new(
+        stage_tint.r * bg_dim + 0.08,
+        stage_tint.g * bg_dim + 0.08,
+        stage_tint.b * bg_dim + 0.08,
+        1.0,
+    );
+    let bg_tint = if outdoor { dimmed } else {
+        Color::new(0.78, 0.78, 0.82, 1.0)
+    };
 
-    // Far layer
-    let far_tile_w = 256.0;
-    let far_y = 200.0;
-    let far_h = 100.0;
+    // Far layer — highest on screen, pushed up a bit.
+    let far_tile_w = 320.0;
+    let far_y = 176.0;
+    let far_h = 110.0;
     let mut x = -(bg.far_offset % far_tile_w);
     while x < LOGICAL_W {
         let (px, py) = cam.to_screen(x, far_y);
@@ -127,7 +139,7 @@ pub fn draw_background(
             &stage_bg.far,
             px,
             py,
-            stage_tint,
+            bg_tint,
             DrawTextureParams {
                 dest_size: Some(vec2(cam.scaled(far_tile_w), cam.scaled(far_h))),
                 ..Default::default()
@@ -136,10 +148,20 @@ pub fn draw_background(
         x += far_tile_w;
     }
 
-    // Mid layer
-    let mid_tile_w = 256.0;
-    let mid_y = 270.0;
-    let mid_h = 60.0;
+    // Mid layer — moved well above the gameplay lane so it never touches
+    // player shoulder height (276). y=200 + h=56 -> ends at 256, leaving
+    // 20 px of breathing room above the player hitbox.
+    let mid_tile_w = 320.0;
+    let mid_y = 200.0;
+    let mid_h = 56.0;
+    // Additional desaturation on top of the stage tint for mid layer so
+    // obstacles always read louder than the backdrop.
+    let mid_tint = Color::new(
+        bg_tint.r * 0.85 + 0.10,
+        bg_tint.g * 0.85 + 0.10,
+        bg_tint.b * 0.85 + 0.10,
+        1.0,
+    );
     let mut x = -(bg.mid_offset % mid_tile_w);
     while x < LOGICAL_W {
         let (px, py) = cam.to_screen(x, mid_y);
@@ -147,7 +169,7 @@ pub fn draw_background(
             &stage_bg.mid,
             px,
             py,
-            stage_tint,
+            mid_tint,
             DrawTextureParams {
                 dest_size: Some(vec2(cam.scaled(mid_tile_w), cam.scaled(mid_h))),
                 ..Default::default()
@@ -156,20 +178,31 @@ pub fn draw_background(
         x += mid_tile_w;
     }
 
-    // Floor — slightly desaturated tint for readability
+    // Floor boundary line — a single hard line at GROUND_Y makes obstacles
+    // visually pop against the floor.
+    let (lx0, ly0) = cam.to_screen(0.0, 318.0);
+    draw_rectangle(
+        lx0,
+        ly0,
+        cam.scaled(LOGICAL_W),
+        cam.scaled(3.0),
+        Color::new(0.12, 0.12, 0.14, 0.9),
+    );
+
+    // Floor — keep it mostly desaturated so it doesn't fight the sprites.
     let floor_tint = if outdoor {
         Color::new(
-            0.4 + 0.6 * tint.r,
-            0.4 + 0.6 * tint.g,
-            0.4 + 0.6 * tint.b,
+            0.5 + 0.5 * dimmed.r,
+            0.5 + 0.5 * dimmed.g,
+            0.5 + 0.5 * dimmed.b,
             1.0,
         )
     } else {
-        WHITE
+        Color::new(0.78, 0.78, 0.82, 1.0)
     };
-    let floor_tile_w = 256.0;
-    let floor_y = 320.0;
-    let floor_h = 80.0;
+    let floor_tile_w = 320.0;
+    let floor_y = 321.0;
+    let floor_h = 79.0;
     let mut x = -(bg.floor_offset % floor_tile_w);
     while x < LOGICAL_W {
         let (px, py) = cam.to_screen(x, floor_y);

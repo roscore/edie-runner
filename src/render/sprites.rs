@@ -257,7 +257,7 @@ fn needs_telegraph(o: &Obstacle, speed: f32) -> bool {
         ObstacleKind::Amy
             | ObstacleKind::BalloonDrone
             | ObstacleKind::Pigeon
-            | ObstacleKind::Chandelier
+            | ObstacleKind::MallBalloon
             | ObstacleKind::Car
             | ObstacleKind::SportsCar
             | ObstacleKind::Deer
@@ -397,10 +397,10 @@ pub fn draw_obstacle(
                 &assets.obstacle_pigeon, f, 36.0, 32.0, 1.0, o.x, o.y, cam, WHITE,
             );
         }
-        ObstacleKind::Chandelier => {
+        ObstacleKind::MallBalloon => {
             let f = frame_index(elapsed, 3.0, 2);
             draw_tex_frame(
-                &assets.obstacle_chandelier, f, 44.0, 56.0, 1.0, o.x, o.y, cam, WHITE,
+                &assets.obstacle_mallballoon, f, 44.0, 56.0, 1.0, o.x, o.y, cam, WHITE,
             );
         }
         ObstacleKind::BoxBot => {
@@ -423,6 +423,12 @@ pub fn draw_obstacle(
         ObstacleKind::Alice4 => {
             let tex = if infected { &assets.obstacle_infected_alice4 } else { &assets.obstacle_alice4 };
             draw_tex_at(tex, o.x, o.y, w, h, cam, WHITE);
+        }
+        ObstacleKind::SoccerBall => {
+            let f = frame_index(elapsed, 10.0, 2);
+            draw_tex_frame(
+                &assets.obstacle_soccerball, f, 24.0, 24.0, 1.0, o.x, o.y, cam, WHITE,
+            );
         }
     }
 }
@@ -787,39 +793,82 @@ pub fn draw_boss_mode(
     }
 
     // ======================================================
-    // Sweep laser (during SweepLaser pattern)
+    // Safe-lane burst telegraph (during SafeLaneBurst pattern)
+    //
+    // Paint the danger zones in pulsing red and the safe corridor in green
+    // so the player can read exactly where to stand during the warn window.
     // ======================================================
-    if boss.sweep_laser_active {
-        let lx = boss.sweep_laser_x;
-        let top = by_c + BOSS_SIZE * 0.4;
+    if let Some(lane) = &boss.safe_lane {
+        let is_warn = lane.warn_remaining > 0.0;
+        let top = 200.0;
         let bottom = 400.0;
-        let (sx, sy) = cam.to_screen(lx - 30.0, top);
-        // Outer glow
+        let height = bottom - top;
+        let pulse = if is_warn {
+            ((boss.elapsed * 18.0).sin() * 0.5 + 0.5) * 0.35 + 0.35
+        } else {
+            0.25
+        };
+        // Left danger band
+        if lane.min_x > 0.0 {
+            let (lx, ly) = cam.to_screen(0.0, top);
+            draw_rectangle(
+                lx,
+                ly,
+                cam.scaled(lane.min_x),
+                cam.scaled(height),
+                Color::new(1.0, 0.15, 0.2, pulse),
+            );
+        }
+        // Right danger band
+        if lane.max_x < 1280.0 {
+            let (rx, ry) = cam.to_screen(lane.max_x, top);
+            draw_rectangle(
+                rx,
+                ry,
+                cam.scaled(1280.0 - lane.max_x),
+                cam.scaled(height),
+                Color::new(1.0, 0.15, 0.2, pulse),
+            );
+        }
+        // Safe lane highlight (green)
+        let (sx, sy) = cam.to_screen(lane.min_x, top);
         draw_rectangle(
             sx,
             sy,
-            cam.scaled(60.0),
-            cam.scaled(bottom - top),
-            Color::new(1.0, 0.3, 0.4, 0.35),
+            cam.scaled(lane.max_x - lane.min_x),
+            cam.scaled(height),
+            Color::new(0.2, 0.95, 0.35, 0.18 + pulse * 0.1),
         );
-        // Core beam
-        let (cx_l, cy_l) = cam.to_screen(lx - 14.0, top);
+        // Safe-lane borders
         draw_rectangle(
-            cx_l,
-            cy_l,
-            cam.scaled(28.0),
-            cam.scaled(bottom - top),
-            Color::new(1.0, 0.85, 0.9, 0.9),
-        );
-        // Bright center line
-        let (ccx, ccy) = cam.to_screen(lx - 2.0, top);
-        draw_rectangle(
-            ccx,
-            ccy,
+            sx,
+            sy,
             cam.scaled(4.0),
-            cam.scaled(bottom - top),
-            Color::new(1.0, 1.0, 1.0, 1.0),
+            cam.scaled(height),
+            Color::new(0.35, 1.0, 0.45, 0.9),
         );
+        let (erx, ery) = cam.to_screen(lane.max_x - 4.0, top);
+        draw_rectangle(
+            erx,
+            ery,
+            cam.scaled(4.0),
+            cam.scaled(height),
+            Color::new(0.35, 1.0, 0.45, 0.9),
+        );
+        if is_warn {
+            // "STEP INTO SAFE LANE" text floating above the lane
+            let txt = "SAFE ZONE";
+            let size = 26.0 * cam.scale;
+            let dim = measure_text(txt, None, size as u16, 1.0);
+            let (tx, ty) = cam.to_screen((lane.min_x + lane.max_x) * 0.5, 240.0);
+            draw_text(
+                txt,
+                tx - dim.width * 0.5,
+                ty,
+                size,
+                Color::new(0.95, 1.0, 0.85, 1.0),
+            );
+        }
     }
 
     // ======================================================
@@ -927,7 +976,7 @@ pub fn draw_boss_mode(
         crate::game::boss::BossPattern::Rain => "MUNGCHI RAIN",
         crate::game::boss::BossPattern::DiagonalVolley => "CROSSFIRE VOLLEY",
         crate::game::boss::BossPattern::Spiral => "SPIRAL STORM",
-        crate::game::boss::BossPattern::SweepLaser => "SWEEP LASER",
+        crate::game::boss::BossPattern::SafeLaneBurst => "SAFE LANE BURST",
     };
     let psize = 16.0 * cam.scale;
     let pdim = measure_text(pattern_label, None, psize as u16, 1.0);
@@ -1019,8 +1068,9 @@ pub fn draw_stage_wipe(effects: &crate::game::effects::Effects, cam: &Camera) {
         None => return,
     };
     let t = 1.0 - (wipe.remaining / wipe.total); // 0..1
-    // Three phases: 0.0-0.35 slide-in, 0.35-0.65 hold, 0.65-1.0 slide-out
-    let (bar_in, bar_hold, bar_out) = (0.35, 0.65, 1.0);
+    // Three phases: slide-in 0..0.2, HOLD 0.2..0.8, slide-out 0.8..1.0.
+    // With a 2.6s total that gives ~0.5s in, ~1.55s hold, ~0.5s out.
+    let (bar_in, bar_hold, bar_out) = (0.20, 0.80, 1.0);
     let bar_progress = if t < bar_in {
         (t / bar_in).clamp(0.0, 1.0)
     } else if t < bar_hold {
@@ -1056,12 +1106,12 @@ pub fn draw_stage_wipe(effects: &crate::game::effects::Effects, cam: &Camera) {
     let (bx, by) = cam.to_screen(1280.0 - w, 200.0);
     draw_rectangle(bx, by, cam.scaled(3.0), cam.scaled(200.0), trim);
 
-    // Text appears while bars are held
-    if t > 0.25 && t < 0.85 {
-        let fade = if t < 0.4 {
-            ((t - 0.25) / 0.15).clamp(0.0, 1.0)
-        } else if t > 0.7 {
-            (1.0 - (t - 0.7) / 0.15).clamp(0.0, 1.0)
+    // Text appears while bars are held (now much longer)
+    if t > 0.18 && t < 0.88 {
+        let fade = if t < 0.26 {
+            ((t - 0.18) / 0.08).clamp(0.0, 1.0)
+        } else if t > 0.80 {
+            (1.0 - (t - 0.80) / 0.08).clamp(0.0, 1.0)
         } else {
             1.0
         };

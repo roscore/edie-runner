@@ -15,16 +15,16 @@ pub fn tier_for_score(score: u32) -> u32 {
 }
 
 /// Linear speed ramp from BASE_SPEED at score 0 to SPEED_CAP at SCORE_AT_CAP.
-/// Beyond the cap, speed continues climbing slowly (CEO Room torture zone)
-/// but capped well below the previous 1100 px/s ceiling so it stays playable.
+/// Beyond the cap we essentially clamp -- the Factory stage is meant to be
+/// difficult in density, not raw speed.
 pub fn speed_for_score(score: u32) -> f32 {
     if score <= SCORE_AT_CAP {
         let t = score as f32 / SCORE_AT_CAP as f32;
         BASE_SPEED + (SPEED_CAP - BASE_SPEED) * t
     } else {
-        // Gentler post-cap ramp: +1 px/s per 150 score, softer ceiling.
-        let extra = (score - SCORE_AT_CAP) as f32 * (1.0 / 150.0);
-        (SPEED_CAP + extra).min(820.0)
+        // Very gentle post-cap creep, hard-capped at 720 px/s.
+        let extra = (score - SCORE_AT_CAP) as f32 * (1.0 / 400.0);
+        (SPEED_CAP + extra).min(720.0)
     }
 }
 
@@ -91,10 +91,9 @@ mod tests {
     }
 
     #[test]
-    fn accelerates_past_cap_in_ceo_room() {
-        // Post-cap speed keeps climbing but caps well below the old 1100.
-        assert!(speed_for_score(30000) > SPEED_CAP);
-        assert!(speed_for_score(999_999) <= 820.1);
+    fn accelerates_past_cap_gently() {
+        assert!(speed_for_score(30000) >= SPEED_CAP);
+        assert!(speed_for_score(999_999) <= 720.1);
     }
 
     #[test]

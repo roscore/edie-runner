@@ -77,7 +77,21 @@ pub enum BossPattern {
     Rain,
     DiagonalVolley,
     Spiral,
-    SweepLaser,
+    /// Boss telegraphs a wide vertical "danger band" then rains viruses
+    /// everywhere EXCEPT inside a single "safe lane". Player moves into
+    /// the safe lane to survive. Clear counter-play, no unblockable.
+    SafeLaneBurst,
+}
+
+/// Bounds of the currently telegraphed safe lane in SafeLaneBurst.
+/// (min_x, max_x) in logical px. Set when the burst begins.
+#[derive(Debug, Clone, Copy)]
+pub struct SafeLane {
+    pub min_x: f32,
+    pub max_x: f32,
+    /// Time until the burst actually fires. Negative = currently firing.
+    pub warn_remaining: f32,
+    pub fire_remaining: f32,
 }
 
 pub struct BossWorld {
@@ -92,9 +106,7 @@ pub struct BossWorld {
     pub laser_cooldown: f32,
     pub pattern: BossPattern,
     pub pattern_timer: f32,
-    pub sweep_laser_x: f32,
-    pub sweep_laser_active: bool,
-    pub sweep_laser_dir: f32,
+    pub safe_lane: Option<SafeLane>,
     /// 1 = green Mungchi boss (60s), 2 = hardcore purple boss (30s)
     pub phase: u8,
     /// Brief interlude (e.g. 1.5s) between phases where player sees boss
@@ -116,9 +128,7 @@ impl BossWorld {
             laser_cooldown: 3.0,
             pattern: BossPattern::Rain,
             pattern_timer: 8.0,
-            sweep_laser_x: 0.0,
-            sweep_laser_active: false,
-            sweep_laser_dir: 1.0,
+            safe_lane: None,
             phase: 1,
             interlude_remaining: 0.0,
         }
@@ -130,6 +140,7 @@ impl BossWorld {
     }
 
     pub fn update(&mut self, dt: f32, input_dx: f32, rng: &mut SmallRng) -> BossOutcome {
+        use rand::Rng as _;
         self.elapsed += dt;
         self.boss_bob_t += dt;
 
@@ -144,7 +155,7 @@ impl BossWorld {
                 self.remaining = BOSS_PHASE2_DURATION;
                 self.viruses.clear();
                 self.laser = None;
-                self.sweep_laser_active = false;
+                self.safe_lane = None;
                 self.pattern = BossPattern::Spiral;
                 self.pattern_timer = 4.0;
                 self.spawn_timer = 0.2;
@@ -173,11 +184,11 @@ impl BossWorld {
             self.pattern = match self.pattern {
                 BossPattern::Rain => BossPattern::DiagonalVolley,
                 BossPattern::DiagonalVolley => BossPattern::Spiral,
-                BossPattern::Spiral => BossPattern::SweepLaser,
-                BossPattern::SweepLaser => BossPattern::Rain,
+                BossPattern::Spiral => BossPattern::SafeLaneBurst,
+                BossPattern::SafeLaneBurst => BossPattern::Rain,
             };
             self.pattern_timer = if self.phase == 2 { 4.0 } else { 8.0 };
-            self.sweep_laser_active = false;
+            self.safe_lane = None;
         }
 
         let boss_color = if self.phase == 2 {
@@ -276,42 +287,77 @@ impl BossWorld {
                     self.spawn_timer = if p2 { 0.22 } else { 0.35 };
                 }
             }
-            BossPattern::SweepLaser => {
-                if self.spawn_timer <= 0.0 {
-                    let count = if p2 { 3 } else { 1 };
-                    for _ in 0..count {
-                        let x = rng.gen_range(0.0..=(1280.0 - VIRUS_W));
-                        let vy = rng.gen_range(220.0..320.0) * ps;
-                        self.viruses.push(Virus {
-                            x,
-                            y: -VIRUS_H,
-                            vy,
-                            vx: 0.0,
-                            color: if p2 { VirusColor::Purple } else { VirusColor::Green },
-                            alive: true,
-                        });
-                    }
-                    self.spawn_timer = if p2 { 0.35 } else { 0.7 };
+            BossPattern::SafeLaneBurst => {
+                // Carve a telegraphed safe corridor on the ground, then
+                // blanket everything outside it with viruses. Player reads
+                // the warning and steps into the safe lane.
+                if self.safe_lane.is_none() {
+                    // Pick a lane centered somewhere, width depends on phase
+                    let lane_w = if p2 { 200.0 } else { 260.0 };
+                    let cx = rng.gen_range((lane_w * 0.5 + 40.0)..(1240.0 - lane_w * 0.5));
+                    self.safe_lane = Some(SafeLane {
+                        min_x: cx - lane_w * 0.5,
+                        max_x: cx + lane_w * 0.5,
+                        warn_remaining: if p2 { 0.9 } else { 1.2 },
+                        fire_remaining: 0.0,
+                    });
                 }
-                if !self.sweep_laser_active {
-                    self.sweep_laser_active = true;
-                    self.sweep_laser_x = 100.0;
-                    self.sweep_laser_dir = 1.0;
+                if let Some(lane) = &mut self.safe_lane {
+                    if lane.warn_remaining > 0.0 {
+                        lane.warn_remaining -= dt;
+                        if lane.warn_remaining <= 0.0 {
+                            // Kick off the volley
+                            lane.fire_remaining = if p2 { 1.0 } else { 0.8 };
+                            // Blast a wave of viruses: 20 drops spaced across
+                            // the screen, SKIPPING the safe lane.
+                            let step = 1280.0 / 20.0;
+                            for i in 0..20u32 {
+                                let cx = step * (i as f32 + 0.5);
+                                if cx >= lane.min_x && cx <= lane.max_x {
+                                    continue;
+                                }
+                                let color = if p2 {
+                                    VirusColor::Purple
+                                } else {
+                                    VirusColor::Green
+                                };
+                                self.viruses.push(Virus {
+                                    x: cx - VIRUS_W * 0.5,
+                                    y: -VIRUS_H,
+                                    vy: 380.0 * ps,
+                                    vx: 0.0,
+                                    color,
+                                    alive: true,
+                                });
+                            }
+                        }
+                    } else if lane.fire_remaining > 0.0 {
+                        lane.fire_remaining -= dt;
+                        // Keep the lane visual on screen until the wave has
+                        // fallen past the player.
+                        if lane.fire_remaining <= 0.0 {
+                            self.safe_lane = None;
+                        }
+                    }
+                }
+                // Small rain around the edges for flavor while lane is active
+                self.spawn_timer -= dt;
+                if self.spawn_timer <= 0.0 {
+                    let x = rng.gen_range(0.0..=(1280.0 - VIRUS_W));
+                    let vy = rng.gen_range(220.0..280.0) * ps;
+                    self.viruses.push(Virus {
+                        x,
+                        y: -VIRUS_H,
+                        vy,
+                        vx: 0.0,
+                        color: if p2 { VirusColor::Purple } else { VirusColor::Green },
+                        alive: true,
+                    });
+                    self.spawn_timer = if p2 { 0.5 } else { 0.8 };
                 }
             }
         }
 
-        // Sweep laser movement (phase 2 scans faster)
-        if self.sweep_laser_active {
-            let scan_speed = if p2 { 520.0 } else { 320.0 };
-            self.sweep_laser_x += self.sweep_laser_dir * scan_speed * dt;
-            if self.sweep_laser_x > 1180.0 {
-                self.sweep_laser_dir = -1.0;
-            }
-            if self.sweep_laser_x < 100.0 {
-                self.sweep_laser_dir = 1.0;
-            }
-        }
 
         // Advance viruses
         for v in &mut self.viruses {
@@ -382,14 +428,6 @@ impl BossWorld {
             }
         }
 
-        // Sweep laser collision
-        if self.sweep_laser_active {
-            let lx_min = self.sweep_laser_x - 30.0;
-            let lx_max = self.sweep_laser_x + 30.0;
-            if player_box.x + player_box.w > lx_min && player_box.x < lx_max {
-                return BossOutcome::Hit;
-            }
-        }
 
         if self.remaining <= 0.0 {
             if self.phase == 1 {
@@ -397,7 +435,7 @@ impl BossWorld {
                 self.interlude_remaining = 1.5;
                 self.viruses.clear();
                 self.laser = None;
-                self.sweep_laser_active = false;
+                self.safe_lane = None;
                 return BossOutcome::Continuing;
             }
             return BossOutcome::Survived;
