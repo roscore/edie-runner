@@ -666,109 +666,143 @@ pub fn draw_aurora(s: &AuroraStone, assets: &AssetHandles, elapsed: f32, cam: &C
 
 /// Boss entrance cinematic — 3.5s of building-breaks + flash + boss descent.
 /// `remaining` counts down from BOSS_INTRO_DURATION to 0.
+/// Phase layout of the boss break-in cinematic (all times in seconds
+/// from `t = BOSS_INTRO_DURATION - remaining`). Totals 9.6 s.
+///
+///   0.0 .. 0.8  -- RED ALERT   (flashing border + "!! WARNING !!")
+///   0.8 .. 1.6  -- GLITCH WIPE (CRT scanlines, colour bars, dark)
+///   1.6 .. 2.6  -- BOSS SLAM   (Mungchi drops in, shockwave rings)
+///   2.6 .. 4.8  -- DIALOG 1    (text box: "AEIROBOT IS MINE NOW...")
+///   4.8 .. 6.8  -- DIALOG 2    (text box: "SUBMIT AND BE INFECTED!")
+///   6.8 .. 7.6  -- EDIE CHARGE (body slam streak toward boss)
+///   7.6 .. 8.4  -- IMPACT      (flash, shake, "THWACK!!" text)
+///   8.4 .. 9.6  -- CLEANUP     (boss reel-back, fade into BossFight)
 pub fn draw_boss_intro(remaining: f32, assets: &AssetHandles, cam: &Camera) {
     use crate::game::boss::{BOSS_INTRO_DURATION, BOSS_SIZE, BOSS_X, BOSS_Y_BASE};
     let total = BOSS_INTRO_DURATION;
     let t = total - remaining; // 0 -> total
-    let p = (t / total).clamp(0.0, 1.0); // 0..1
 
-    // Phase 1 (0.0-1.2s): cracks spreading across the screen
-    // Phase 2 (1.2-1.8s): white flash peak
-    // Phase 3 (1.8-3.5s): boss descends from top, settles into position
+    // Phase boundaries
+    const T_ALERT_END: f32 = 0.8;
+    const T_GLITCH_END: f32 = 1.6;
+    const T_SLAM_END: f32 = 2.6;
+    const T_DIALOG1_END: f32 = 4.8;
+    const T_DIALOG2_END: f32 = 6.8;
+    const T_CHARGE_END: f32 = 7.6;
+    const T_IMPACT_END: f32 = 8.4;
 
-    // Dim overlay building up
-    let dim = (p * 0.7).min(0.7);
+    // Base darkening that ramps in over the glitch phase and persists.
+    let dim_alpha = if t < T_ALERT_END {
+        (t / T_ALERT_END) * 0.35
+    } else if t < T_GLITCH_END {
+        0.35 + ((t - T_ALERT_END) / (T_GLITCH_END - T_ALERT_END)) * 0.4
+    } else {
+        0.78
+    };
     let (x0, y0) = cam.to_screen(0.0, 0.0);
     draw_rectangle(
         x0,
         y0,
         cam.scaled(1280.0),
         cam.scaled(400.0),
-        Color::new(0.02, 0.04, 0.02, dim),
+        Color::new(0.02, 0.04, 0.06, dim_alpha),
     );
 
-    // Cracks spreading from center (accumulate over first ~1.2s)
-    let crack_progress = (t / 1.2).clamp(0.0, 1.0);
-    let crack_defs: &[(f32, f32, f32, f32)] = &[
-        (640.0, 200.0, -300.0, -180.0),
-        (640.0, 200.0, 320.0, -160.0),
-        (640.0, 200.0, -260.0, 180.0),
-        (640.0, 200.0, 290.0, 190.0),
-        (640.0, 200.0, -420.0, -20.0),
-        (640.0, 200.0, 420.0, 40.0),
-        (640.0, 200.0, -60.0, -220.0),
-        (640.0, 200.0, 80.0, 220.0),
-    ];
-    for (sx, sy, ex, ey) in crack_defs.iter().copied() {
-        let cx = sx + ex * crack_progress;
-        let cy = sy + ey * crack_progress;
-        let (x1, y1) = cam.to_screen(sx, sy);
-        let (x2, y2) = cam.to_screen(cx, cy);
-        draw_line(
-            x1,
-            y1,
-            x2,
-            y2,
-            3.0 * cam.scale,
-            Color::new(0.95, 0.95, 0.8, 0.85),
+    // ---------- PHASE 1: RED ALERT ----------
+    if t < T_ALERT_END {
+        let pulse = ((t * 20.0).sin() * 0.5 + 0.5) * 0.6 + 0.3;
+        // Thick red border flashing around the whole play area.
+        let border_w = 12.0;
+        for (rx, ry, rw, rh) in [
+            (0.0, 0.0, 1280.0, border_w),
+            (0.0, 400.0 - border_w, 1280.0, border_w),
+            (0.0, 0.0, border_w, 400.0),
+            (1280.0 - border_w, 0.0, border_w, 400.0),
+        ] {
+            let (sxp, syp) = cam.to_screen(rx, ry);
+            draw_rectangle(
+                sxp,
+                syp,
+                cam.scaled(rw),
+                cam.scaled(rh),
+                Color::new(1.0, 0.2, 0.25, pulse),
+            );
+        }
+        // Pulsing "!! WARNING !!" on the top band.
+        let txt = "!! WARNING !!";
+        let size = 42.0 * cam.scale;
+        let dim = measure_text(txt, None, size as u16, 1.0);
+        let (tx, ty) = cam.to_screen(640.0, 120.0);
+        draw_text(
+            txt,
+            tx - dim.width * 0.5 + 3.0,
+            ty + 3.0,
+            size,
+            Color::new(0.0, 0.0, 0.0, 0.7),
         );
-        draw_line(
-            x1,
-            y1,
-            x2,
-            y2,
-            1.5 * cam.scale,
-            Color::new(1.0, 0.6, 0.2, 1.0),
+        draw_text(
+            txt,
+            tx - dim.width * 0.5,
+            ty,
+            size,
+            Color::new(1.0, 0.3, 0.35, 0.85 + pulse * 0.15),
         );
     }
 
-    // Falling debris particles (simple deterministic)
-    if t > 0.6 {
-        for i in 0..12i32 {
-            let seed = i as f32 * 7.13;
-            let fx = (seed * 53.0).sin() * 620.0 + 640.0;
-            let fall = ((t - 0.6).max(0.0) * 180.0) + seed * 40.0;
-            let fy = (fall % 380.0) + 20.0;
-            let (px, py) = cam.to_screen(fx, fy);
+    // ---------- PHASE 2: GLITCH WIPE ----------
+    if t >= T_ALERT_END - 0.1 && t < T_GLITCH_END + 0.2 {
+        let g_t = ((t - T_ALERT_END + 0.1) / (T_GLITCH_END - T_ALERT_END + 0.3))
+            .clamp(0.0, 1.0);
+        // Rapid scanlines scrolling across the screen.
+        for i in 0..40 {
+            let ly = (i as f32 * 10.0 + t * 380.0) % 400.0;
+            let (lsx, lsy) = cam.to_screen(0.0, ly);
             draw_rectangle(
-                px,
-                py,
-                cam.scaled(4.0),
-                cam.scaled(4.0),
-                Color::new(0.7, 0.7, 0.65, 0.9),
+                lsx,
+                lsy,
+                cam.scaled(1280.0),
+                cam.scaled(2.0),
+                Color::new(0.15, 0.85, 0.35, 0.22 * g_t),
+            );
+        }
+        // Horizontal RGB-split colour bars at random y positions.
+        for i in 0..6i32 {
+            let seed = i as f32 * 7.11 + (t * 18.0).sin() * 40.0;
+            let by = ((seed * 71.0) as i32).rem_euclid(360) as f32 + 20.0;
+            let bh = 8.0 + (seed * 3.0).sin().abs() * 6.0;
+            let (bsx, bsy) = cam.to_screen(0.0, by);
+            let a = 0.28 * g_t;
+            draw_rectangle(
+                bsx,
+                bsy,
+                cam.scaled(1280.0),
+                cam.scaled(bh),
+                Color::new(1.0, 0.2, 0.25, a),
+            );
+            draw_rectangle(
+                bsx + cam.scaled(6.0),
+                bsy,
+                cam.scaled(1280.0),
+                cam.scaled(bh),
+                Color::new(0.2, 1.0, 0.4, a * 0.8),
             );
         }
     }
 
-    // Phase 2: white flash peak at t ~1.4
-    let flash_center = 1.4;
-    let flash_width = 0.5;
-    let flash_dist = (t - flash_center).abs();
-    if flash_dist < flash_width {
-        let flash_a = 1.0 - (flash_dist / flash_width);
-        draw_rectangle(
-            0.0,
-            0.0,
-            cam.screen_w,
-            cam.screen_h,
-            Color::new(1.0, 1.0, 0.95, flash_a.powi(2) * 0.9),
-        );
-    }
-
-    // Phase 3: boss descends
-    if t > 1.6 {
-        let descent_t = ((t - 1.6) / (total - 1.6)).clamp(0.0, 1.0);
-        // Ease out: starts fast, settles gently
-        let ease = 1.0 - (1.0 - descent_t).powi(3);
-        let start_y = -BOSS_SIZE;
+    // ---------- PHASE 3: BOSS SLAM ----------
+    // From start of slam phase, draw the boss falling in + impact ring.
+    if t >= T_GLITCH_END {
+        let slam_t = ((t - T_GLITCH_END) / (T_SLAM_END - T_GLITCH_END)).clamp(0.0, 1.0);
+        let ease = 1.0 - (1.0 - slam_t).powi(3);
+        let start_y = -BOSS_SIZE - 40.0;
         let end_y = BOSS_Y_BASE - BOSS_SIZE * 0.5;
         let boss_y = start_y + (end_y - start_y) * ease;
         let boss_x = BOSS_X - BOSS_SIZE * 0.5;
         let (sbx, sby) = cam.to_screen(boss_x, boss_y);
-        // Trail glow behind descending boss
+        // Trail glow behind descending boss.
         for i in 1..4 {
-            let offset_y = i as f32 * -18.0;
-            let alpha = 0.25 - (i as f32 * 0.07);
+            let offset_y = i as f32 * -22.0;
+            let alpha = 0.30 - (i as f32 * 0.08);
             draw_rectangle(
                 sbx,
                 sby + cam.scaled(offset_y),
@@ -787,30 +821,334 @@ pub fn draw_boss_intro(remaining: f32, assets: &AssetHandles, cam: &Camera) {
                 ..Default::default()
             },
         );
+        // Landing shockwave: expanding concentric ring once the slam
+        // progress crosses ~0.85.
+        if slam_t > 0.85 {
+            let ring_t = (slam_t - 0.85) / 0.15;
+            let (cxr, cyr) = cam.to_screen(BOSS_X, BOSS_Y_BASE + BOSS_SIZE * 0.45);
+            for k in 0..3i32 {
+                let r = (ring_t + k as f32 * 0.18) * 260.0;
+                if r < 360.0 {
+                    draw_circle_lines(
+                        cxr,
+                        cyr,
+                        cam.scaled(r),
+                        4.0 * cam.scale,
+                        Color::new(1.0, 0.95, 0.7, (1.0 - ring_t) * 0.85),
+                    );
+                }
+            }
+            // White flash on land
+            let flash_a = (1.0 - ring_t).powi(2) * 0.9;
+            draw_rectangle(
+                0.0,
+                0.0,
+                cam.screen_w,
+                cam.screen_h,
+                Color::new(1.0, 1.0, 0.95, flash_a),
+            );
+        }
     }
 
-    // "MUNGCHI INTRUSION" text appears around flash time
-    if t > 1.2 {
-        let alpha = ((t - 1.2) / 0.4).clamp(0.0, 1.0);
-        let txt = "MUNGCHI INTRUSION";
-        let size = 48.0 * cam.scale;
-        let dim_t = measure_text(txt, None, size as u16, 1.0);
-        let (cx, cy) = cam.to_screen(640.0, 260.0);
-        // Shadow
+    // After the slam, the boss stays put at its central position so we
+    // keep drawing it underneath the dialog box.
+    if t >= T_SLAM_END {
+        let boss_x = BOSS_X - BOSS_SIZE * 0.5;
+        let boss_y = BOSS_Y_BASE - BOSS_SIZE * 0.5;
+        // Small idle bob
+        let bob = (t * 2.5).sin() * 3.0;
+        let (sbx, sby) = cam.to_screen(boss_x, boss_y + bob);
+        draw_texture_ex(
+            &assets.boss_virus,
+            sbx,
+            sby,
+            WHITE,
+            DrawTextureParams {
+                dest_size: Some(vec2(cam.scaled(BOSS_SIZE), cam.scaled(BOSS_SIZE))),
+                ..Default::default()
+            },
+        );
+    }
+
+    // ---------- PHASES 4/5: DIALOG ----------
+    // Cave-Story-style bottom text box with boss portrait and typed-out
+    // text. Phase 4 shows line 1, phase 5 shows line 2.
+    if t >= T_SLAM_END && t < T_CHARGE_END {
+        let (line, phase_start) = if t < T_DIALOG1_END {
+            ("AEIROBOT IS MINE NOW...", T_SLAM_END)
+        } else if t < T_DIALOG2_END {
+            ("SUBMIT AND BE INFECTED!", T_DIALOG1_END)
+        } else {
+            ("", 0.0)
+        };
+        if !line.is_empty() {
+            let phase_t = t - phase_start;
+            draw_boss_dialog(line, phase_t, assets, cam);
+        }
+    }
+
+    // ---------- PHASE 6: EDIE CHARGE ----------
+    if t >= T_DIALOG2_END && t < T_IMPACT_END {
+        let charge_t = ((t - T_DIALOG2_END) / (T_CHARGE_END - T_DIALOG2_END))
+            .clamp(0.0, 1.0);
+        // EDIE dashes from PLAYER_X (~200) toward boss center (~640).
+        let start_x = 200.0;
+        let end_x = 540.0;
+        let ex = start_x + (end_x - start_x) * (1.0 - (1.0 - charge_t).powi(2));
+        let ey = 252.0;
+        // Trailing motion blur behind her.
+        for k in 0..6i32 {
+            let trail_x = ex - (k as f32 + 1.0) * 22.0;
+            let (tx, ty) = cam.to_screen(trail_x, ey);
+            let a = 0.55 - k as f32 * 0.08;
+            draw_rectangle(
+                tx,
+                ty,
+                cam.scaled(48.0),
+                cam.scaled(40.0),
+                Color::new(1.0, 1.0, 1.0, a.max(0.0)),
+            );
+        }
+        // EDIE sprite
+        let (sx, sy) = cam.to_screen(ex, ey);
+        draw_texture_ex(
+            &assets.edie_static_run,
+            sx,
+            sy,
+            WHITE,
+            DrawTextureParams {
+                dest_size: Some(vec2(cam.scaled(56.0), cam.scaled(48.0))),
+                ..Default::default()
+            },
+        );
+        // "TAKE THIS!" text above her
+        let txt = "TAKE THIS!";
+        let size = 28.0 * cam.scale;
+        let dim = measure_text(txt, None, size as u16, 1.0);
+        let (tx2, ty2) = cam.to_screen(ex + 28.0, ey - 20.0);
         draw_text(
             txt,
-            cx - dim_t.width * 0.5 + 3.0,
-            cy + 3.0,
+            tx2 - dim.width * 0.5 + 2.0,
+            ty2 + 2.0,
             size,
-            Color::new(0.0, 0.0, 0.0, alpha * 0.7),
+            Color::new(0.0, 0.0, 0.0, 0.7),
         );
         draw_text(
             txt,
-            cx - dim_t.width * 0.5,
-            cy,
+            tx2 - dim.width * 0.5,
+            ty2,
             size,
-            Color::new(0.95, 0.2, 0.2, alpha),
+            Color::new(1.0, 0.9, 0.3, 1.0),
         );
+    }
+
+    // ---------- PHASE 7: IMPACT ----------
+    if t >= T_CHARGE_END && t < T_IMPACT_END {
+        // White flash
+        let impact_t = (t - T_CHARGE_END) / (T_IMPACT_END - T_CHARGE_END);
+        let flash_a = (1.0 - impact_t).powi(2) * 0.95;
+        draw_rectangle(
+            0.0,
+            0.0,
+            cam.screen_w,
+            cam.screen_h,
+            Color::new(1.0, 1.0, 0.95, flash_a),
+        );
+        // "THWACK!!" text
+        let txt = "THWACK!!";
+        let size = (56.0 + (1.0 - impact_t) * 28.0) * cam.scale;
+        let dim = measure_text(txt, None, size as u16, 1.0);
+        let (tx, ty) = cam.to_screen(680.0, 180.0);
+        draw_text(
+            txt,
+            tx - dim.width * 0.5 + 4.0,
+            ty + 4.0,
+            size,
+            Color::new(0.0, 0.0, 0.0, 0.7),
+        );
+        draw_text(
+            txt,
+            tx - dim.width * 0.5,
+            ty,
+            size,
+            Color::new(1.0, 0.25, 0.25, 1.0),
+        );
+    }
+
+    // ---------- PHASE 8: CLEANUP ----------
+    if t >= T_IMPACT_END {
+        // Subtle red flash pulse on the boss to show it's still mad.
+        let a = ((t - T_IMPACT_END) / (total - T_IMPACT_END)).clamp(0.0, 1.0);
+        draw_rectangle(
+            0.0,
+            0.0,
+            cam.screen_w,
+            cam.screen_h,
+            Color::new(0.02, 0.0, 0.0, 0.25 * (1.0 - a)),
+        );
+        let txt = "-- FIGHT! --";
+        let size = 34.0 * cam.scale;
+        let dim = measure_text(txt, None, size as u16, 1.0);
+        let (tx, ty) = cam.to_screen(640.0, 340.0);
+        draw_text(
+            txt,
+            tx - dim.width * 0.5,
+            ty,
+            size,
+            Color::new(1.0, 0.9, 0.3, a),
+        );
+    }
+
+    // Skip-hint footer (always on).
+    if t > 0.3 {
+        let hint = "SPACE / TAP to skip";
+        let size = 14.0 * cam.scale;
+        let dim = measure_text(hint, None, size as u16, 1.0);
+        let (hx, hy) = cam.to_screen(1280.0 - 30.0, 400.0 - 18.0);
+        draw_text(
+            hint,
+            hx - dim.width,
+            hy,
+            size,
+            Color::new(0.9, 0.9, 0.8, 0.7),
+        );
+    }
+}
+
+/// Cave-Story-style dialog box with Mungchi portrait on the left and
+/// typed-out text on the right. `line_elapsed` is the seconds since the
+/// current line began (drives the typewriter effect).
+fn draw_boss_dialog(
+    line: &str,
+    line_elapsed: f32,
+    assets: &AssetHandles,
+    cam: &Camera,
+) {
+    // Box geometry (logical coords).
+    let box_x = 60.0;
+    let box_y = 260.0;
+    let box_w = 1160.0;
+    let box_h = 120.0;
+    let (bx, by) = cam.to_screen(box_x, box_y);
+    // Fill + border
+    draw_rectangle(
+        bx,
+        by,
+        cam.scaled(box_w),
+        cam.scaled(box_h),
+        Color::new(0.04, 0.04, 0.08, 0.92),
+    );
+    draw_rectangle_lines(
+        bx,
+        by,
+        cam.scaled(box_w),
+        cam.scaled(box_h),
+        4.0,
+        Color::new(1.0, 0.95, 0.7, 0.95),
+    );
+    // Inner glow
+    draw_rectangle_lines(
+        bx + cam.scaled(4.0),
+        by + cam.scaled(4.0),
+        cam.scaled(box_w - 8.0),
+        cam.scaled(box_h - 8.0),
+        2.0,
+        Color::new(0.35, 0.85, 0.40, 0.6),
+    );
+
+    // Portrait frame (left side)
+    let port_x = box_x + 20.0;
+    let port_y = box_y + 18.0;
+    let port_size = 84.0;
+    let (px, py) = cam.to_screen(port_x, port_y);
+    draw_rectangle(
+        px,
+        py,
+        cam.scaled(port_size),
+        cam.scaled(port_size),
+        Color::new(0.10, 0.20, 0.12, 1.0),
+    );
+    draw_rectangle_lines(
+        px,
+        py,
+        cam.scaled(port_size),
+        cam.scaled(port_size),
+        3.0,
+        Color::new(0.35, 0.95, 0.40, 0.9),
+    );
+    // Draw the boss portrait from the same texture, bobbing slightly.
+    let bob = (line_elapsed * 4.0).sin() * 2.0;
+    draw_texture_ex(
+        &assets.boss_virus,
+        px + cam.scaled(4.0),
+        py + cam.scaled(4.0 + bob),
+        WHITE,
+        DrawTextureParams {
+            dest_size: Some(vec2(
+                cam.scaled(port_size - 8.0),
+                cam.scaled(port_size - 8.0),
+            )),
+            ..Default::default()
+        },
+    );
+
+    // Character name label above the portrait
+    let name = "MUNGCHI";
+    let name_size = 18.0 * cam.scale;
+    let (nx, ny) = cam.to_screen(port_x + port_size * 0.5, port_y - 6.0);
+    let ndim = measure_text(name, None, name_size as u16, 1.0);
+    draw_text(
+        name,
+        nx - ndim.width * 0.5 + 2.0,
+        ny + 2.0,
+        name_size,
+        Color::new(0.0, 0.0, 0.0, 0.85),
+    );
+    draw_text(
+        name,
+        nx - ndim.width * 0.5,
+        ny,
+        name_size,
+        Color::new(0.3, 1.0, 0.45, 1.0),
+    );
+
+    // Typewriter effect: reveal 24 characters per second.
+    let total_chars = line.len();
+    let shown = ((line_elapsed * 24.0) as usize).min(total_chars);
+    // Safe byte-boundary substring for ASCII strings.
+    let visible = &line[..shown];
+
+    let text_x = box_x + 130.0;
+    let text_y = box_y + 60.0;
+    let size = 30.0 * cam.scale;
+    let (tx, ty) = cam.to_screen(text_x, text_y);
+    draw_text(
+        visible,
+        tx + 3.0,
+        ty + 3.0,
+        size,
+        Color::new(0.0, 0.0, 0.0, 0.6),
+    );
+    draw_text(
+        visible,
+        tx,
+        ty,
+        size,
+        Color::new(0.95, 0.95, 0.8, 1.0),
+    );
+
+    // Blinking caret while the line is still being typed out.
+    if shown < total_chars {
+        let dim = measure_text(visible, None, size as u16, 1.0);
+        if ((line_elapsed * 4.0) as usize) % 2 == 0 {
+            draw_rectangle(
+                tx + dim.width + 4.0,
+                ty - dim.height * 0.8,
+                cam.scaled(10.0),
+                cam.scaled(5.0),
+                Color::new(0.95, 0.95, 0.8, 0.9),
+            );
+        }
     }
 }
 

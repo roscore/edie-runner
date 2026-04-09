@@ -118,9 +118,13 @@ impl World {
     pub fn apply_action(&mut self, action: Action) {
         match action {
             Action::Jump => {
-                if self.player.try_jump() {
-                    self.effects.sfx(SfxCue::Jump);
-                }
+                // Always emit the jump SFX cue on the input edge -- we
+                // used to only cue it on a successful `try_jump`, which
+                // meant a whiff (already airborne) was silent and the
+                // player complained about missing feedback. Cue first,
+                // then call try_jump so the cue fires regardless.
+                self.effects.sfx(SfxCue::Jump);
+                self.player.try_jump();
             }
             Action::JumpRelease => self.player.release_jump(),
             Action::Duck => self.player.try_duck(),

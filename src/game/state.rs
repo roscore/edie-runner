@@ -114,6 +114,16 @@ impl Game {
     }
 
     pub fn handle<S: Storage>(&mut self, action: Action, storage: &mut S) {
+        // Boss intro cinematic: Jump / Confirm skips straight to the
+        // fight so repeat boss attempts don't have to sit through the
+        // full dialog every time.
+        if self.boss_intro_remaining > 0.0
+            && matches!(action, Action::Jump | Action::Confirm)
+        {
+            self.boss_intro_remaining = 0.0;
+            return;
+        }
+
         // Name entry takes over input while active.
         if matches!(self.state, GameState::NameEntry) {
             match action {

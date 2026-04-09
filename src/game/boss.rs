@@ -7,7 +7,10 @@ use rand::Rng;
 
 pub const BOSS_DURATION: f32 = 60.0;
 pub const BOSS_PHASE2_DURATION: f32 = 30.0;
-pub const BOSS_INTRO_DURATION: f32 = 3.5;
+/// Total length of the boss break-in cinematic (alert -> glitch ->
+/// slam -> dialog 1 -> dialog 2 -> EDIE charge -> impact -> cleanup).
+/// Can be skipped with any jump / confirm input.
+pub const BOSS_INTRO_DURATION: f32 = 9.6;
 pub const VIRUS_W: f32 = 48.0;
 pub const VIRUS_H: f32 = 48.0;
 pub const PLAYER_SIDE_SPEED: f32 = 520.0;
