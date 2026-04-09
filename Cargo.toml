@@ -17,12 +17,11 @@ required-features = ["graphics"]
 
 [features]
 default = ["graphics"]
-graphics = ["dep:macroquad", "dep:sapp-jsutils"]
+graphics = ["dep:macroquad"]
 headless = []
 
 [dependencies]
 macroquad = { version = "0.4", optional = true }
-sapp-jsutils = { version = "0.1", optional = true }
 rand = { version = "0.8", default-features = false, features = ["small_rng"] }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
