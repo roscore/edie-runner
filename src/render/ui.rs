@@ -128,16 +128,18 @@ pub fn draw_background(
             1.0,
         )
     };
-    let base_bg = desat(stage_tint, 0.80);
-    let bg_dim = 0.68;
+    // Very aggressive desaturation + cool wash so the backdrop recedes
+    // visually and the player's eye settles on foreground sprites.
+    let base_bg = desat(stage_tint, 0.92);
+    let bg_dim = 0.58;
     let dimmed = Color::new(
-        base_bg.r * bg_dim + 0.10,
-        base_bg.g * bg_dim + 0.10,
-        base_bg.b * bg_dim + 0.12,
+        base_bg.r * bg_dim + 0.18,
+        base_bg.g * bg_dim + 0.18,
+        base_bg.b * bg_dim + 0.22,
         1.0,
     );
     let bg_tint = if outdoor { dimmed } else {
-        Color::new(0.70, 0.70, 0.76, 1.0)
+        Color::new(0.64, 0.66, 0.72, 1.0)
     };
 
     // Helper: draw a tiled parallax layer. `base` is always shown for the

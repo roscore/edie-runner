@@ -87,10 +87,13 @@ impl ObstacleKind {
     pub fn y_for_kind(&self) -> f32 {
         let (_, h) = self.size();
         match self {
-            // Balloon drone & pigeon: bottom must fall inside the
-            // [standing-top 276, ducked-top ~296] window so running collides
-            // and ducking escapes.
+            // BalloonDrone: bottom sits in the duck-forcing band so
+            // running collides and ducking escapes.
             ObstacleKind::BalloonDrone => GROUND_Y - 82.0,
+            // Pigeon now starts ON the ground (feet on the floor) and
+            // flaps up to the air-obstacle band via the per-tick
+            // update pattern. y_for_kind returns the final airborne
+            // resting height so pre-wipe math etc. stays consistent.
             ObstacleKind::Pigeon => GROUND_Y - 82.0 - (h - 48.0),
             // Mall balloon hovers in the duck-forcing band
             ObstacleKind::MallBalloon => GROUND_Y - 82.0 - (h - 48.0),
@@ -369,6 +372,32 @@ impl ObstacleField {
                     // so the player can dodge horizontally.
                     o.vy += 520.0 * dt;
                 }
+                ObstacleKind::Pigeon => {
+                    // Pigeon two-phase mini-state machine (via pattern_t):
+                    //   0.0 = still walking on the ground
+                    //   1.0 = flapping up to the duck-forcing height
+                    //   2.0 = has reached cruise altitude, holds
+                    let cruise_y = o.kind.y_for_kind();
+                    if o.pattern_t == 0.0 && o.age > 0.55 {
+                        // Start flapping upward. Give it a negative
+                        // velocity so the y update takes it to cruise
+                        // over ~0.7 s.
+                        o.vy = -180.0;
+                        o.pattern_t = 1.0;
+                    }
+                    if o.pattern_t == 1.0 {
+                        // Ease out the vy as we approach cruise height.
+                        if o.y <= cruise_y {
+                            o.y = cruise_y;
+                            o.vy = 0.0;
+                            o.pattern_t = 2.0;
+                        } else {
+                            // Slight gravity pull so the flap is a
+                            // bouncy arc instead of a straight rocket.
+                            o.vy += 120.0 * dt;
+                        }
+                    }
+                }
                 ObstacleKind::SportsCar => {
                     // Noticeable wind-up so players can see it coming,
                     // then a shorter surge than before.
@@ -445,7 +474,14 @@ impl ObstacleField {
         self.scrolled_since_spawn += dx;
         if self.scrolled_since_spawn >= self.next_spawn_gap {
             let kind = self.random_kind(score, rng);
-            self.obstacles.push(Obstacle::new(kind, SPAWN_X));
+            let mut obs = Obstacle::new(kind, SPAWN_X);
+            // Pigeon: spawn on the floor instead of its airborne cruise
+            // height, the per-tick update will flap it up after 0.55 s.
+            if matches!(kind, ObstacleKind::Pigeon) {
+                let (_, h) = kind.size();
+                obs.y = GROUND_Y - h;
+            }
+            self.obstacles.push(obs);
             self.scrolled_since_spawn = 0.0;
             // CEO Room is extreme: tighter spacing + less random extra.
             let stage = stage_for_tier(tier_for_score(score));

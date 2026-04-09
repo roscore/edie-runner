@@ -21,6 +21,7 @@ import os
 from pathlib import Path
 
 from PIL import Image, ImageDraw
+import math
 
 ROOT = Path(__file__).resolve().parents[1]
 GEN = ROOT / "assets" / "gen"
@@ -302,6 +303,147 @@ def make_store_mid(rope: tuple[int, int, int, int]) -> Image.Image:
 
 
 # ============================================================
+# Seamless floor tiles (all stages). The base tiles produced by
+# generate_art.py occasionally have edge features that don't line up
+# when drawn at the 384 px render width, which reads as a torn floor.
+# These overrides use a uniform grid pattern whose divisions fall at
+# powers of two that divide 256 cleanly, so every tile edge matches
+# its neighbour's opposite edge no matter how many times we stride.
+# ============================================================
+def make_seamless_floor(
+    base: tuple[int, int, int, int],
+    line: tuple[int, int, int, int],
+    accent: tuple[int, int, int, int],
+    grid: int = 32,
+    top_band: tuple[int, int, int, int] | None = None,
+) -> Image.Image:
+    im = new_canvas(256, 80)
+    d = ImageDraw.Draw(im)
+    d.rectangle((0, 0, 256, 80), fill=base)
+    if top_band is not None:
+        d.rectangle((0, 0, 256, 3), fill=top_band)
+    else:
+        d.rectangle((0, 0, 256, 2), fill=line)
+    # Vertical grid lines -- because 256 % grid == 0 the line at x=256 is
+    # identical to the line at x=0 of the next tile, so there is no seam.
+    for x in range(0, 256 + 1, grid):
+        d.line((x, 4, x, 78), fill=line)
+    # Horizontal tile lines in a shifted rhythm
+    for y in range(18, 80, grid):
+        d.line((0, y, 256, y), fill=line)
+    # Occasional accent dots so the tile isn't pure grid
+    for row_y in range(24, 80, grid):
+        for col_x in range(16, 256, grid):
+            d.point((col_x, row_y), fill=accent)
+    return im
+
+
+def make_all_floors() -> None:
+    """Override every stage's floor tile with a seamlessly-tiling pattern.
+    Each stage gets a colour scheme that matches the palette of its far /
+    mid layers so the horizon line still reads cohesively."""
+    # (name, base, line, accent, grid, top_band)
+    configs = [
+        ("bg_store_floor.png", (215, 200, 170, 255), (180, 160, 130, 255),
+         (235, 215, 155, 255), 32, (160, 140, 110, 255)),
+        ("bg_street_floor.png", (150, 150, 145, 255), (115, 115, 110, 255),
+         (180, 180, 170, 255), 32, (90, 90, 85, 255)),
+        ("bg_techpark_floor.png", (200, 205, 210, 255), (150, 158, 168, 255),
+         (225, 230, 235, 255), 32, (120, 130, 140, 255)),
+        ("bg_highway_floor.png", (70, 70, 78, 255), (40, 40, 48, 255),
+         (210, 190, 90, 255), 32, (30, 30, 36, 255)),
+        ("bg_ansan_floor.png", (175, 130, 100, 255), (130, 90, 60, 255),
+         (210, 160, 120, 255), 32, (90, 60, 40, 255)),
+        ("bg_office_floor.png", (130, 130, 140, 255), (90, 90, 100, 255),
+         (160, 160, 170, 255), 32, (60, 60, 70, 255)),
+        ("bg_factory_floor.png", (80, 82, 90, 255), (50, 52, 60, 255),
+         (160, 160, 170, 255), 32, (30, 30, 36, 255)),
+    ]
+    for (name, base, line, accent, grid, top_band) in configs:
+        save(make_seamless_floor(base, line, accent, grid, top_band), name)
+
+
+# ============================================================
+# Mungchi boss virus -- overrides generate_art.py's boss_virus.png with
+# a version whose eyes are jagged Halloween-pumpkin slits instead of
+# round yellow balls. Style reference: Cave Story "red flower" boss
+# and Undertale "Mad Mew Mew" jagged eye slits.
+# ============================================================
+def make_boss_virus_zigzag() -> Image.Image:
+    w, h = 220, 220
+    im = new_canvas(w, h)
+    d = ImageDraw.Draw(im)
+    cx, cy = 110, 110
+    core = (60, 200, 80, 255)
+    core_d = (30, 120, 40, 255)
+    core_hi = (120, 230, 140, 255)
+    out = EDIE_OUTLINE
+
+    # Spike proteins
+    num_spikes = 24
+    inner_r = 58
+    outer_r = 100
+    for i in range(num_spikes):
+        angle = (i / num_spikes) * math.tau
+        sx1 = cx + int(math.cos(angle) * inner_r)
+        sy1 = cy + int(math.sin(angle) * inner_r)
+        sx2 = cx + int(math.cos(angle) * outer_r)
+        sy2 = cy + int(math.sin(angle) * outer_r)
+        d.line((sx1, sy1, sx2, sy2), fill=core_d, width=5)
+        d.line((sx1, sy1, sx2, sy2), fill=(50, 160, 60, 255), width=2)
+        d.ellipse((sx2 - 9, sy2 - 9, sx2 + 9, sy2 + 9), fill=core_d, outline=out, width=1)
+        d.ellipse((sx2 - 6, sy2 - 6, sx2 + 6, sy2 + 6), fill=(80, 180, 90, 255))
+        d.ellipse((sx2 - 3, sy2 - 3, sx2 + 3, sy2 + 3), fill=core_hi)
+
+    # Main body
+    body_r = 62
+    d.ellipse((cx - body_r, cy - body_r, cx + body_r, cy + body_r), fill=core, outline=out, width=2)
+    d.ellipse((cx - 50, cy - 50, cx + 30, cy + 30), fill=core_hi)
+    d.ellipse((cx - 34, cy - 34, cx + 34, cy + 34), fill=core)
+    for (dx, dy) in ((-24, 12), (26, -6), (-14, 32), (16, 28), (-34, -10), (32, 18)):
+        d.ellipse((cx + dx - 3, cy + dy - 3, cx + dx + 3, cy + dy + 3), fill=core_d)
+
+    # -------- Zigzag pumpkin-slit eyes --------
+    # Left eye: a jagged triangle-shaped slit with glow inside.
+    def zigzag_eye(center_x: int, center_y: int, flip: bool) -> None:
+        # Vertex sequence (pumpkin slit): top is a flat base, bottom is a
+        # zigzag of 3 spikes. Mirrored horizontally on the right eye.
+        xs = [-18, -10, -2, 6, 14, 18, 14, 8, 2, -4, -10, -14, -18]
+        ys = [-2,  -6,  -2, -8, -2, -6, 8, 2, 10, 4, 10, 4, 8]
+        if flip:
+            xs = [-v for v in reversed(xs)]
+            ys = list(reversed(ys))
+        pts = [(center_x + xs[i], center_y + ys[i]) for i in range(len(xs))]
+        # Outer dark socket
+        d.polygon(pts, fill=(20, 20, 24, 255), outline=out)
+        # Glow inside -- orange -> yellow -> white layered polygons
+        inner_pts = [(center_x + int(xs[i] * 0.75), center_y + int(ys[i] * 0.75)) for i in range(len(xs))]
+        d.polygon(inner_pts, fill=(230, 80, 20, 255))
+        inner2 = [(center_x + int(xs[i] * 0.55), center_y + int(ys[i] * 0.55)) for i in range(len(xs))]
+        d.polygon(inner2, fill=(255, 200, 50, 255))
+        inner3 = [(center_x + int(xs[i] * 0.3), center_y + int(ys[i] * 0.3)) for i in range(len(xs))]
+        d.polygon(inner3, fill=(255, 240, 180, 255))
+        # Pupil dot in the center
+        d.ellipse(
+            (center_x - 2, center_y - 2, center_x + 2, center_y + 2),
+            fill=(40, 0, 0, 255),
+        )
+
+    zigzag_eye(cx - 22, cy - 4, flip=False)
+    zigzag_eye(cx + 22, cy - 4, flip=True)
+
+    # Jagged mouth (same as before, kept for menace)
+    for i, mx in enumerate(range(-26, 27, 7)):
+        top = cy + 22
+        if i % 2 == 0:
+            d.polygon([(cx + mx, top), (cx + mx + 4, top + 10), (cx + mx + 7, top)], fill=out)
+        else:
+            d.polygon([(cx + mx, top), (cx + mx + 4, top + 8), (cx + mx + 7, top)], fill=(40, 20, 20, 255))
+
+    return im
+
+
+# ============================================================
 # Hanyang University ERICA main gate (Ansan stage far variant)
 # ============================================================
 def make_ansan_hanyang_gate() -> Image.Image:
@@ -453,6 +595,21 @@ def make_audio_extras() -> None:
     beep = 0.35 * np.sin(2 * np.pi * 880 * t) * env(n, 0.002, 0.14)
     write_wav("sfx_beep.wav", beep)
 
+    # --- Jump: louder + richer chirp (overrides generate_art.py's
+    #     quieter version so the jump actually reads over BGM) ------
+    dur = 0.22
+    n = int(dur * SR)
+    t = np.arange(n) / SR
+    freq = 420 + 760 * t / dur
+    # Two detuned square-ish sawtooth waves for a punchier chiptune feel.
+    jump_env = env(n, 0.004, 0.18)
+    jump_wave = (
+        0.55 * np.sign(np.sin(2 * np.pi * np.cumsum(freq) / SR))
+        + 0.35 * np.sign(np.sin(2 * np.pi * np.cumsum(freq * 1.5) / SR))
+    ) * jump_env
+    jump_wave = jump_wave * 0.75  # headroom
+    write_wav("sfx_jump.wav", jump_wave)
+
     # --- Stage transition whoosh ------------------------------------
     dur = 0.45
     n = int(dur * SR)
@@ -500,7 +657,13 @@ def main() -> None:
     #      into the ansan variant cycle.
     save(make_ansan_hanyang_gate(), "bg_ansan_gate.png")
 
-    # ---- BGM + extra SFX ----
+    # ---- Seamless floor override for every stage ----
+    make_all_floors()
+
+    # ---- Mungchi boss virus with zigzag pumpkin-slit eyes ----
+    save(make_boss_virus_zigzag(), "boss_virus.png")
+
+    # ---- BGM + extra SFX (includes louder jump re-generate) ----
     make_audio_extras()
 
     print("extras generated.")
