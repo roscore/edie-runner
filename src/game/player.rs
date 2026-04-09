@@ -47,7 +47,7 @@ impl Aabb {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Player {
     pub y: f32,
     pub vy: f32,

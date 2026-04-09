@@ -50,6 +50,7 @@ impl HeartPod {
     }
 }
 
+#[derive(Clone)]
 pub struct PickupField {
     pub stones: Vec<AuroraStone>,
     pub hearts: Vec<HeartPod>,

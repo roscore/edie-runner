@@ -146,6 +146,7 @@ impl Obstacle {
 
 const SPAWN_X: f32 = 1400.0;
 
+#[derive(Clone)]
 pub struct ObstacleField {
     pub obstacles: Vec<Obstacle>,
     pub scrolled_since_spawn: f32,

@@ -27,7 +27,7 @@ pub struct ScorePopup {
     pub b: f32,
 }
 
-#[derive(Debug, Default)]
+#[derive(Debug, Default, Clone)]
 pub struct Effects {
     pub particles: Vec<Particle>,
     pub popups: Vec<ScorePopup>,

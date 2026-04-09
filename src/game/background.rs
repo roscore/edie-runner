@@ -1,7 +1,7 @@
 //! Parallax background scroll. Greybox uses three solid bands; Phase 2 swaps
 //! these for tiled art.
 
-#[derive(Debug, Default)]
+#[derive(Debug, Default, Clone)]
 pub struct Background {
     pub far_offset: f32,
     pub mid_offset: f32,

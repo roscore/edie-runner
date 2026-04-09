@@ -37,6 +37,7 @@ fn tier_banner_label(tier: u32) -> String {
     }
 }
 
+#[derive(Clone)]
 pub struct World {
     pub player: Player,
     pub obstacles: ObstacleField,

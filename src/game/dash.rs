@@ -15,7 +15,7 @@ pub const DASH_COST: u32 = 1;
 pub const SLOWMO_DURATION: f32 = 0.200;
 pub const SLOWMO_SCALE: f32 = 0.60;
 
-#[derive(Debug, Default)]
+#[derive(Debug, Default, Clone)]
 pub struct DashState {
     pub aurora: u32,
     /// Fuel remaining for the active dash -- counts down whenever dash is
