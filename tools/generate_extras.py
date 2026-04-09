@@ -364,81 +364,170 @@ def make_all_floors() -> None:
 
 
 # ============================================================
-# Mungchi boss virus -- overrides generate_art.py's boss_virus.png with
-# a version whose eyes are jagged Halloween-pumpkin slits instead of
-# round yellow balls. Style reference: Cave Story "red flower" boss
-# and Undertale "Mad Mew Mew" jagged eye slits.
+# Mungchi boss virus -- redrawn to match the user-supplied reference
+# photo: bright neon-green body, two ROUND angry yellow eyes with
+# slanted brows, and a HUGE Halloween-pumpkin grin spanning the lower
+# half of the body. 32 spike proteins around the perimeter. Style
+# references: Cave Story bosses, Undertale Photoshop Flowey,
+# Hyper Light Drifter mini-bosses (large central silhouette + clear
+# face features that read at a glance).
 # ============================================================
-def make_boss_virus_zigzag() -> Image.Image:
-    w, h = 220, 220
+def make_boss_virus_pumpkin() -> Image.Image:
+    w, h = 240, 240
     im = new_canvas(w, h)
     d = ImageDraw.Draw(im)
-    cx, cy = 110, 110
-    core = (60, 200, 80, 255)
-    core_d = (30, 120, 40, 255)
-    core_hi = (120, 230, 140, 255)
+    cx, cy = 120, 120
     out = EDIE_OUTLINE
 
-    # Spike proteins
-    num_spikes = 24
-    inner_r = 58
-    outer_r = 100
+    # Bright neon-green palette to match the reference
+    core_dark = (24, 110, 38, 255)
+    core_mid = (52, 200, 78, 255)
+    core_lite = (110, 240, 130, 255)
+    core_glow = (170, 255, 180, 255)
+    eye_white = (255, 255, 250, 255)
+    eye_yellow = (255, 215, 35, 255)
+    eye_orange = (255, 155, 30, 255)
+    pupil = (24, 16, 8, 255)
+    grin_dark = (16, 8, 4, 255)
+    grin_inner = (90, 22, 12, 255)
+    tooth = (235, 240, 220, 255)
+
+    # ---------- 32 spike proteins around the body ----------
+    num_spikes = 32
+    inner_r = 64
+    outer_r = 112
     for i in range(num_spikes):
         angle = (i / num_spikes) * math.tau
         sx1 = cx + int(math.cos(angle) * inner_r)
         sy1 = cy + int(math.sin(angle) * inner_r)
         sx2 = cx + int(math.cos(angle) * outer_r)
         sy2 = cy + int(math.sin(angle) * outer_r)
-        d.line((sx1, sy1, sx2, sy2), fill=core_d, width=5)
-        d.line((sx1, sy1, sx2, sy2), fill=(50, 160, 60, 255), width=2)
-        d.ellipse((sx2 - 9, sy2 - 9, sx2 + 9, sy2 + 9), fill=core_d, outline=out, width=1)
-        d.ellipse((sx2 - 6, sy2 - 6, sx2 + 6, sy2 + 6), fill=(80, 180, 90, 255))
-        d.ellipse((sx2 - 3, sy2 - 3, sx2 + 3, sy2 + 3), fill=core_hi)
-
-    # Main body
-    body_r = 62
-    d.ellipse((cx - body_r, cy - body_r, cx + body_r, cy + body_r), fill=core, outline=out, width=2)
-    d.ellipse((cx - 50, cy - 50, cx + 30, cy + 30), fill=core_hi)
-    d.ellipse((cx - 34, cy - 34, cx + 34, cy + 34), fill=core)
-    for (dx, dy) in ((-24, 12), (26, -6), (-14, 32), (16, 28), (-34, -10), (32, 18)):
-        d.ellipse((cx + dx - 3, cy + dy - 3, cx + dx + 3, cy + dy + 3), fill=core_d)
-
-    # -------- Zigzag pumpkin-slit eyes --------
-    # Left eye: a jagged triangle-shaped slit with glow inside.
-    def zigzag_eye(center_x: int, center_y: int, flip: bool) -> None:
-        # Vertex sequence (pumpkin slit): top is a flat base, bottom is a
-        # zigzag of 3 spikes. Mirrored horizontally on the right eye.
-        xs = [-18, -10, -2, 6, 14, 18, 14, 8, 2, -4, -10, -14, -18]
-        ys = [-2,  -6,  -2, -8, -2, -6, 8, 2, 10, 4, 10, 4, 8]
-        if flip:
-            xs = [-v for v in reversed(xs)]
-            ys = list(reversed(ys))
-        pts = [(center_x + xs[i], center_y + ys[i]) for i in range(len(xs))]
-        # Outer dark socket
-        d.polygon(pts, fill=(20, 20, 24, 255), outline=out)
-        # Glow inside -- orange -> yellow -> white layered polygons
-        inner_pts = [(center_x + int(xs[i] * 0.75), center_y + int(ys[i] * 0.75)) for i in range(len(xs))]
-        d.polygon(inner_pts, fill=(230, 80, 20, 255))
-        inner2 = [(center_x + int(xs[i] * 0.55), center_y + int(ys[i] * 0.55)) for i in range(len(xs))]
-        d.polygon(inner2, fill=(255, 200, 50, 255))
-        inner3 = [(center_x + int(xs[i] * 0.3), center_y + int(ys[i] * 0.3)) for i in range(len(xs))]
-        d.polygon(inner3, fill=(255, 240, 180, 255))
-        # Pupil dot in the center
+        # Stalk
+        d.line((sx1, sy1, sx2, sy2), fill=core_dark, width=6)
+        d.line((sx1, sy1, sx2, sy2), fill=core_mid, width=3)
+        # Knob at the tip
         d.ellipse(
-            (center_x - 2, center_y - 2, center_x + 2, center_y + 2),
-            fill=(40, 0, 0, 255),
+            (sx2 - 11, sy2 - 11, sx2 + 11, sy2 + 11),
+            fill=core_dark, outline=out, width=1,
+        )
+        d.ellipse(
+            (sx2 - 8, sy2 - 8, sx2 + 8, sy2 + 8),
+            fill=core_mid,
+        )
+        d.ellipse(
+            (sx2 - 4, sy2 - 4, sx2 + 4, sy2 + 4),
+            fill=core_lite,
         )
 
-    zigzag_eye(cx - 22, cy - 4, flip=False)
-    zigzag_eye(cx + 22, cy - 4, flip=True)
+    # ---------- Main body ----------
+    body_r = 70
+    d.ellipse((cx - body_r, cy - body_r, cx + body_r, cy + body_r), fill=core_dark, outline=out, width=3)
+    inner_r2 = 64
+    d.ellipse((cx - inner_r2, cy - inner_r2, cx + inner_r2, cy + inner_r2), fill=core_mid)
+    # Top-left soft highlight (a la pumpkin glow)
+    d.ellipse((cx - 56, cy - 56, cx + 14, cy + 14), fill=core_lite)
+    d.ellipse((cx - 38, cy - 38, cx + 4, cy + 4), fill=core_glow)
+    # A few inner texture dots so the body isn't flat
+    for (dx, dy) in (
+        (-30, 30), (28, 22), (-18, 42), (20, 40), (-44, -8), (40, -16),
+        (-12, -42), (16, -38), (-50, 14), (44, 12),
+    ):
+        d.ellipse((cx + dx - 3, cy + dy - 3, cx + dx + 3, cy + dy + 3), fill=core_dark)
 
-    # Jagged mouth (same as before, kept for menace)
-    for i, mx in enumerate(range(-26, 27, 7)):
-        top = cy + 22
-        if i % 2 == 0:
-            d.polygon([(cx + mx, top), (cx + mx + 4, top + 10), (cx + mx + 7, top)], fill=out)
-        else:
-            d.polygon([(cx + mx, top), (cx + mx + 4, top + 8), (cx + mx + 7, top)], fill=(40, 20, 20, 255))
+    # ---------- Round angry eyes ----------
+    eye_y = cy - 14
+    eye_r_outer = 22
+    eye_r_iris = 16
+    eye_r_pupil = 6
+    for ex_off, flip in ((-26, False), (26, True)):
+        ex = cx + ex_off
+        # White sclera
+        d.ellipse(
+            (ex - eye_r_outer, eye_y - eye_r_outer, ex + eye_r_outer, eye_y + eye_r_outer),
+            fill=eye_white, outline=out, width=3,
+        )
+        # Yellow iris
+        d.ellipse(
+            (ex - eye_r_iris, eye_y - eye_r_iris, ex + eye_r_iris, eye_y + eye_r_iris),
+            fill=eye_yellow,
+        )
+        d.ellipse(
+            (ex - eye_r_iris + 3, eye_y - eye_r_iris + 3, ex + eye_r_iris - 3, eye_y + eye_r_iris - 3),
+            fill=eye_orange,
+        )
+        # Black pupil
+        d.ellipse(
+            (ex - eye_r_pupil, eye_y - eye_r_pupil, ex + eye_r_pupil, eye_y + eye_r_pupil),
+            fill=pupil,
+        )
+        # White highlight glint
+        hx = ex - 4 if not flip else ex + 4
+        d.rectangle((hx - 2, eye_y - 5, hx, eye_y - 2), fill=eye_white)
+
+    # Angry slanted brows (V shape) above the eyes
+    for ex_off, slant in ((-26, -1), (26, 1)):
+        ex = cx + ex_off
+        bx1 = ex - 22
+        by1 = eye_y - 30 + (10 if slant > 0 else 0)
+        bx2 = ex + 22
+        by2 = eye_y - 30 + (10 if slant < 0 else 0)
+        d.polygon(
+            [(bx1, by1), (bx2, by2), (bx2, by2 + 6), (bx1, by1 + 6)],
+            fill=core_dark,
+        )
+
+    # ---------- Huge pumpkin grin spanning the lower half ----------
+    # Mouth bounding box
+    mouth_top = cy + 14
+    mouth_bottom = cy + 56
+    mouth_left = cx - 56
+    mouth_right = cx + 56
+    # Outer dark mouth (lip)
+    d.polygon(
+        [
+            (mouth_left, mouth_top + 4),
+            (mouth_right, mouth_top + 4),
+            (mouth_right - 6, mouth_bottom),
+            (mouth_left + 6, mouth_bottom),
+        ],
+        fill=grin_dark,
+        outline=out,
+    )
+    # Inner darker red void
+    d.polygon(
+        [
+            (mouth_left + 4, mouth_top + 8),
+            (mouth_right - 4, mouth_top + 8),
+            (mouth_right - 10, mouth_bottom - 4),
+            (mouth_left + 10, mouth_bottom - 4),
+        ],
+        fill=grin_inner,
+    )
+    # Top jagged teeth
+    tooth_step = 11
+    for i in range(11):
+        tx = mouth_left + 6 + i * tooth_step
+        d.polygon(
+            [
+                (tx, mouth_top + 4),
+                (tx + tooth_step - 1, mouth_top + 4),
+                (tx + tooth_step // 2, mouth_top + 16),
+            ],
+            fill=tooth,
+            outline=out,
+        )
+    # Bottom jagged teeth (offset by half-step so they interlock)
+    for i in range(10):
+        tx = mouth_left + 12 + i * tooth_step
+        d.polygon(
+            [
+                (tx, mouth_bottom - 2),
+                (tx + tooth_step - 1, mouth_bottom - 2),
+                (tx + tooth_step // 2, mouth_bottom - 14),
+            ],
+            fill=tooth,
+            outline=out,
+        )
 
     return im
 
@@ -660,8 +749,8 @@ def main() -> None:
     # ---- Seamless floor override for every stage ----
     make_all_floors()
 
-    # ---- Mungchi boss virus with zigzag pumpkin-slit eyes ----
-    save(make_boss_virus_zigzag(), "boss_virus.png")
+    # ---- Mungchi boss virus: round angry eyes + huge pumpkin grin ----
+    save(make_boss_virus_pumpkin(), "boss_virus.png")
 
     # ---- BGM + extra SFX (includes louder jump re-generate) ----
     make_audio_extras()

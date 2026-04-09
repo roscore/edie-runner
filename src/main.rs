@@ -220,7 +220,7 @@ async fn main() {
         let bg_stage = if matches!(
             game.state,
             GameState::BossFight
-        ) || game.boss_intro_remaining > 0.0
+        ) || game.boss_intro.is_some()
         {
             edie_runner::game::difficulty::Stage::AeiRobotFactory
         } else {
@@ -345,8 +345,8 @@ async fn main() {
         draw_overlay(&game, &assets, wall_time, &cam);
 
         // Boss intro cinematic
-        if game.boss_intro_remaining > 0.0 {
-            draw_boss_intro(game.boss_intro_remaining, &assets, &cam);
+        if let Some(intro) = game.boss_intro.as_ref() {
+            draw_boss_intro(intro, &assets, &cam);
         }
 
         // Boss fight overlay drawn on top of the normal world

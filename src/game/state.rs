@@ -60,8 +60,9 @@ pub struct Game {
     /// Active boss fight state (present when state == BossFight).
     pub boss: Option<crate::game::boss::BossWorld>,
     pub boss_input_dx: f32,
-    /// When boss break-in cinematic is playing (score hit trigger, before Boss state).
-    pub boss_intro_remaining: f32,
+    /// Active boss break-in cinematic. `Some(_)` while the cinematic is
+    /// playing (score hit trigger or debug shortcut), `None` otherwise.
+    pub boss_intro: Option<crate::game::boss::BossIntroState>,
     /// True if the last completed boss fight went all the way through phase 2.
     pub last_ending_true: bool,
     pub debug_run: bool,
@@ -89,7 +90,7 @@ impl Game {
             countdown_remaining: 0.0,
             boss: None,
             boss_input_dx: 0.0,
-            boss_intro_remaining: 0.0,
+            boss_intro: None,
             last_ending_true: false,
             debug_run: false,
             leaderboard,
@@ -114,13 +115,33 @@ impl Game {
     }
 
     pub fn handle<S: Storage>(&mut self, action: Action, storage: &mut S) {
-        // Boss intro cinematic: Jump / Confirm skips straight to the
-        // fight so repeat boss attempts don't have to sit through the
-        // full dialog every time.
-        if self.boss_intro_remaining > 0.0
-            && matches!(action, Action::Jump | Action::Confirm)
-        {
-            self.boss_intro_remaining = 0.0;
+        // Boss intro cinematic: dialog phases pause until the player
+        // taps Jump / Confirm. The first tap completes the typewriter
+        // effect instantly; the second tap advances to the next phase.
+        // Non-dialog auto-advance phases ignore input (so players don't
+        // accidentally skip the slam-in / charge / impact moments).
+        if let Some(intro) = self.boss_intro.as_mut() {
+            if matches!(action, Action::Jump | Action::Confirm) {
+                if intro.phase.is_dialog() {
+                    if intro.dialog_done_typing() {
+                        // Advance to next phase.
+                        if let Some(next) = intro.phase.next() {
+                            intro.phase = next;
+                            intro.elapsed = 0.0;
+                        } else {
+                            // Cinematic complete -- enter the fight.
+                            self.boss_intro = None;
+                            self.state = GameState::BossFight;
+                            self.boss = Some(crate::game::boss::BossWorld::new());
+                        }
+                    } else if let Some((_, line)) = intro.phase.dialog_line() {
+                        // Fast-forward the typewriter to the end so the
+                        // user can read the whole line at once.
+                        intro.elapsed = (line.len() as f32) / 24.0 + 0.001;
+                    }
+                }
+                // Non-dialog phases ignore the press intentionally.
+            }
             return;
         }
 
@@ -210,9 +231,8 @@ impl Game {
                     self.countdown_remaining = 0.0;
                     // Kick off the break-in animation. The Playing-state
                     // update path will flip to BossFight once the intro
-                    // timer reaches zero.
-                    self.boss_intro_remaining =
-                        crate::game::boss::BOSS_INTRO_DURATION;
+                    // state machine completes.
+                    self.boss_intro = Some(crate::game::boss::BossIntroState::new());
                     self.debug_run = true;
                 }
             }
@@ -223,8 +243,7 @@ impl Game {
                 self.world = World::new(self.seed_counter, storage);
                 self.state = GameState::Playing;
                 self.countdown_remaining = 0.0;
-                self.boss_intro_remaining =
-                    crate::game::boss::BOSS_INTRO_DURATION;
+                self.boss_intro = Some(crate::game::boss::BossIntroState::new());
                 self.debug_run = true;
             }
             (GameState::Title, Action::OpenStory) => {
@@ -307,7 +326,7 @@ impl Game {
         self.countdown_remaining = COUNTDOWN_DURATION;
         self.boss = None;
         self.boss_input_dx = 0.0;
-        self.boss_intro_remaining = 0.0;
+        self.boss_intro = None;
         self.debug_run = false;
         // Explicit clean slate: player is grounded, not holding jump.
         self.world.player.jump_held = false;
@@ -318,13 +337,25 @@ impl Game {
     pub fn update<S: Storage>(&mut self, real_dt: f32, storage: &mut S) {
         self.world.effects.update(real_dt);
 
-        // Boss intro cinematic: brief flash + shake before entering BossFight.
-        if self.boss_intro_remaining > 0.0 {
-            self.boss_intro_remaining = (self.boss_intro_remaining - real_dt).max(0.0);
-            if self.boss_intro_remaining <= 0.0 {
-                self.state = GameState::BossFight;
-                self.boss = Some(crate::game::boss::BossWorld::new());
+        // Boss intro cinematic state machine. Auto-advance phases run on
+        // a fixed timer; dialog phases pause until the player taps Jump
+        // / Confirm (handled in `handle()`).
+        if let Some(intro) = self.boss_intro.as_mut() {
+            intro.elapsed += real_dt;
+            if let Some(d) = intro.phase.duration() {
+                if intro.elapsed >= d {
+                    if let Some(next) = intro.phase.next() {
+                        intro.phase = next;
+                        intro.elapsed = 0.0;
+                    } else {
+                        // Cinematic finished -- enter the actual fight.
+                        self.boss_intro = None;
+                        self.state = GameState::BossFight;
+                        self.boss = Some(crate::game::boss::BossWorld::new());
+                    }
+                }
             }
+            // Dialog phases ignore the timer; they wait for input.
             return;
         }
 
@@ -389,7 +420,7 @@ impl Game {
 
         // Check boss trigger BEFORE world update.
         if self.world.score.current >= crate::game::difficulty::BOSS_TRIGGER_SCORE {
-            self.boss_intro_remaining = crate::game::boss::BOSS_INTRO_DURATION;
+            self.boss_intro = Some(crate::game::boss::BossIntroState::new());
             return;
         }
 
