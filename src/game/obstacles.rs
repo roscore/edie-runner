@@ -209,24 +209,23 @@ impl ObstacleField {
                 pool.push(ObstacleKind::Pigeon);
             }
             Stage::Highway => {
-                // Big vehicle traffic + wildlife. No cats (outdoor highway).
-                pool.push(ObstacleKind::Car);
-                pool.push(ObstacleKind::Car);
-                pool.push(ObstacleKind::Truck);
-                pool.push(ObstacleKind::Bus);
-                pool.push(ObstacleKind::Taxi);
-                pool.push(ObstacleKind::Taxi);
-                pool.push(ObstacleKind::Deer);
-                pool.push(ObstacleKind::Deer);
+                // Traffic + wildlife, weighted toward breathers.
+                pool.push(ObstacleKind::TrafficCone);
                 pool.push(ObstacleKind::TrafficCone);
                 pool.push(ObstacleKind::SignBoard);
-                // Rare sports-car surprise
+                pool.push(ObstacleKind::SignBoard);
+                pool.push(ObstacleKind::Car);
+                pool.push(ObstacleKind::Taxi);
+                pool.push(ObstacleKind::Deer);
+                pool.push(ObstacleKind::Truck);
+                pool.push(ObstacleKind::Bus);
                 if tier >= 3 {
+                    pool.push(ObstacleKind::Car);
                     pool.push(ObstacleKind::SportsCar);
                 }
                 if tier >= 4 {
-                    pool.push(ObstacleKind::SportsCar);
-                    pool.push(ObstacleKind::Truck);
+                    pool.push(ObstacleKind::Taxi);
+                    pool.push(ObstacleKind::Deer);
                 }
             }
             Stage::Ansan => {
@@ -295,8 +294,9 @@ impl ObstacleField {
 
             match o.kind {
                 ObstacleKind::Car => {
-                    if o.pattern_t <= 0.0 && o.age > 0.25 && o.age < 0.4 {
-                        o.extra_vx = -(rng.gen_range(120.0..220.0));
+                    // Gentler surge -- gives the player clear reaction time.
+                    if o.pattern_t <= 0.0 && o.age > 0.35 && o.age < 0.55 {
+                        o.extra_vx = -(rng.gen_range(70.0..140.0));
                         o.pattern_t = 1.0;
                     }
                 }
@@ -338,9 +338,10 @@ impl ObstacleField {
                     // Keep rolling; no extra logic.
                 }
                 ObstacleKind::SportsCar => {
-                    // Instantly floors it - very fast surge from first frame.
-                    if o.pattern_t <= 0.0 && o.age > 0.08 {
-                        o.extra_vx = -(rng.gen_range(360.0..480.0));
+                    // Noticeable wind-up so players can see it coming,
+                    // then a shorter surge than before.
+                    if o.pattern_t <= 0.0 && o.age > 0.35 {
+                        o.extra_vx = -(rng.gen_range(240.0..330.0));
                         o.pattern_t = 1.0;
                     }
                 }
@@ -366,13 +367,12 @@ impl ObstacleField {
                     }
                 }
                 ObstacleKind::Deer => {
-                    // Deer leaps diagonally: wait, then launch upward + charge.
-                    if o.pattern_t <= 0.0 && o.x < 1100.0 && o.age > 0.35 {
-                        o.vy = -220.0;
-                        o.extra_vx = -(rng.gen_range(90.0..170.0));
+                    // Slower, later leap so the telegraph flash reads.
+                    if o.pattern_t <= 0.0 && o.x < 1080.0 && o.age > 0.55 {
+                        o.vy = -180.0;
+                        o.extra_vx = -(rng.gen_range(60.0..120.0));
                         o.pattern_t = 1.0;
                     }
-                    // Gravity on the leap
                     if o.pattern_t > 0.0 {
                         o.vy += 520.0 * dt;
                     }

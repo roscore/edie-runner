@@ -1249,6 +1249,7 @@ pub fn draw_countdown(remaining: f32, cam: &Camera) {
 #[derive(Debug, Clone, Copy)]
 pub struct TouchButton {
     pub label: &'static str,
+    pub key_hint: &'static str,
     pub logical_rect: (f32, f32, f32, f32), // x, y, w, h
 }
 
@@ -1256,8 +1257,8 @@ pub fn boss_touch_buttons() -> [TouchButton; 2] {
     let by = 324.0;
     let bh = 66.0;
     [
-        TouchButton { label: "<", logical_rect: (24.0, by, 120.0, bh) },
-        TouchButton { label: ">", logical_rect: (150.0, by, 120.0, bh) },
+        TouchButton { label: "<", key_hint: "A / LEFT", logical_rect: (24.0, by, 120.0, bh) },
+        TouchButton { label: ">", key_hint: "D / RIGHT", logical_rect: (150.0, by, 120.0, bh) },
     ]
 }
 
@@ -1265,9 +1266,9 @@ pub fn play_touch_buttons() -> [TouchButton; 3] {
     let by = 324.0;
     let bh = 66.0;
     [
-        TouchButton { label: "DUCK", logical_rect: (24.0, by, 130.0, bh) },
-        TouchButton { label: "JUMP", logical_rect: (1280.0 - 24.0 - 130.0, by, 130.0, bh) },
-        TouchButton { label: "DASH", logical_rect: (1280.0 - 24.0 - 130.0 - 150.0, by, 130.0, bh) },
+        TouchButton { label: "DUCK", key_hint: "DOWN", logical_rect: (24.0, by, 130.0, bh) },
+        TouchButton { label: "JUMP", key_hint: "SPACE", logical_rect: (1280.0 - 24.0 - 130.0, by, 130.0, bh) },
+        TouchButton { label: "DASH", key_hint: "SHIFT", logical_rect: (1280.0 - 24.0 - 130.0 - 150.0, by, 130.0, bh) },
     ]
 }
 
@@ -1290,11 +1291,24 @@ pub fn draw_touch_buttons(buttons: &[TouchButton], pressed: &[bool], cam: &Camer
             3.0,
             Color::new(1.0, 0.9, 0.6, 0.9),
         );
-        let size = 30.0 * cam.scale;
+        // Main label
+        let size = 28.0 * cam.scale;
         let dim = measure_text(b.label, None, size as u16, 1.0);
         let tx = sx + cam.scaled(lw) * 0.5 - dim.width * 0.5;
-        let ty = sy + cam.scaled(lh) * 0.5 + dim.height * 0.4;
+        let ty = sy + cam.scaled(lh) * 0.5 + dim.height * 0.1;
         draw_text(b.label, tx, ty, size, Color::new(0.98, 0.95, 0.85, 1.0));
+        // Tiny key hint under the label
+        let hint_size = 13.0 * cam.scale;
+        let hint_dim = measure_text(b.key_hint, None, hint_size as u16, 1.0);
+        let htx = sx + cam.scaled(lw) * 0.5 - hint_dim.width * 0.5;
+        let hty = sy + cam.scaled(lh) - cam.scaled(8.0);
+        draw_text(
+            b.key_hint,
+            htx,
+            hty,
+            hint_size,
+            Color::new(0.95, 0.85, 0.4, 0.85),
+        );
     }
 }
 

@@ -8,7 +8,7 @@ pub const JUMP_HOLD_EXTRA_VY: f32 = -260.0;
 pub const JUMP_HOLD_MAX_TIME: f32 = 0.120;
 pub const COYOTE_TIME: f32 = 0.080;
 pub const DUCK_HITBOX_SHRINK: f32 = 0.45;
-pub const HITBOX_INSET: f32 = 4.0;
+pub const HITBOX_INSET: f32 = 6.0;
 
 pub const PLAYER_W: f32 = 64.0;
 pub const PLAYER_H: f32 = 80.0;
@@ -16,8 +16,10 @@ pub const PLAYER_X: f32 = 200.0;
 
 /// Visible EDIE sprite body (the round blob occupying the bottom of the
 /// physics box). Collision uses this tighter box, not PLAYER_W/PLAYER_H.
-pub const SPRITE_BODY_W: f32 = 52.0;
-pub const SPRITE_BODY_H: f32 = 44.0;
+/// Values are a touch smaller than the rendered silhouette so that
+/// near-miss scrapes don't register as hits.
+pub const SPRITE_BODY_W: f32 = 44.0;
+pub const SPRITE_BODY_H: f32 = 36.0;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum PlayerState {

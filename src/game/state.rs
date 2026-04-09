@@ -35,6 +35,10 @@ pub struct Game {
     pub boss_intro_remaining: f32,
     /// True if the last completed boss fight went all the way through phase 2.
     pub last_ending_true: bool,
+    /// True if the current run was started via the debug shortcut (B key
+    /// from title / game over). Runs flagged this way do not contribute
+    /// to the score history / high score / best runs.
+    pub debug_run: bool,
 }
 
 impl Game {
@@ -51,6 +55,7 @@ impl Game {
             boss_input_dx: 0.0,
             boss_intro_remaining: 0.0,
             last_ending_true: false,
+            debug_run: false,
         }
     }
 
@@ -103,12 +108,16 @@ impl Game {
             (GameState::Title, Action::DebugBoss)
             | (GameState::GameOver, Action::DebugBoss) => {
                 // Dev shortcut: skip straight to the Mungchi boss fight.
+                // This run is flagged as debug so it doesn't contribute
+                // to the score ledger (high score, best-runs, etc).
                 self.seed_counter = self.seed_counter.wrapping_add(1);
                 self.world = World::new(self.seed_counter, storage);
-                self.world.score.current = crate::game::difficulty::BOSS_TRIGGER_SCORE;
+                // Do NOT inflate score.current -- the debug run starts at 0
+                // and never earns a real score.
                 self.state = GameState::BossFight;
                 self.boss = Some(crate::game::boss::BossWorld::new());
                 self.countdown_remaining = 0.0;
+                self.debug_run = true;
             }
             (GameState::Title, Action::OpenStory) => {
                 self.state = GameState::Story;
@@ -158,6 +167,7 @@ impl Game {
         self.boss = None;
         self.boss_input_dx = 0.0;
         self.boss_intro_remaining = 0.0;
+        self.debug_run = false;
     }
 
     pub fn update<S: Storage>(&mut self, real_dt: f32, storage: &mut S) {
@@ -181,26 +191,29 @@ impl Game {
                     BossOutcome::Continuing => {}
                     BossOutcome::Hit => {
                         self.state = GameState::GameOver;
-                        let final_score = self.world.score.current;
-                        let _ = self.world.score.save_if_new_high(storage);
-                        self.run_history.insert(0, final_score);
-                        if self.run_history.len() > RUN_HISTORY_LEN {
-                            self.run_history.truncate(RUN_HISTORY_LEN);
+                        if !self.debug_run {
+                            let final_score = self.world.score.current;
+                            let _ = self.world.score.save_if_new_high(storage);
+                            self.run_history.insert(0, final_score);
+                            if self.run_history.len() > RUN_HISTORY_LEN {
+                                self.run_history.truncate(RUN_HISTORY_LEN);
+                            }
+                            let best = self.best_runs();
+                            self.last_run_rank = best
+                                .iter()
+                                .position(|s| *s == final_score)
+                                .map(|i| i + 1);
+                        } else {
+                            self.last_run_rank = None;
                         }
-                        let best = self.best_runs();
-                        self.last_run_rank = best
-                            .iter()
-                            .position(|s| *s == final_score)
-                            .map(|i| i + 1);
                     }
                     BossOutcome::Survived => {
-                        // Phase 2 survived means the TRUE ending; phase 1 is
-                        // never Survived now (we interlude into phase 2),
-                        // but keep the fallback defensively.
                         let phase = self.boss.as_ref().map(|b| b.phase).unwrap_or(1);
                         self.last_ending_true = phase >= 2;
                         self.state = GameState::Ending;
-                        let _ = self.world.score.save_if_new_high(storage);
+                        if !self.debug_run {
+                            let _ = self.world.score.save_if_new_high(storage);
+                        }
                     }
                 }
             }
@@ -225,18 +238,21 @@ impl Game {
             RunOutcome::Continuing => {}
             RunOutcome::Died => {
                 self.state = GameState::GameOver;
-                let _ = self.world.score.save_if_new_high(storage);
-
-                let final_score = self.world.score.current;
-                self.run_history.insert(0, final_score);
-                if self.run_history.len() > RUN_HISTORY_LEN {
-                    self.run_history.truncate(RUN_HISTORY_LEN);
+                if !self.debug_run {
+                    let _ = self.world.score.save_if_new_high(storage);
+                    let final_score = self.world.score.current;
+                    self.run_history.insert(0, final_score);
+                    if self.run_history.len() > RUN_HISTORY_LEN {
+                        self.run_history.truncate(RUN_HISTORY_LEN);
+                    }
+                    let best = self.best_runs();
+                    self.last_run_rank = best
+                        .iter()
+                        .position(|s| *s == final_score)
+                        .map(|i| i + 1);
+                } else {
+                    self.last_run_rank = None;
                 }
-                let best = self.best_runs();
-                self.last_run_rank = best
-                    .iter()
-                    .position(|s| *s == final_score)
-                    .map(|i| i + 1);
             }
         }
     }

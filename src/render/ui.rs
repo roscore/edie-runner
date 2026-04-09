@@ -222,14 +222,23 @@ pub fn draw_hud(
     elapsed: f32,
     cam: &Camera,
 ) {
-    // Score (right)
+    // Score block: current score big on top, HI below slightly smaller
+    // but same column. Right-aligned.
     let score_text = format!("{:06}", score.current);
     let high_text = format!("HI {:06}", score.high);
-    let font_size = 28.0 * cam.scale;
-    let (sx, sy) = cam.to_screen(LOGICAL_W - 200.0, 30.0);
-    draw_text(&score_text, sx, sy, font_size, BLACK);
-    let (hx, hy) = cam.to_screen(LOGICAL_W - 200.0, 60.0);
-    draw_text(&high_text, hx, hy, 20.0 * cam.scale, DARKGRAY);
+    let font_size = 32.0 * cam.scale;
+    let hi_size = 22.0 * cam.scale;
+    let score_dim = measure_text(&score_text, None, font_size as u16, 1.0);
+    let hi_dim = measure_text(&high_text, None, hi_size as u16, 1.0);
+    let right_margin = 40.0;
+    let right_x = LOGICAL_W - right_margin;
+    let (sx_anchor, sy) = cam.to_screen(right_x, 34.0);
+    let (hx_anchor, hy) = cam.to_screen(right_x, 64.0);
+    // Shadow for readability
+    draw_text(&score_text, sx_anchor - score_dim.width + 2.0, sy + 2.0, font_size, Color::new(0.0, 0.0, 0.0, 0.4));
+    draw_text(&score_text, sx_anchor - score_dim.width, sy, font_size, BLACK);
+    draw_text(&high_text, hx_anchor - hi_dim.width + 2.0, hy + 2.0, hi_size, Color::new(0.0, 0.0, 0.0, 0.4));
+    draw_text(&high_text, hx_anchor - hi_dim.width, hy, hi_size, Color::new(0.85, 0.45, 0.08, 1.0));
 
     // HP hearts row (top-left, above aurora)
     let heart_size = 28.0;
