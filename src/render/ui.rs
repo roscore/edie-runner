@@ -696,7 +696,8 @@ fn draw_ending_crowd(assets: &AssetHandles, elapsed: f32, cam: &Camera) {
 }
 
 /// Ending screen shown after the player survives the 60-second boss fight.
-pub fn draw_ending(assets: &AssetHandles, elapsed: f32, cam: &Camera) {
+/// If `true_ending` is true, shows the "Doctor EDIE" variant instead.
+pub fn draw_ending(assets: &AssetHandles, elapsed: f32, true_ending: bool, cam: &Camera) {
     // Warm sunrise gradient (3 bands)
     for (i, col) in [
         (0.0, 100.0, Color::new(1.0, 0.78, 0.55, 1.0)),
@@ -769,6 +770,46 @@ pub fn draw_ending(assets: &AssetHandles, elapsed: f32, cam: &Camera) {
     // Welcome crowd: healthy robots and mini EDIEs
     draw_ending_crowd(assets, elapsed, cam);
 
+    // Doctor EDIE badges for the true ending
+    if true_ending {
+        // Red cross icons floating on either side
+        for (bx_pos, phase_off) in [(260.0f32, 0.0f32), (1020.0f32, 1.1f32)] {
+            let bob = ((elapsed * 2.5 + phase_off).sin() * 5.0).round();
+            let (cx, cy) = cam.to_screen(bx_pos, 70.0 + bob);
+            // White square background
+            draw_rectangle(
+                cx - cam.scaled(18.0),
+                cy - cam.scaled(18.0),
+                cam.scaled(36.0),
+                cam.scaled(36.0),
+                Color::new(0.98, 0.98, 0.98, 1.0),
+            );
+            draw_rectangle_lines(
+                cx - cam.scaled(18.0),
+                cy - cam.scaled(18.0),
+                cam.scaled(36.0),
+                cam.scaled(36.0),
+                3.0,
+                Color::new(0.1, 0.1, 0.12, 1.0),
+            );
+            // Red cross
+            draw_rectangle(
+                cx - cam.scaled(14.0),
+                cy - cam.scaled(4.0),
+                cam.scaled(28.0),
+                cam.scaled(8.0),
+                Color::new(0.92, 0.2, 0.2, 1.0),
+            );
+            draw_rectangle(
+                cx - cam.scaled(4.0),
+                cy - cam.scaled(14.0),
+                cam.scaled(8.0),
+                cam.scaled(28.0),
+                Color::new(0.92, 0.2, 0.2, 1.0),
+            );
+        }
+    }
+
     // Big cheering EDIE, gently bobbing
     let mascot_size = 220.0;
     let mx = 640.0 - mascot_size * 0.5;
@@ -794,8 +835,12 @@ pub fn draw_ending(assets: &AssetHandles, elapsed: f32, cam: &Camera) {
         },
     );
 
-    // Banner title "EDIE MADE IT HOME"
-    let title = "EDIE MADE IT HOME!";
+    // Banner title changes for true ending
+    let title = if true_ending {
+        "DOCTOR EDIE, MD"
+    } else {
+        "EDIE MADE IT HOME!"
+    };
     let size = 56.0 * cam.scale;
     let dim = measure_text(title, None, size as u16, 1.0);
     let (tx, ty) = cam.to_screen(LOGICAL_W * 0.5, 282.0);
@@ -819,11 +864,19 @@ pub fn draw_ending(assets: &AssetHandles, elapsed: f32, cam: &Camera) {
     );
 
     // Credit / subtitle lines
-    let sub_lines = [
-        "Left behind in a pop-up store,",
-        "EDIE journeyed across Pangyo, the highway, and Ansan",
-        "to come home to AeiROBOT.",
-    ];
+    let sub_lines: [&str; 3] = if true_ending {
+        [
+            "EDIE defeated the Mungchi virus at its source",
+            "and cured every infected AeiROBOT.",
+            "The factory is safe. The world is safe.",
+        ]
+    } else {
+        [
+            "Left behind in a pop-up store,",
+            "EDIE journeyed across Pangyo, the highway, and Ansan",
+            "to come home to AeiROBOT.",
+        ]
+    };
     let sub_size = 16.0 * cam.scale;
     for (i, line) in sub_lines.iter().enumerate() {
         let sd = measure_text(line, None, sub_size as u16, 1.0);

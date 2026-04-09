@@ -77,9 +77,11 @@ mod tests {
     }
 }
 
+#[cfg(feature = "graphics")]
 use macroquad::prelude::*;
 
 /// Production input source: reads macroquad keyboard + touch each frame.
+#[cfg(feature = "graphics")]
 pub struct MacroquadInput {
     jump_was_down: bool,
     duck_was_down: bool,
@@ -94,6 +96,7 @@ pub struct MacroquadInput {
     touch_right: bool,
 }
 
+#[cfg(feature = "graphics")]
 impl MacroquadInput {
     pub fn new() -> Self {
         Self {
@@ -126,12 +129,14 @@ impl MacroquadInput {
     }
 }
 
+#[cfg(feature = "graphics")]
 impl Default for MacroquadInput {
     fn default() -> Self {
         Self::new()
     }
 }
 
+#[cfg(feature = "graphics")]
 impl InputSource for MacroquadInput {
     fn poll(&mut self) -> Vec<Action> {
         let mut out = Vec::new();

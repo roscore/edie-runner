@@ -50,20 +50,24 @@ mod tests {
 }
 
 /// Production storage backed by quad-storage (browser localStorage).
+#[cfg(feature = "graphics")]
 pub struct QuadStorage;
 
+#[cfg(feature = "graphics")]
 impl QuadStorage {
     pub fn new() -> Self {
         Self
     }
 }
 
+#[cfg(feature = "graphics")]
 impl Default for QuadStorage {
     fn default() -> Self {
         Self::new()
     }
 }
 
+#[cfg(feature = "graphics")]
 impl Storage for QuadStorage {
     fn get(&self, key: &str) -> Option<String> {
         let storage = quad_storage::STORAGE.lock().unwrap();

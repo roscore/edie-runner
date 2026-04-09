@@ -33,6 +33,8 @@ pub struct Game {
     pub boss_input_dx: f32,
     /// When boss break-in cinematic is playing (score hit trigger, before Boss state).
     pub boss_intro_remaining: f32,
+    /// True if the last completed boss fight went all the way through phase 2.
+    pub last_ending_true: bool,
 }
 
 impl Game {
@@ -48,6 +50,7 @@ impl Game {
             boss: None,
             boss_input_dx: 0.0,
             boss_intro_remaining: 0.0,
+            last_ending_true: false,
         }
     }
 
@@ -99,7 +102,7 @@ impl Game {
             }
             (GameState::Title, Action::DebugBoss)
             | (GameState::GameOver, Action::DebugBoss) => {
-                // Dev shortcut: skip straight to the corona boss fight.
+                // Dev shortcut: skip straight to the Mungchi boss fight.
                 self.seed_counter = self.seed_counter.wrapping_add(1);
                 self.world = World::new(self.seed_counter, storage);
                 self.world.score.current = crate::game::difficulty::BOSS_TRIGGER_SCORE;
@@ -191,6 +194,11 @@ impl Game {
                             .map(|i| i + 1);
                     }
                     BossOutcome::Survived => {
+                        // Phase 2 survived means the TRUE ending; phase 1 is
+                        // never Survived now (we interlude into phase 2),
+                        // but keep the fallback defensively.
+                        let phase = self.boss.as_ref().map(|b| b.phase).unwrap_or(1);
+                        self.last_ending_true = phase >= 2;
                         self.state = GameState::Ending;
                         let _ = self.world.score.save_if_new_high(storage);
                     }

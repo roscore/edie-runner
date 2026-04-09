@@ -14,7 +14,8 @@ pub enum ObstacleKind {
     SignBoard,
     CatOrange,
     CatWhite,
-    Pigeon, // duck-forcing bird for Pangyo stages
+    Pigeon, // duck-forcing bird for Pangyo street stages
+    Chandelier, // hanging department-store chandelier (duck-forcing)
     // Highway vehicles
     Car,     // charging generic car
     Truck,   // large slow truck
@@ -58,6 +59,7 @@ impl ObstacleKind {
             ObstacleKind::CatOrange => (48.0, 40.0),
             ObstacleKind::CatWhite => (48.0, 40.0),
             ObstacleKind::Pigeon => (36.0, 32.0),
+            ObstacleKind::Chandelier => (44.0, 56.0),
             ObstacleKind::Car => (96.0, 40.0),
             ObstacleKind::Truck => (128.0, 56.0),
             ObstacleKind::Bus => (144.0, 52.0),
@@ -81,6 +83,8 @@ impl ObstacleKind {
             // and ducking escapes.
             ObstacleKind::BalloonDrone => GROUND_Y - 82.0,
             ObstacleKind::Pigeon => GROUND_Y - 82.0 - (h - 48.0),
+            // Chandelier hangs from ceiling, bottom in the duck-forcing band
+            ObstacleKind::Chandelier => GROUND_Y - 74.0 - (h - 48.0),
             ObstacleKind::SignBoard => GROUND_Y - 160.0,
             _ => GROUND_Y - h,
         }
@@ -90,7 +94,10 @@ impl ObstacleKind {
     pub fn has_ground_shadow(&self) -> bool {
         !matches!(
             self,
-            ObstacleKind::BalloonDrone | ObstacleKind::SignBoard | ObstacleKind::Pigeon
+            ObstacleKind::BalloonDrone
+                | ObstacleKind::SignBoard
+                | ObstacleKind::Pigeon
+                | ObstacleKind::Chandelier
         )
     }
 }
@@ -170,15 +177,16 @@ impl ObstacleField {
 
         match stage {
             Stage::DepartmentStore => {
+                // Indoor mall: no cats, no birds. Hanging chandeliers instead.
                 pool.push(ObstacleKind::CoffeeCup);
                 pool.push(ObstacleKind::CoffeeCup);
-                pool.push(ObstacleKind::CatOrange);
-                pool.push(ObstacleKind::CatWhite);
                 pool.push(ObstacleKind::TrafficCone);
                 pool.push(ObstacleKind::ShoppingCart);
-                pool.push(ObstacleKind::Pigeon);
+                pool.push(ObstacleKind::Chandelier);
+                pool.push(ObstacleKind::Chandelier);
             }
             Stage::PangyoStreet => {
+                // Street: cats allowed (alongside pigeons).
                 pool.push(ObstacleKind::CoffeeCup);
                 pool.push(ObstacleKind::CatOrange);
                 pool.push(ObstacleKind::CatWhite);
@@ -188,17 +196,16 @@ impl ObstacleField {
                 pool.push(ObstacleKind::Pigeon);
             }
             Stage::PangyoTechPark => {
+                // Tech park plaza: no cats (corporate zone), birds fine.
                 pool.push(ObstacleKind::CoffeeCup);
                 pool.push(ObstacleKind::CoffeeCup);
-                pool.push(ObstacleKind::CatOrange);
-                pool.push(ObstacleKind::CatWhite);
                 pool.push(ObstacleKind::TrafficCone);
                 pool.push(ObstacleKind::SignBoard);
                 pool.push(ObstacleKind::Pigeon);
                 pool.push(ObstacleKind::Pigeon);
             }
             Stage::Highway => {
-                // Big vehicle traffic + wildlife.
+                // Big vehicle traffic + wildlife. No cats (outdoor highway).
                 pool.push(ObstacleKind::Car);
                 pool.push(ObstacleKind::Car);
                 pool.push(ObstacleKind::Truck);
@@ -209,7 +216,6 @@ impl ObstacleField {
                 pool.push(ObstacleKind::Deer);
                 pool.push(ObstacleKind::TrafficCone);
                 pool.push(ObstacleKind::SignBoard);
-                pool.push(ObstacleKind::Pigeon);
                 // Rare sports-car surprise
                 if tier >= 3 {
                     pool.push(ObstacleKind::SportsCar);
@@ -392,6 +398,7 @@ mod tests {
             ObstacleKind::CatOrange,
             ObstacleKind::CatWhite,
             ObstacleKind::Pigeon,
+            ObstacleKind::Chandelier,
             ObstacleKind::BoxBot,
             ObstacleKind::Amy,
             ObstacleKind::AliceM1,

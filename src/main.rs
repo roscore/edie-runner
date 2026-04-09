@@ -315,7 +315,7 @@ async fn main() {
                 let t = wall_time - game.story_start_time;
                 draw_story(t, &assets, &cam);
             }
-            GameState::Ending => draw_ending(&assets, wall_time, &cam),
+            GameState::Ending => draw_ending(&assets, wall_time, game.last_ending_true, &cam),
             _ => {}
         }
 

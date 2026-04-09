@@ -14,7 +14,7 @@ EDIE has been left behind in a Pangyo pop-up store and must find the long way ba
 4. **Hanyang ERICA** — campus stretch, AeiROBOT bots begin
 5. **AeiROBOT Office** — home is in sight, but virus warnings flash everywhere
 6. **AeiROBOT CEO Room** — dense robot swarm, extreme difficulty
-7. **Corona Boss Fight** (50000+) — survive 60s of falling virus rain + laser attacks
+7. **Mungchi Boss Fight** (50000+) — survive 60s of falling virus rain + laser attacks
 
 ## Controls
 

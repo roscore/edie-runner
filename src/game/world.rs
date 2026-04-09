@@ -147,10 +147,20 @@ impl World {
 
         let speed = self.current_speed();
         self.background.update(sim_dt, speed);
-        self.obstacles
-            .update(sim_dt, speed, self.score.current, &mut self.rng);
-        self.pickups
-            .update(sim_dt, speed, &mut self.rng, &self.obstacles);
+        // During a stage-transition wipe, we freeze obstacle + pickup spawns
+        // and also despawn anything already on screen so the player enters
+        // the new stage on a clean slate.
+        let wipe_active = self.effects.stage_wipe.is_some();
+        if wipe_active {
+            self.obstacles.obstacles.clear();
+            self.pickups.stones.clear();
+            self.pickups.hearts.clear();
+        } else {
+            self.obstacles
+                .update(sim_dt, speed, self.score.current, &mut self.rng);
+            self.pickups
+                .update(sim_dt, speed, &mut self.rng, &self.obstacles);
+        }
 
         // Accumulate fractional score (1 point per 4 px scrolled).
         self.score_accum += speed * sim_dt / 4.0;

@@ -257,6 +257,7 @@ fn needs_telegraph(o: &Obstacle, speed: f32) -> bool {
         ObstacleKind::Amy
             | ObstacleKind::BalloonDrone
             | ObstacleKind::Pigeon
+            | ObstacleKind::Chandelier
             | ObstacleKind::Car
             | ObstacleKind::SportsCar
             | ObstacleKind::Deer
@@ -394,6 +395,12 @@ pub fn draw_obstacle(
             let f = frame_index(elapsed, 8.0, 2);
             draw_tex_frame(
                 &assets.obstacle_pigeon, f, 36.0, 32.0, 1.0, o.x, o.y, cam, WHITE,
+            );
+        }
+        ObstacleKind::Chandelier => {
+            let f = frame_index(elapsed, 3.0, 2);
+            draw_tex_frame(
+                &assets.obstacle_chandelier, f, 44.0, 56.0, 1.0, o.x, o.y, cam, WHITE,
             );
         }
         ObstacleKind::BoxBot => {
@@ -556,10 +563,10 @@ pub fn draw_boss_intro(remaining: f32, assets: &AssetHandles, cam: &Camera) {
         );
     }
 
-    // "VIRUS INTRUSION" text appears around flash time
+    // "MUNGCHI INTRUSION" text appears around flash time
     if t > 1.2 {
         let alpha = ((t - 1.2) / 0.4).clamp(0.0, 1.0);
-        let txt = "VIRUS INTRUSION";
+        let txt = "MUNGCHI INTRUSION";
         let size = 48.0 * cam.scale;
         let dim_t = measure_text(txt, None, size as u16, 1.0);
         let (cx, cy) = cam.to_screen(640.0, 260.0);
@@ -612,7 +619,7 @@ pub fn draw_boss_mode(
     }
 
     // ======================================================
-    // Boss: giant corona virus, central, slight bob
+    // Boss: giant Mungchi virus, central, slight bob
     // Visually weakens as the timer runs down.
     // ======================================================
     // health_frac: 1.0 at start, 0.0 when timer expires
@@ -917,7 +924,7 @@ pub fn draw_boss_mode(
 
     // Current pattern label
     let pattern_label = match boss.pattern {
-        crate::game::boss::BossPattern::Rain => "CORONA RAIN",
+        crate::game::boss::BossPattern::Rain => "MUNGCHI RAIN",
         crate::game::boss::BossPattern::DiagonalVolley => "CROSSFIRE VOLLEY",
         crate::game::boss::BossPattern::Spiral => "SPIRAL STORM",
         crate::game::boss::BossPattern::SweepLaser => "SWEEP LASER",

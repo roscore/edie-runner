@@ -13,10 +13,21 @@ path = "src/lib.rs"
 [[bin]]
 name = "edie_runner"
 path = "src/main.rs"
+required-features = ["graphics"]
+
+[features]
+default = ["graphics"]
+# Full game with rendering + audio + texture bundle. Needed to run the game.
+graphics = ["dep:macroquad", "dep:quad-storage"]
+# Headless mode (bot/AI): only `game`, `platform::storage::InMemoryStorage`,
+# `platform::input::{Action,InputSource,ScriptedInput}`, and `time`. No
+# macroquad, no texture loading, no asset bundle (build.rs is still run but
+# its output is unused).
+headless = []
 
 [dependencies]
-macroquad = "0.4"
-quad-storage = "0.1"
+macroquad = { version = "0.4", optional = true }
+quad-storage = { version = "0.1", optional = true }
 rand = { version = "0.8", default-features = false, features = ["small_rng"] }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"

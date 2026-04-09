@@ -559,6 +559,72 @@ def make_sports_car() -> None:
     save_png(im, "obstacle_sportscar.png", palette_lock=False)
 
 
+def make_chandelier() -> None:
+    """Hanging department-store chandelier - 44x56, 2 frame sway."""
+    frames = []
+    brass = (200, 170, 70, 255)
+    brass_d = (140, 110, 40, 255)
+    glass = (255, 240, 200, 255)
+    out = EDIE_OUTLINE
+    for f in range(2):
+        w, h = 44, 56
+        im = new_canvas(w, h)
+        d = ImageDraw.Draw(im)
+        sway = f
+        cx = w // 2 + sway
+        # Ceiling mount + chain
+        d.rectangle((cx - 3, 0, cx + 3, 3), fill=(90, 90, 100, 255), outline=out, width=1)
+        for cy in range(3, 15, 3):
+            d.line((cx, cy, cx + (cy % 2), cy + 2), fill=(70, 70, 80, 255))
+        # Top cap
+        d.polygon(
+            [(cx - 4, 14), (cx + 4, 14), (cx + 6, 18), (cx - 6, 18)],
+            fill=brass_d,
+            outline=out,
+        )
+        # Central brass stem
+        d.rectangle((cx - 2, 18, cx + 2, 28), fill=brass, outline=out, width=1)
+        # Main crystal body
+        d.polygon(
+            [
+                (cx - 16, 26),
+                (cx + 16, 26),
+                (cx + 14, 38),
+                (cx - 14, 38),
+            ],
+            fill=brass,
+            outline=out,
+        )
+        d.polygon(
+            [
+                (cx - 14, 27),
+                (cx + 14, 27),
+                (cx + 12, 36),
+                (cx - 12, 36),
+            ],
+            fill=brass_d,
+        )
+        # Dangling crystals
+        for dx, dy in ((-14, 38), (-7, 40), (0, 42), (7, 40), (14, 38)):
+            px = cx + dx
+            py = dy
+            d.line((px, py, px, py + 6), fill=brass, width=1)
+            d.polygon(
+                [(px - 2, py + 6), (px + 2, py + 6), (px, py + 12)],
+                fill=glass,
+                outline=out,
+            )
+            d.point((px, py + 8), fill=(255, 255, 255, 255))
+        # 3 candle bulbs above the ring
+        for bx in (cx - 10, cx, cx + 10):
+            d.rectangle((bx - 1, 20, bx + 1, 24), fill=glass, outline=out, width=1)
+            d.point((bx, 19), fill=(255, 220, 120, 255))
+            d.point((bx, 18), fill=(255, 200, 80, 255))
+        frames.append(im)
+    sheet = tile_horizontal(frames)
+    save_png(sheet, "obstacle_chandelier.png", palette_lock=False)
+
+
 def make_pigeon() -> None:
     """Flying pigeon - 36x32, 2-frame wing flap."""
     frames = []
@@ -1561,7 +1627,7 @@ def make_stage_backgrounds() -> None:
         # Sparks
         d.point((cx + 10, 66), fill=(255, 220, 100, 255))
         d.point((cx + 34, 70), fill=(255, 200, 100, 255))
-    # Infection: sickly green corona glow leaking from vents
+    # Infection: sickly green Mungchi glow leaking from vents
     for vx, vy in ((18, 82), (116, 88), (232, 84)):
         for r_off, alpha in ((8, 120), (5, 180), (2, 255)):
             d.ellipse(
@@ -1860,7 +1926,7 @@ def _virus_frames(core, core_d, core_hi):
 
 
 def make_virus() -> None:
-    """Green + purple corona virus sprites for boss mode rain."""
+    """Green + purple Mungchi virus sprites for boss mode rain."""
     green = _virus_frames(
         (60, 200, 80, 255), (40, 140, 50, 255), (150, 240, 160, 255)
     )
@@ -2125,6 +2191,7 @@ def main() -> None:
     make_deer()
     make_balloon_drone()
     make_pigeon()
+    make_chandelier()
     make_box_bot()
     # Procedural fallbacks first -- then real PNGs overwrite if present.
     make_amy()
