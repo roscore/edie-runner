@@ -272,6 +272,66 @@ fn needs_telegraph(o: &Obstacle, speed: f32) -> bool {
     t > 0.0 && t < 0.28
 }
 
+/// Sickly green tint applied to the base robot sprite while it is infected.
+/// Pulses very gently so the mob feels alive even when standing still.
+fn infected_tint(elapsed: f32) -> Color {
+    let pulse = 0.5 + 0.5 * (elapsed * 2.4).sin();
+    // Mostly green, a dash of cyan/purple in the low spots.
+    Color::new(
+        0.60 + 0.10 * pulse,
+        1.00,
+        0.70 + 0.15 * pulse,
+        1.0,
+    )
+}
+
+/// Draw three tiny purple viruses orbiting an infected robot so the
+/// "infected" state is legible at a glance instead of just a color tint.
+/// The viruses are drawn as small pulsing circles with a bright core --
+/// intentionally much smaller than the boss-fight viruses.
+fn draw_virus_orbit(
+    ox: f32,
+    oy: f32,
+    w: f32,
+    h: f32,
+    elapsed: f32,
+    cam: &Camera,
+) {
+    let cx = ox + w * 0.5;
+    let cy = oy + h * 0.5;
+    let orbit_rx = (w * 0.55 + 6.0).max(18.0);
+    let orbit_ry = (h * 0.30 + 4.0).max(10.0);
+    for i in 0..3u32 {
+        let phase = (i as f32) * (std::f32::consts::TAU / 3.0);
+        let t = elapsed * 2.0 + phase;
+        let vx = cx + t.cos() * orbit_rx;
+        let vy = cy + (t * 1.3).sin() * orbit_ry - 4.0;
+        let pulse = 0.5 + 0.5 * (elapsed * 6.0 + phase).sin();
+        let (sx, sy) = cam.to_screen(vx, vy);
+        // Soft purple outer glow
+        draw_circle(
+            sx,
+            sy,
+            cam.scaled(5.0 + pulse * 1.2),
+            Color::new(0.62, 0.30, 0.98, 0.45),
+        );
+        // Core
+        draw_circle(
+            sx,
+            sy,
+            cam.scaled(2.5),
+            Color::new(0.85, 0.55, 1.0, 0.95),
+        );
+        // Tiny highlight
+        draw_circle(
+            sx - cam.scaled(0.8),
+            sy - cam.scaled(0.8),
+            cam.scaled(0.8),
+            Color::new(1.0, 1.0, 1.0, 0.8),
+        );
+    }
+}
+
 pub fn draw_obstacle(
     o: &Obstacle,
     assets: &AssetHandles,
@@ -406,23 +466,43 @@ pub fn draw_obstacle(
         ObstacleKind::BoxBot => {
             let tex = if infected { &assets.obstacle_infected_boxbot } else { &assets.obstacle_boxbot };
             let f = frame_index(elapsed, 4.0, 2);
-            draw_tex_frame(tex, f, 44.0, 40.0, 1.0, o.x, o.y, cam, WHITE);
+            let tint = if infected { infected_tint(elapsed) } else { WHITE };
+            draw_tex_frame(tex, f, 44.0, 40.0, 1.0, o.x, o.y, cam, tint);
+            if infected {
+                draw_virus_orbit(o.x, o.y, w, h, elapsed, cam);
+            }
         }
         ObstacleKind::Amy => {
             let tex = if infected { &assets.obstacle_infected_amy } else { &assets.obstacle_amy };
-            draw_tex_at(tex, o.x, o.y, w, h, cam, WHITE);
+            let tint = if infected { infected_tint(elapsed) } else { WHITE };
+            draw_tex_at(tex, o.x, o.y, w, h, cam, tint);
+            if infected {
+                draw_virus_orbit(o.x, o.y, w, h, elapsed, cam);
+            }
         }
         ObstacleKind::AliceM1 => {
             let tex = if infected { &assets.obstacle_infected_alicem1 } else { &assets.obstacle_alicem1 };
-            draw_tex_at(tex, o.x, o.y, w, h, cam, WHITE);
+            let tint = if infected { infected_tint(elapsed) } else { WHITE };
+            draw_tex_at(tex, o.x, o.y, w, h, cam, tint);
+            if infected {
+                draw_virus_orbit(o.x, o.y, w, h, elapsed, cam);
+            }
         }
         ObstacleKind::Alice3 => {
             let tex = if infected { &assets.obstacle_infected_alice3 } else { &assets.obstacle_alice3 };
-            draw_tex_at(tex, o.x, o.y, w, h, cam, WHITE);
+            let tint = if infected { infected_tint(elapsed) } else { WHITE };
+            draw_tex_at(tex, o.x, o.y, w, h, cam, tint);
+            if infected {
+                draw_virus_orbit(o.x, o.y, w, h, elapsed, cam);
+            }
         }
         ObstacleKind::Alice4 => {
             let tex = if infected { &assets.obstacle_infected_alice4 } else { &assets.obstacle_alice4 };
-            draw_tex_at(tex, o.x, o.y, w, h, cam, WHITE);
+            let tint = if infected { infected_tint(elapsed) } else { WHITE };
+            draw_tex_at(tex, o.x, o.y, w, h, cam, tint);
+            if infected {
+                draw_virus_orbit(o.x, o.y, w, h, elapsed, cam);
+            }
         }
         ObstacleKind::SoccerBall => {
             // High-visibility treatment: pulsing neon halo + streaking

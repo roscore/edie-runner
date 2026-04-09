@@ -139,19 +139,22 @@ pub fn draw_background(
         Color::new(0.70, 0.70, 0.76, 1.0)
     };
 
-    // Helper: draw a tiled parallax layer with alternating flipped tiles so
-    // the backdrop reads different even when sharing one texture.
+    // Helper: draw a tiled parallax layer with optional spacing between
+    // tiles. `tile_w` is the draw width of one tile; `tile_stride` is how
+    // far apart successive tiles are placed (>= tile_w gives a visible gap
+    // in between). Alternating flip_x breaks up the silhouette further.
     fn draw_parallax_layer(
         tex: &macroquad::texture::Texture2D,
         offset: f32,
         tile_w: f32,
+        tile_stride: f32,
         y: f32,
         h: f32,
         tint: Color,
         cam: &Camera,
     ) {
-        let base_tile = (offset / tile_w).floor() as i64;
-        let start_x = -(offset - base_tile as f32 * tile_w);
+        let base_tile = (offset / tile_stride).floor() as i64;
+        let start_x = -(offset - base_tile as f32 * tile_stride);
         let mut i: i64 = 0;
         let mut x = start_x;
         while x < LOGICAL_W {
@@ -169,29 +172,33 @@ pub fn draw_background(
                     ..Default::default()
                 },
             );
-            x += tile_w;
+            x += tile_stride;
             i += 1;
         }
     }
 
-    // Far layer: wide tile so the same silhouette doesn't repeat across one
-    // screen. 768 px means only ~1.67 tiles visible at once.
+    // Far layer: draw the tile at its natural 384 px width and *space it
+    // out* with a 640 px stride so there are clear gaps between silhouettes
+    // instead of a stretched repeating blob.
     draw_parallax_layer(
         &stage_bg.far,
         bg.far_offset,
-        768.0,
+        384.0,
+        640.0,
         200.0,
         100.0,
         bg_tint,
         cam,
     );
 
-    // Mid layer: wider tile + flip alternation for extra variety.
+    // Mid layer: same trick, slightly tighter stride so benches / trees /
+    // desks feel denser than the skyline but still breathe.
     let mid_tint = desat(bg_tint, 0.30);
     draw_parallax_layer(
         &stage_bg.mid,
         bg.mid_offset,
-        640.0,
+        384.0,
+        560.0,
         270.0,
         60.0,
         mid_tint,
@@ -209,11 +216,12 @@ pub fn draw_background(
     } else {
         Color::new(0.80, 0.80, 0.84, 1.0)
     };
-    // Floor keeps its original 384 px tile -- the player is close to it so
-    // stretching looks bad; alternating flip keeps it looking varied.
+    // Floor is continuous (no gaps) -- the player is close to it so any
+    // hole would read as a pit. Keep natural 384 px tile.
     draw_parallax_layer(
         &stage_bg.floor,
         bg.floor_offset,
+        384.0,
         384.0,
         320.0,
         80.0,
@@ -247,6 +255,126 @@ pub fn draw_hud(
     draw_text(&score_text, sx_anchor - score_dim.width, sy, font_size, BLACK);
     draw_text(&high_text, hx_anchor - hi_dim.width + 2.0, hy + 2.0, hi_size, Color::new(0.0, 0.0, 0.0, 0.4));
     draw_text(&high_text, hx_anchor - hi_dim.width, hy, hi_size, Color::new(0.85, 0.45, 0.08, 1.0));
+
+    // Next-stage progress bar (top-center). Shows how close the player is
+    // to the next stage change with the destination name and an animated
+    // fill. Hidden during the final Factory stretch (no more stages).
+    if let Some((boundary_score, next_stage)) =
+        crate::game::difficulty::next_stage_boundary(score.current)
+    {
+        // Find the *previous* boundary (the score at which we ENTERED the
+        // current stage) so the bar fills from 0 over the entire stage.
+        let prev_boundary = {
+            let current_stage =
+                crate::game::difficulty::stage_for_tier(
+                    crate::game::difficulty::tier_for_score(score.current),
+                );
+            let mut tier = crate::game::difficulty::tier_for_score(score.current);
+            loop {
+                if tier == 0 {
+                    break 0u32;
+                }
+                if crate::game::difficulty::stage_for_tier(tier - 1) != current_stage {
+                    break tier * crate::game::difficulty::SCORE_PER_TIER;
+                }
+                tier -= 1;
+            }
+        };
+        let span = (boundary_score - prev_boundary).max(1);
+        let progress = ((score.current - prev_boundary) as f32 / span as f32)
+            .clamp(0.0, 1.0);
+
+        // Bar geometry -- narrow, top center, below the score.
+        let bar_w = 320.0;
+        let bar_h = 8.0;
+        let bar_x = LOGICAL_W * 0.5 - bar_w * 0.5;
+        let bar_y = 58.0;
+        let (bsx, bsy) = cam.to_screen(bar_x, bar_y);
+
+        // Label "NEXT STAGE: <name>" above the bar.
+        let stage_label = crate::game::difficulty::stage_name(next_stage);
+        let label = format!("NEXT STAGE: {}", stage_label);
+        let label_size = 14.0 * cam.scale;
+        let label_dim = measure_text(&label, None, label_size as u16, 1.0);
+        let (lx, ly) = cam.to_screen(LOGICAL_W * 0.5, bar_y - 6.0);
+        // Ramp label visibility as we approach (hinted but not loud early).
+        let label_alpha = 0.55 + 0.45 * progress;
+        draw_text(
+            &label,
+            lx - label_dim.width * 0.5 + 1.0,
+            ly + 1.0,
+            label_size,
+            Color::new(0.0, 0.0, 0.0, 0.5 * label_alpha),
+        );
+        draw_text(
+            &label,
+            lx - label_dim.width * 0.5,
+            ly,
+            label_size,
+            Color::new(1.0, 0.9, 0.55, label_alpha),
+        );
+
+        // Track background
+        draw_rectangle(
+            bsx,
+            bsy,
+            cam.scaled(bar_w),
+            cam.scaled(bar_h),
+            Color::new(0.1, 0.1, 0.15, 0.55),
+        );
+        // Fill: teal under 0.75, yellow 0.75..0.9, pulsing orange+red 0.9+
+        let (fill_r, fill_g, fill_b) = if progress >= 0.90 {
+            let pulse = (elapsed * 12.0).sin() * 0.5 + 0.5;
+            (1.0, 0.3 + 0.3 * pulse, 0.15)
+        } else if progress >= 0.75 {
+            (1.0, 0.85, 0.2)
+        } else {
+            (0.18, 0.77, 0.71)
+        };
+        draw_rectangle(
+            bsx,
+            bsy,
+            cam.scaled(bar_w * progress),
+            cam.scaled(bar_h),
+            Color::new(fill_r, fill_g, fill_b, 0.95),
+        );
+        // Bright moving tick highlighting the current fill head.
+        if progress > 0.02 && progress < 1.0 {
+            let (tx, ty) = cam.to_screen(bar_x + bar_w * progress - 1.0, bar_y - 2.0);
+            draw_rectangle(
+                tx,
+                ty,
+                cam.scaled(3.0),
+                cam.scaled(bar_h + 4.0),
+                Color::new(1.0, 1.0, 1.0, 0.9),
+            );
+        }
+        // Outline
+        draw_rectangle_lines(
+            bsx,
+            bsy,
+            cam.scaled(bar_w),
+            cam.scaled(bar_h),
+            1.5,
+            Color::new(0.95, 0.9, 0.55, 0.85),
+        );
+
+        // Final 10%: a pulsing "APPROACHING" marker to the right of the bar.
+        if progress >= 0.90 {
+            let pulse = (elapsed * 8.0).sin() * 0.5 + 0.5;
+            let alert = "!! APPROACHING !!";
+            let asize = 12.0 * cam.scale;
+            let adim = measure_text(alert, None, asize as u16, 1.0);
+            let (ax, ay) = cam.to_screen(LOGICAL_W * 0.5, bar_y + bar_h + 14.0);
+            draw_text(
+                alert,
+                ax - adim.width * 0.5,
+                ay,
+                asize,
+                Color::new(1.0, 0.3 + 0.5 * pulse, 0.25, 0.85 + 0.15 * pulse),
+            );
+        }
+    }
 
     // HP hearts row (top-left, above aurora)
     let heart_size = 28.0;
