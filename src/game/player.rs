@@ -101,6 +101,14 @@ impl Player {
     pub fn try_duck(&mut self) {
         if self.is_grounded() {
             self.state = PlayerState::Ducking;
+        } else if matches!(self.state, PlayerState::Jumping | PlayerState::Falling) {
+            // Fast-fall: pressing duck mid-air snaps the jump into a dive.
+            // Cancel the jump hold (so the variable-height boost stops),
+            // force a strong downward velocity, and flip to Falling so the
+            // visual state matches the descent.
+            self.jump_held = false;
+            self.vy = self.vy.max(0.0) + 720.0;
+            self.state = PlayerState::Falling;
         }
         self.duck_held = true;
     }
