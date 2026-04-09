@@ -7,9 +7,143 @@ use rand::Rng;
 
 pub const BOSS_DURATION: f32 = 60.0;
 pub const BOSS_PHASE2_DURATION: f32 = 30.0;
-/// Total length of the boss break-in cinematic (alert -> glitch ->
-/// slam -> dialog 1 -> dialog 2 -> EDIE charge -> impact -> cleanup).
-/// Can be skipped with any jump / confirm input.
+
+// ============================================================
+// Boss break-in cinematic state machine
+// ============================================================
+
+/// One phase of the boss intro cinematic. Auto-advance phases run on a
+/// fixed timer; `Dialog*` phases pause until the player presses
+/// Jump / Confirm so they can read at their own pace.
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+pub enum BossIntroPhase {
+    /// Red alert border + "!! WARNING !!" pulsing.
+    Alert,
+    /// CRT scanlines + RGB-split colour bars.
+    Glitch,
+    /// Mungchi drops in from above with shockwave + flash.
+    Slam,
+    /// Dialog line 1 (boss taunt). Waits for input after typing.
+    Dialog1,
+    /// Dialog line 2 (boss taunt). Waits for input after typing.
+    Dialog2,
+    /// Dialog line 3 (EDIE response). Waits for input after typing.
+    Dialog3,
+    /// EDIE crouches and charges energy for the body slam.
+    Charge,
+    /// EDIE rockets across the screen as a streak.
+    Dash,
+    /// White flash + stacked impact text + boss recoil.
+    Impact,
+    /// "FIGHT!" banner + fade into BossFight state.
+    Fight,
+}
+
+impl BossIntroPhase {
+    /// Auto-advance duration. `None` means the phase pauses for input.
+    pub fn duration(&self) -> Option<f32> {
+        match self {
+            BossIntroPhase::Alert => Some(0.9),
+            BossIntroPhase::Glitch => Some(0.8),
+            BossIntroPhase::Slam => Some(1.4),
+            BossIntroPhase::Dialog1 => None,
+            BossIntroPhase::Dialog2 => None,
+            BossIntroPhase::Dialog3 => None,
+            BossIntroPhase::Charge => Some(1.4),
+            BossIntroPhase::Dash => Some(0.55),
+            BossIntroPhase::Impact => Some(1.0),
+            BossIntroPhase::Fight => Some(1.2),
+        }
+    }
+
+    /// Phase that follows this one. `None` means the cinematic ends and
+    /// the game transitions to BossFight.
+    pub fn next(&self) -> Option<BossIntroPhase> {
+        match self {
+            BossIntroPhase::Alert => Some(BossIntroPhase::Glitch),
+            BossIntroPhase::Glitch => Some(BossIntroPhase::Slam),
+            BossIntroPhase::Slam => Some(BossIntroPhase::Dialog1),
+            BossIntroPhase::Dialog1 => Some(BossIntroPhase::Dialog2),
+            BossIntroPhase::Dialog2 => Some(BossIntroPhase::Dialog3),
+            BossIntroPhase::Dialog3 => Some(BossIntroPhase::Charge),
+            BossIntroPhase::Charge => Some(BossIntroPhase::Dash),
+            BossIntroPhase::Dash => Some(BossIntroPhase::Impact),
+            BossIntroPhase::Impact => Some(BossIntroPhase::Fight),
+            BossIntroPhase::Fight => None,
+        }
+    }
+
+    pub fn is_dialog(&self) -> bool {
+        matches!(
+            self,
+            BossIntroPhase::Dialog1 | BossIntroPhase::Dialog2 | BossIntroPhase::Dialog3
+        )
+    }
+
+    /// Speaker / line text for dialog phases. Returns `None` for
+    /// non-dialog phases.
+    pub fn dialog_line(&self) -> Option<(&'static str, &'static str)> {
+        match self {
+            BossIntroPhase::Dialog1 => Some((
+                "MUNGCHI",
+                "AEIROBOT IS MINE NOW...",
+            )),
+            BossIntroPhase::Dialog2 => Some((
+                "MUNGCHI",
+                "SUBMIT AND BE INFECTED, EDIE!",
+            )),
+            BossIntroPhase::Dialog3 => Some((
+                "EDIE",
+                "NEVER. THIS ENDS HERE!",
+            )),
+            _ => None,
+        }
+    }
+}
+
+#[derive(Clone, Copy, Debug)]
+pub struct BossIntroState {
+    pub phase: BossIntroPhase,
+    pub elapsed: f32,
+}
+
+impl BossIntroState {
+    pub fn new() -> Self {
+        Self {
+            phase: BossIntroPhase::Alert,
+            elapsed: 0.0,
+        }
+    }
+
+    /// Number of fully-typed characters of the current dialog line at
+    /// the current `elapsed` (24 chars/sec). Caps at the line length.
+    pub fn typed_chars(&self) -> usize {
+        match self.phase.dialog_line() {
+            Some((_, text)) => {
+                let n = (self.elapsed * 24.0) as usize;
+                n.min(text.len())
+            }
+            None => 0,
+        }
+    }
+
+    pub fn dialog_done_typing(&self) -> bool {
+        match self.phase.dialog_line() {
+            Some((_, text)) => self.typed_chars() >= text.len(),
+            None => true,
+        }
+    }
+}
+
+impl Default for BossIntroState {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+// Kept for backwards compat with code that still references the
+// constant name; the value is the *minimum* cinematic length used by
+// the debug-boss skip path.
 pub const BOSS_INTRO_DURATION: f32 = 9.6;
 pub const VIRUS_W: f32 = 48.0;
 pub const VIRUS_H: f32 = 48.0;
