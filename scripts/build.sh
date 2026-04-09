@@ -2,12 +2,12 @@
 set -euo pipefail
 cd "$(dirname "$0")/.."
 
-# 1. Regenerate art + SFX (required for the embedded bundle)
+## 1. Regenerate art + SFX (required for the embedded bundle)
 if command -v python >/dev/null 2>&1; then
     echo "[1/4] Regenerating art assets..."
     python tools/generate_art.py
-    echo "[1/4] Regenerating background tile variants..."
-    python tools/generate_bg_variants.py
+    echo "[1/4] Regenerating extras (store shops, ERICA gate, BGM)..."
+    python tools/generate_extras.py
 else
     echo "[1/4] SKIP: python not found; using existing assets/gen/"
 fi

@@ -82,6 +82,12 @@ async fn main() {
     // from asset init + first-draw GPU pipeline compilation can otherwise
     // trip the visibility tracker and pause the game the instant it starts.
     let mut warmup_frames = 30u32;
+    // BGM: started once after the first user interaction (mobile autoplay
+    // policy requires a gesture before audio plays).
+    let mut bgm_started = false;
+    // Track countdown integer step so we only emit one beep per second.
+    let mut last_countdown_step: i32 = -1;
+    let mut prev_stage_wipe_active = false;
     // Track whether the player tapped any interactive area -- used as a
     // "confirm" on Title / GameOver / Paused when no on-screen JUMP button
     // was used.
@@ -222,6 +228,25 @@ async fn main() {
         };
         draw_background(&game.world.background, &assets, bg_stage, day_phase, &cam);
 
+        // Auto-cue: countdown beeps + stage-wipe whoosh. We do this in
+        // main.rs (not the simulation layer) because they are pure audio
+        // feedback driven by transient frame state.
+        if matches!(game.state, GameState::Playing) && game.countdown_remaining > 0.0 {
+            // Emit a beep on every full integer crossing (3, 2, 1, GO).
+            let step = game.countdown_remaining.ceil() as i32;
+            if step != last_countdown_step {
+                last_countdown_step = step;
+                game.world.effects.sfx(edie_runner::game::effects::SfxCue::Beep);
+            }
+        } else {
+            last_countdown_step = -1;
+        }
+        let stage_wipe_active = game.world.effects.stage_wipe.is_some();
+        if stage_wipe_active && !prev_stage_wipe_active {
+            game.world.effects.sfx(edie_runner::game::effects::SfxCue::Whoosh);
+        }
+        prev_stage_wipe_active = stage_wipe_active;
+
         // Drain SFX queue and play cued sounds. Use explicit PlaySoundParams
         // so we can set a full volume and bypass any quirks with
         // `play_sound_once` default volume on certain browsers.
@@ -235,6 +260,8 @@ async fn main() {
                     edie_runner::game::effects::SfxCue::Dash => (&assets.sfx_dash, 0.9),
                     edie_runner::game::effects::SfxCue::Smash => (&assets.sfx_smash, 1.0),
                     edie_runner::game::effects::SfxCue::Heart => (&assets.sfx_heart, 1.0),
+                    edie_runner::game::effects::SfxCue::Beep => (&assets.sfx_beep, 0.85),
+                    edie_runner::game::effects::SfxCue::Whoosh => (&assets.sfx_whoosh, 0.9),
                 };
                 macroquad::audio::play_sound(
                     sound,
@@ -244,6 +271,20 @@ async fn main() {
                     },
                 );
             }
+        }
+
+        // Start BGM as soon as we leave the Title screen for the first
+        // time. By then the player has definitely interacted (mobile
+        // autoplay policy is satisfied). The track loops forever after.
+        if !bgm_started && !matches!(game.state, GameState::Title) {
+            macroquad::audio::play_sound(
+                &assets.sfx_bgm,
+                macroquad::audio::PlaySoundParams {
+                    looped: true,
+                    volume: 0.28,
+                },
+            );
+            bgm_started = true;
         }
         let elapsed = game.world.elapsed;
         let speed_for_telegraph = game.world.current_speed();

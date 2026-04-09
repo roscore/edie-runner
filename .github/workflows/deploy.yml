@@ -42,8 +42,8 @@ jobs:
       - name: Generate art assets
         run: python tools/generate_art.py
 
-      - name: Generate background tile variants
-        run: python tools/generate_bg_variants.py
+      - name: Generate extras (store shops, ERICA gate, BGM, beeps)
+        run: python tools/generate_extras.py
 
       - name: Build wasm (release)
         run: cargo build --release --target wasm32-unknown-unknown --bin edie_runner
