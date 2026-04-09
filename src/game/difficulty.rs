@@ -8,7 +8,10 @@ pub const SCORE_PER_TIER: u32 = 2500;
 pub const MAX_TIER: u32 = 9;
 pub const SPARK_BURST_UNLOCK_TIER: u32 = 3;
 /// Score at which the Mungchi boss mode is triggered.
-pub const BOSS_TRIGGER_SCORE: u32 = 35000;
+pub const BOSS_TRIGGER_SCORE: u32 = 30000;
+/// Score at which Hanyang-ERICA-era infected EDIE drops start raining
+/// from the sky as a new obstacle type.
+pub const INFECTED_EDIE_SCORE: u32 = 25000;
 
 pub fn tier_for_score(score: u32) -> u32 {
     (score / SCORE_PER_TIER).min(MAX_TIER)

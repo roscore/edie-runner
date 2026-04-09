@@ -19,6 +19,22 @@ pub enum RunOutcome {
     Died,
 }
 
+/// A one-shot visual landmark that scrolls across the background layer
+/// at the same speed as the far tiles. Unlike variant tiles this is
+/// explicitly spawned once per stage entry and removed when it scrolls
+/// off-screen, so (e.g.) the Hanyang ERICA main gate shows up exactly
+/// once when the player crosses into the Ansan stage.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum LandmarkKind {
+    HanyangGate,
+}
+
+#[derive(Debug, Clone, Copy)]
+pub struct Landmark {
+    pub kind: LandmarkKind,
+    pub x: f32,
+}
+
 pub const MAX_HP: u32 = 3;
 pub const HP_INVULN_TIME: f32 = 1.0;
 
@@ -57,6 +73,11 @@ pub struct World {
     /// Last observed difficulty tier - used to trigger tier banners on change.
     last_tier: u32,
     last_stage: Stage,
+    /// Currently-visible one-shot landmark (e.g. Hanyang ERICA gate).
+    pub landmark: Option<Landmark>,
+    /// Set once the Hanyang gate has been spawned this run so we don't
+    /// re-spawn it if the player re-enters the Ansan stage somehow.
+    hanyang_gate_spawned: bool,
 }
 
 impl World {
@@ -77,6 +98,8 @@ impl World {
             was_airborne: false,
             last_tier: 0,
             last_stage: Stage::DepartmentStore,
+            landmark: None,
+            hanyang_gate_spawned: false,
         }
     }
 
@@ -223,6 +246,25 @@ impl World {
             let name = crate::game::difficulty::stage_name(current_stage).to_string();
             self.effects.start_stage_wipe(name, 1.4);
             self.last_stage = current_stage;
+            // Hanyang ERICA main gate: spawn once as the player enters
+            // the Ansan stage. It travels with the far parallax layer
+            // and is despawned when it scrolls off the left edge.
+            if matches!(current_stage, Stage::Ansan) && !self.hanyang_gate_spawned {
+                self.landmark = Some(Landmark {
+                    kind: LandmarkKind::HanyangGate,
+                    x: 1400.0,
+                });
+                self.hanyang_gate_spawned = true;
+            }
+        }
+
+        // Advance any active landmark with the far-parallax speed so it
+        // stays pinned to the same horizon-layer scroll rate.
+        if let Some(l) = &mut self.landmark {
+            l.x -= speed * 0.35 * sim_dt;
+            if l.x < -512.0 {
+                self.landmark = None;
+            }
         }
 
         let player_box = self.player.hitbox();

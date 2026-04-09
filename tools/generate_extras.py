@@ -74,6 +74,38 @@ def mall_floor(d: ImageDraw.ImageDraw) -> None:
 
 
 # ============================================================
+# Store variant 1: Watch shop (overrides the default bg_store_far.png)
+# Written using the same seamless template as the other variants so
+# the full 5-shop cycle tiles without visible edge breaks.
+# ============================================================
+def make_store_watch() -> Image.Image:
+    im = new_canvas(256, 100)
+    d = ImageDraw.Draw(im)
+    d.rectangle((0, 0, 256, 100), fill=(230, 218, 195, 255))
+    shop_frame(d, (16, 18, 240, 86))
+    # Display case (cream)
+    d.rectangle((22, 24, 234, 80), fill=(252, 246, 230, 255))
+    d.rectangle((36, 40, 220, 76), fill=(200, 180, 140, 255), outline=EDIE_OUTLINE, width=2)
+    d.rectangle((40, 44, 216, 72), fill=(240, 220, 180, 255))
+    # Five watches in a row
+    for i in range(5):
+        cx = 56 + i * 32
+        cy = 58
+        d.ellipse((cx - 10, cy - 10, cx + 10, cy + 10), fill=(245, 200, 80, 255), outline=EDIE_OUTLINE, width=1)
+        d.ellipse((cx - 7, cy - 7, cx + 7, cy + 7), fill=(255, 235, 130, 255))
+        d.point((cx, cy), fill=(40, 40, 40, 255))
+        d.line((cx, cy - 4, cx, cy), fill=(40, 40, 40, 255))
+        d.line((cx, cy, cx + 4, cy), fill=(40, 40, 40, 255))
+        # Leather strap under the watch
+        d.rectangle((cx - 7, cy + 10, cx + 7, cy + 14), fill=(120, 70, 30, 255))
+    # Gold accent rail beneath the case
+    d.rectangle((36, 78, 220, 80), fill=(220, 180, 80, 255))
+    mall_floor(d)
+    shop_sign(d, (80, 50, 20, 255), (220, 180, 80, 255))
+    return im
+
+
+# ============================================================
 # Store variant 2: Clothes / Fashion boutique
 # ============================================================
 def make_store_clothes() -> Image.Image:
@@ -246,12 +278,26 @@ def make_store_mid(rope: tuple[int, int, int, int]) -> Image.Image:
     d = ImageDraw.Draw(im)
     d.rectangle((0, 44, 256, 60), fill=(225, 215, 195, 255))
     d.line((0, 44, 256, 44), fill=(180, 165, 140, 255))
-    for sx in (20, 88, 156, 224):
+    # Stanchions at a uniform 64 px stride so consecutive tiles chain
+    # together with the same stanchion-to-stanchion distance as the
+    # interior rhythm (no weirder gap at the tile boundary).
+    for sx in (32, 96, 160, 224):
         d.rectangle((sx, 26, sx + 4, 48), fill=(190, 155, 60, 255), outline=EDIE_OUTLINE, width=1)
         d.ellipse((sx - 2, 22, sx + 6, 28), fill=(230, 190, 80, 255), outline=EDIE_OUTLINE, width=1)
-    for a, b in ((22, 90), (90, 158), (158, 226)):
+    # Ropes span every neighbour pair AND the tile edges so the rope
+    # visually continues across the seam.
+    def rope_span(a: int, b: int) -> None:
         d.line((a + 4, 32, b - 2, 32), fill=rope)
         d.line((a + 4, 33, b - 2, 33), fill=rope)
+    rope_span(32, 96)
+    rope_span(96, 160)
+    rope_span(160, 224)
+    # Edge continuations so the rope doesn't visually terminate at the
+    # tile boundary -- half-ropes on each side flow into the neighbour.
+    d.line((0, 32, 32 - 2, 32), fill=rope)
+    d.line((0, 33, 32 - 2, 33), fill=rope)
+    d.line((224 + 4, 32, 256, 32), fill=rope)
+    d.line((224 + 4, 33, 256, 33), fill=rope)
     return im
 
 
@@ -431,18 +477,28 @@ def make_audio_extras() -> None:
 # Main
 # ============================================================
 def main() -> None:
-    # ---- Store shop variants ----
+    # ---- Store shop far layer (all 5 share the seamless edge-pillar
+    #      template so the 5-shop cycle tiles continuously). The watch
+    #      variant overrides the default bg_store_far.png produced by
+    #      tools/generate_art.py so the base tile also has matching edges.
+    save(make_store_watch(), "bg_store_far.png")
     save(make_store_clothes(), "bg_store_far_v2.png")
     save(make_store_shoes(), "bg_store_far_v3.png")
     save(make_store_desserts(), "bg_store_far_v4.png")
     save(make_store_phone(), "bg_store_far_v5.png")
-    save(make_store_mid((170, 30, 40, 255)), "bg_store_mid_v2.png")
-    save(make_store_mid((40, 70, 130, 255)), "bg_store_mid_v3.png")
-    save(make_store_mid((200, 120, 150, 255)), "bg_store_mid_v4.png")
-    save(make_store_mid((40, 100, 160, 255)), "bg_store_mid_v5.png")
+    # Override the default mid too so the uniform stanchion stride chains
+    # across every tile without a weird boundary gap.
+    save(make_store_mid((170, 30, 40, 255)), "bg_store_mid.png")
+    save(make_store_mid((40, 70, 130, 255)), "bg_store_mid_v2.png")
+    save(make_store_mid((200, 120, 150, 255)), "bg_store_mid_v3.png")
+    save(make_store_mid((40, 100, 160, 255)), "bg_store_mid_v4.png")
+    save(make_store_mid((110, 150, 90, 255)), "bg_store_mid_v5.png")
 
-    # ---- Hanyang ERICA main gate (Ansan) ----
-    save(make_ansan_hanyang_gate(), "bg_ansan_far_v2.png")
+    # ---- Hanyang ERICA main gate: a one-shot landmark, not a tile
+    #      variant. The background draw loop renders it exactly once per
+    #      Ansan stage entry. Saved as a standalone PNG and NOT bundled
+    #      into the ansan variant cycle.
+    save(make_ansan_hanyang_gate(), "bg_ansan_gate.png")
 
     # ---- BGM + extra SFX ----
     make_audio_extras()

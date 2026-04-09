@@ -226,7 +226,14 @@ async fn main() {
         } else {
             game.world.current_stage()
         };
-        draw_background(&game.world.background, &assets, bg_stage, day_phase, &cam);
+        draw_background(
+            &game.world.background,
+            &assets,
+            bg_stage,
+            day_phase,
+            game.world.landmark.as_ref(),
+            &cam,
+        );
 
         // Auto-cue: countdown beeps + stage-wipe whoosh. We do this in
         // main.rs (not the simulation layer) because they are pure audio
@@ -247,29 +254,26 @@ async fn main() {
         }
         prev_stage_wipe_active = stage_wipe_active;
 
-        // Drain SFX queue and play cued sounds. Use explicit PlaySoundParams
-        // so we can set a full volume and bypass any quirks with
-        // `play_sound_once` default volume on certain browsers.
+        // Drain SFX queue and play cued sounds. We use `play_sound_once`
+        // for one-shots because in macroquad's wasm audio backend a
+        // sequence of `play_sound` calls while a looping track is active
+        // (the BGM) occasionally drops short one-shots like the jump
+        // sfx. `play_sound_once` allocates a fresh voice every call and
+        // plays reliably alongside the looping BGM.
         if !game.world.effects.sfx_queue.is_empty() {
             let cues: Vec<_> = game.world.effects.sfx_queue.drain(..).collect();
             for cue in cues {
-                let (sound, volume) = match cue {
-                    edie_runner::game::effects::SfxCue::Jump => (&assets.sfx_jump, 0.8),
-                    edie_runner::game::effects::SfxCue::Hit => (&assets.sfx_hit, 1.0),
-                    edie_runner::game::effects::SfxCue::Pickup => (&assets.sfx_pickup, 0.9),
-                    edie_runner::game::effects::SfxCue::Dash => (&assets.sfx_dash, 0.9),
-                    edie_runner::game::effects::SfxCue::Smash => (&assets.sfx_smash, 1.0),
-                    edie_runner::game::effects::SfxCue::Heart => (&assets.sfx_heart, 1.0),
-                    edie_runner::game::effects::SfxCue::Beep => (&assets.sfx_beep, 0.85),
-                    edie_runner::game::effects::SfxCue::Whoosh => (&assets.sfx_whoosh, 0.9),
+                let sound = match cue {
+                    edie_runner::game::effects::SfxCue::Jump => &assets.sfx_jump,
+                    edie_runner::game::effects::SfxCue::Hit => &assets.sfx_hit,
+                    edie_runner::game::effects::SfxCue::Pickup => &assets.sfx_pickup,
+                    edie_runner::game::effects::SfxCue::Dash => &assets.sfx_dash,
+                    edie_runner::game::effects::SfxCue::Smash => &assets.sfx_smash,
+                    edie_runner::game::effects::SfxCue::Heart => &assets.sfx_heart,
+                    edie_runner::game::effects::SfxCue::Beep => &assets.sfx_beep,
+                    edie_runner::game::effects::SfxCue::Whoosh => &assets.sfx_whoosh,
                 };
-                macroquad::audio::play_sound(
-                    sound,
-                    macroquad::audio::PlaySoundParams {
-                        looped: false,
-                        volume,
-                    },
-                );
+                macroquad::audio::play_sound_once(sound);
             }
         }
 
