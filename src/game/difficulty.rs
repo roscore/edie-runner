@@ -51,6 +51,22 @@ pub fn stage_for_tier(tier: u32) -> Stage {
     }
 }
 
+/// Returns the score at which the *next* stage change happens after
+/// `score`. If the player is already at the final stage, returns None so
+/// the HUD can hide the next-stage indicator.
+pub fn next_stage_boundary(score: u32) -> Option<(u32, Stage)> {
+    let current_stage = stage_for_tier(tier_for_score(score));
+    let mut tier = tier_for_score(score) + 1;
+    while tier <= MAX_TIER {
+        let candidate = stage_for_tier(tier);
+        if candidate != current_stage {
+            return Some((tier * SCORE_PER_TIER, candidate));
+        }
+        tier += 1;
+    }
+    None
+}
+
 pub fn stage_name(stage: Stage) -> &'static str {
     match stage {
         Stage::DepartmentStore => "PANGYO POP-UP STORE",

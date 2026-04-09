@@ -316,27 +316,14 @@ impl ObstacleField {
                     }
                 }
                 ObstacleKind::Alice3 | ObstacleKind::Alice4 => {
-                    // Factory+: after a short wind-up, kick a soccer ball.
-                    use crate::game::difficulty::{stage_for_tier, Stage};
-                    let stage = stage_for_tier(tier_for_score(score));
-                    if matches!(stage, Stage::AeiRobotFactory)
-                        && o.pattern_t <= 0.0
-                        && o.age > 0.35
-                        && o.x < 1100.0
-                    {
-                        // Mark kicked
-                        o.pattern_t = 1.0;
-                        // Spawn a soccer ball traveling left faster than scroll.
-                        let mut ball = Obstacle::new(
-                            ObstacleKind::SoccerBall,
-                            o.x - 6.0,
-                        );
-                        ball.extra_vx = -220.0;
-                        new_spawns.push(ball);
-                    }
+                    // Soccer-ball kick removed per v0.2.1 playtest -- the
+                    // fast rolling projectile on top of the Alice mob was
+                    // too punishing. Alice3/Alice4 now only block the
+                    // player's path as regular humanoid obstacles.
                 }
                 ObstacleKind::SoccerBall => {
-                    // Keep rolling; no extra logic.
+                    // Deprecated -- never spawned anymore. Kept in the
+                    // enum only to avoid churn in match arms and tests.
                 }
                 ObstacleKind::SportsCar => {
                     // Noticeable wind-up so players can see it coming,
