@@ -114,24 +114,35 @@ pub fn draw_background(
         Stage::AeiRobotFactory => &assets.stage_factory,
     };
 
-    // Dim and flatten the background tint so gameplay sprites pop in front
-    // of it. Multiplied onto the day/night tint for outdoor stages.
+    // Background tint: dimmed + desaturated so foreground sprites pop.
+    // For outdoor stages we multiply onto the day/night color; for indoor
+    // stages we use a flat muted tone.
     let stage_tint = if outdoor { tint } else { WHITE };
-    let bg_dim = 0.72;
+    let desat = |c: Color, strength: f32| {
+        let gray = 0.3 * c.r + 0.59 * c.g + 0.11 * c.b;
+        Color::new(
+            c.r * (1.0 - strength) + gray * strength,
+            c.g * (1.0 - strength) + gray * strength,
+            c.b * (1.0 - strength) + gray * strength,
+            1.0,
+        )
+    };
+    let base_bg = desat(stage_tint, 0.55);
+    let bg_dim = 0.78;
     let dimmed = Color::new(
-        stage_tint.r * bg_dim + 0.08,
-        stage_tint.g * bg_dim + 0.08,
-        stage_tint.b * bg_dim + 0.08,
+        base_bg.r * bg_dim + 0.06,
+        base_bg.g * bg_dim + 0.06,
+        base_bg.b * bg_dim + 0.06,
         1.0,
     );
     let bg_tint = if outdoor { dimmed } else {
-        Color::new(0.78, 0.78, 0.82, 1.0)
+        Color::new(0.76, 0.76, 0.80, 1.0)
     };
 
-    // Far layer — highest on screen, pushed up a bit.
-    let far_tile_w = 320.0;
-    let far_y = 176.0;
-    let far_h = 110.0;
+    // Far layer: original position (y=200, h=100), wider tiles for spacing.
+    let far_tile_w = 384.0;
+    let far_y = 200.0;
+    let far_h = 100.0;
     let mut x = -(bg.far_offset % far_tile_w);
     while x < LOGICAL_W {
         let (px, py) = cam.to_screen(x, far_y);
@@ -148,20 +159,14 @@ pub fn draw_background(
         x += far_tile_w;
     }
 
-    // Mid layer — moved well above the gameplay lane so it never touches
-    // player shoulder height (276). y=200 + h=56 -> ends at 256, leaving
-    // 20 px of breathing room above the player hitbox.
-    let mid_tile_w = 320.0;
-    let mid_y = 200.0;
-    let mid_h = 56.0;
-    // Additional desaturation on top of the stage tint for mid layer so
-    // obstacles always read louder than the backdrop.
-    let mid_tint = Color::new(
-        bg_tint.r * 0.85 + 0.10,
-        bg_tint.g * 0.85 + 0.10,
-        bg_tint.b * 0.85 + 0.10,
-        1.0,
-    );
+    // Mid layer: back to its original position sitting ON the floor
+    // (y=270, h=60, bottom at 330). This is where it naturally belongs --
+    // trees / benches / desks are ground-level props. Keep it visually
+    // receded by desaturating extra hard.
+    let mid_tile_w = 384.0;
+    let mid_y = 270.0;
+    let mid_h = 60.0;
+    let mid_tint = desat(bg_tint, 0.30);
     let mut x = -(bg.mid_offset % mid_tile_w);
     while x < LOGICAL_W {
         let (px, py) = cam.to_screen(x, mid_y);
@@ -178,31 +183,20 @@ pub fn draw_background(
         x += mid_tile_w;
     }
 
-    // Floor boundary line — a single hard line at GROUND_Y makes obstacles
-    // visually pop against the floor.
-    let (lx0, ly0) = cam.to_screen(0.0, 318.0);
-    draw_rectangle(
-        lx0,
-        ly0,
-        cam.scaled(LOGICAL_W),
-        cam.scaled(3.0),
-        Color::new(0.12, 0.12, 0.14, 0.9),
-    );
-
-    // Floor — keep it mostly desaturated so it doesn't fight the sprites.
+    // Floor — muted tint so sprites read above it.
     let floor_tint = if outdoor {
         Color::new(
-            0.5 + 0.5 * dimmed.r,
-            0.5 + 0.5 * dimmed.g,
-            0.5 + 0.5 * dimmed.b,
+            0.55 + 0.45 * dimmed.r,
+            0.55 + 0.45 * dimmed.g,
+            0.55 + 0.45 * dimmed.b,
             1.0,
         )
     } else {
-        Color::new(0.78, 0.78, 0.82, 1.0)
+        Color::new(0.80, 0.80, 0.84, 1.0)
     };
-    let floor_tile_w = 320.0;
-    let floor_y = 321.0;
-    let floor_h = 79.0;
+    let floor_tile_w = 384.0;
+    let floor_y = 320.0;
+    let floor_h = 80.0;
     let mut x = -(bg.floor_offset % floor_tile_w);
     while x < LOGICAL_W {
         let (px, py) = cam.to_screen(x, floor_y);
