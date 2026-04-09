@@ -98,6 +98,9 @@ pub struct AssetHandles {
     pub stage_ansan: StageBg,
     pub stage_office: StageBg,
     pub stage_factory: StageBg,
+    /// Hanyang ERICA main gate -- drawn once per Ansan entry via the
+    /// world's Landmark system, NOT as part of the tile cycle.
+    pub ansan_gate: Texture2D,
 
     pub sfx_jump: macroquad::audio::Sound,
     pub sfx_hit: macroquad::audio::Sound,
@@ -248,6 +251,7 @@ pub async fn load_all() -> Result<AssetHandles, LoadError> {
         stage_ansan: load_stage("ansan")?,
         stage_office: load_stage("office")?,
         stage_factory: load_stage("factory")?,
+        ansan_gate: tex("bg_ansan_gate.png")?,
 
         sfx_jump: snd("sfx_jump.wav").await?,
         sfx_hit: snd("sfx_hit.wav").await?,

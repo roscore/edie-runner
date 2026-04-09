@@ -332,6 +332,55 @@ fn draw_virus_orbit(
     }
 }
 
+/// Speech bubble drawn above a jumping Alice3 telegraphing her hop.
+/// Keeps the word "Squid!!!" short enough to fit at 320x80 logical space.
+fn draw_squid_bubble(center_x: f32, top_y: f32, cam: &Camera) {
+    let text = "Squid!!!";
+    let size = 20.0 * cam.scale;
+    let dim = measure_text(text, None, size as u16, 1.0);
+    let pad_x = 12.0 * cam.scale;
+    let pad_y = 6.0 * cam.scale;
+    let (cx_screen, cy_screen) = cam.to_screen(center_x, top_y - 26.0);
+    let bw = dim.width + pad_x * 2.0;
+    let bh = dim.height + pad_y * 2.0;
+    let bx = cx_screen - bw * 0.5;
+    let by = cy_screen - bh * 0.5;
+    // Bubble fill
+    draw_rectangle(bx, by, bw, bh, Color::new(1.0, 1.0, 1.0, 0.95));
+    draw_rectangle_lines(bx, by, bw, bh, 3.0, Color::new(0.10, 0.10, 0.12, 1.0));
+    // Pointer tail
+    draw_triangle(
+        macroquad::prelude::Vec2::new(cx_screen - 8.0 * cam.scale, by + bh),
+        macroquad::prelude::Vec2::new(cx_screen + 8.0 * cam.scale, by + bh),
+        macroquad::prelude::Vec2::new(cx_screen, by + bh + 12.0 * cam.scale),
+        Color::new(1.0, 1.0, 1.0, 0.95),
+    );
+    draw_line(
+        cx_screen - 8.0 * cam.scale,
+        by + bh,
+        cx_screen,
+        by + bh + 12.0 * cam.scale,
+        2.5,
+        Color::new(0.10, 0.10, 0.12, 1.0),
+    );
+    draw_line(
+        cx_screen + 8.0 * cam.scale,
+        by + bh,
+        cx_screen,
+        by + bh + 12.0 * cam.scale,
+        2.5,
+        Color::new(0.10, 0.10, 0.12, 1.0),
+    );
+    // Text on top
+    draw_text(
+        text,
+        cx_screen - dim.width * 0.5,
+        by + bh * 0.5 + dim.height * 0.35,
+        size,
+        Color::new(0.85, 0.15, 0.30, 1.0),
+    );
+}
+
 pub fn draw_obstacle(
     o: &Obstacle,
     assets: &AssetHandles,
@@ -452,9 +501,26 @@ pub fn draw_obstacle(
             );
         }
         ObstacleKind::Pigeon => {
+            // Flip horizontally so the bird visibly faces the player
+            // (toward the left of the screen) as it charges in.
             let f = frame_index(elapsed, 8.0, 2);
-            draw_tex_frame(
-                &assets.obstacle_pigeon, f, 36.0, 32.0, 1.0, o.x, o.y, cam, WHITE,
+            let (sx, sy) = cam.to_screen(o.x, o.y);
+            draw_texture_ex(
+                &assets.obstacle_pigeon,
+                sx,
+                sy,
+                WHITE,
+                DrawTextureParams {
+                    dest_size: Some(vec2(cam.scaled(36.0), cam.scaled(32.0))),
+                    source: Some(Rect {
+                        x: f as f32 * (36.0 + 1.0),
+                        y: 0.0,
+                        w: 36.0,
+                        h: 32.0,
+                    }),
+                    flip_x: true,
+                    ..Default::default()
+                },
             );
         }
         ObstacleKind::MallBalloon => {
@@ -495,6 +561,11 @@ pub fn draw_obstacle(
             if infected {
                 draw_virus_orbit(o.x, o.y, w, h, elapsed, cam);
             }
+            // "Squid!!!" speech bubble while Alice3 is in her airborne
+            // hop (pattern_t > 1.0 marks the active hover window).
+            if o.pattern_t > 1.0 {
+                draw_squid_bubble(o.x + w * 0.5, o.y - 8.0, cam);
+            }
         }
         ObstacleKind::Alice4 => {
             let tex = if infected { &assets.obstacle_infected_alice4 } else { &assets.obstacle_alice4 };
@@ -503,6 +574,15 @@ pub fn draw_obstacle(
             if infected {
                 draw_virus_orbit(o.x, o.y, w, h, elapsed, cam);
             }
+        }
+        ObstacleKind::InfectedEdie => {
+            // Reuse the normal EDIE run sprite, painted with the same
+            // sickly-green pulse used on infected robots, plus a ring of
+            // purple viruses orbiting her so the falling threat reads
+            // clearly against any background.
+            let tint = infected_tint(elapsed);
+            draw_tex_at(&assets.edie_static_run, o.x, o.y, w, h, cam, tint);
+            draw_virus_orbit(o.x, o.y, w, h, elapsed, cam);
         }
         ObstacleKind::SoccerBall => {
             // High-visibility treatment: pulsing neon halo + streaking

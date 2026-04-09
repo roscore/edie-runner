@@ -34,6 +34,10 @@ pub enum ObstacleKind {
     /// Fast rolling soccer ball kicked by Alice3/4 in the Factory stage.
     /// Low ground-level projectile, charges at the player.
     SoccerBall,
+    /// Infected EDIE that drops from the top of the screen starting at
+    /// INFECTED_EDIE_SCORE. Its physics use falling `vy` instead of the
+    /// normal ground-level scroll.
+    InfectedEdie,
 }
 
 impl ObstacleKind {
@@ -76,6 +80,7 @@ impl ObstacleKind {
             ObstacleKind::Alice3 => (25.0, 64.0),
             ObstacleKind::Alice4 => (27.0, 68.0),
             ObstacleKind::SoccerBall => (36.0, 36.0),
+            ObstacleKind::InfectedEdie => (56.0, 48.0),
         }
     }
 
@@ -90,6 +95,10 @@ impl ObstacleKind {
             // Mall balloon hovers in the duck-forcing band
             ObstacleKind::MallBalloon => GROUND_Y - 82.0 - (h - 48.0),
             ObstacleKind::SignBoard => GROUND_Y - 160.0,
+            // Infected EDIE spawns above the screen -- its resting y
+            // (when it lands) is the ground, but its initial y is set
+            // explicitly by the spawner to -80.
+            ObstacleKind::InfectedEdie => GROUND_Y - h,
             _ => GROUND_Y - h,
         }
     }
@@ -102,6 +111,7 @@ impl ObstacleKind {
                 | ObstacleKind::SignBoard
                 | ObstacleKind::Pigeon
                 | ObstacleKind::MallBalloon
+                | ObstacleKind::InfectedEdie
         )
     }
 }
@@ -151,6 +161,9 @@ pub struct ObstacleField {
     pub obstacles: Vec<Obstacle>,
     pub scrolled_since_spawn: f32,
     pub next_spawn_gap: f32,
+    /// Cooldown until the next falling InfectedEdie spawn. Only
+    /// decremented while the player is past INFECTED_EDIE_SCORE.
+    pub infected_edie_timer: f32,
 }
 
 impl Default for ObstacleField {
@@ -159,6 +172,7 @@ impl Default for ObstacleField {
             obstacles: Vec::new(),
             scrolled_since_spawn: 0.0,
             next_spawn_gap: 0.0,
+            infected_edie_timer: 4.0,
         }
     }
 }
@@ -315,15 +329,45 @@ impl ObstacleField {
                         o.pattern_t = 1.0;
                     }
                 }
-                ObstacleKind::Alice3 | ObstacleKind::Alice4 => {
-                    // Soccer-ball kick removed per v0.2.1 playtest -- the
-                    // fast rolling projectile on top of the Alice mob was
-                    // too punishing. Alice3/Alice4 now only block the
-                    // player's path as regular humanoid obstacles.
+                ObstacleKind::Alice3 => {
+                    // A portion of Alice3 instances perform a sudden
+                    // "Squid!!!" hop the player has to duck under. We
+                    // use `pattern_t` as a small state machine:
+                    //   0.0   -> untriggered
+                    //   1..2  -> jumping, fractional part = hover time
+                    //   -1.0  -> decided NOT to jump
+                    if o.pattern_t == 0.0 && o.age > 0.25 && o.x < 950.0 {
+                        if rng.gen_bool(0.45) {
+                            // Hop to 20 px above the ground for ~0.55s.
+                            o.pattern_t = 1.55;
+                            o.y = o.kind.y_for_kind() - 20.0;
+                        } else {
+                            o.pattern_t = -1.0;
+                        }
+                    }
+                    if o.pattern_t > 1.0 {
+                        // Count down the hover window in the fractional
+                        // part. When it expires, drop her back to ground.
+                        o.pattern_t -= dt;
+                        if o.pattern_t <= 1.0 {
+                            o.y = o.kind.y_for_kind();
+                            o.pattern_t = -1.0;
+                        }
+                    }
+                }
+                ObstacleKind::Alice4 => {
+                    // Alice4 stays grounded as a regular humanoid.
                 }
                 ObstacleKind::SoccerBall => {
                     // Deprecated -- never spawned anymore. Kept in the
                     // enum only to avoid churn in match arms and tests.
+                }
+                ObstacleKind::InfectedEdie => {
+                    // Pure falling motion; once it lands, the generic
+                    // `o.y > ground_y` clamp above will stop her vy.
+                    // She also scrolls with the world via the base `dx`
+                    // so the player can dodge horizontally.
+                    o.vy += 520.0 * dt;
                 }
                 ObstacleKind::SportsCar => {
                     // Noticeable wind-up so players can see it coming,
@@ -370,6 +414,33 @@ impl ObstacleField {
         }
         self.obstacles.retain(|o| o.alive && o.x + o.kind.size().0 > -50.0);
         self.obstacles.extend(new_spawns);
+
+        // Infected-EDIE falling spawner. Kicks in at INFECTED_EDIE_SCORE
+        // and spawns every 3.5..6.5 s in the ERICA / Office / Factory
+        // stages. The EDIE drops from the top of the frame and has to
+        // be dodged horizontally (by timing the approach) or vertically
+        // (by ducking as she lands in front of the player).
+        if score >= crate::game::difficulty::INFECTED_EDIE_SCORE {
+            use crate::game::difficulty::{stage_for_tier, Stage};
+            let stage = stage_for_tier(tier_for_score(score));
+            if matches!(
+                stage,
+                Stage::Ansan | Stage::AeiRobotOffice | Stage::AeiRobotFactory
+            ) {
+                self.infected_edie_timer -= dt;
+                if self.infected_edie_timer <= 0.0 {
+                    let sx = rng.gen_range(420.0..1180.0);
+                    let mut e = Obstacle::new(ObstacleKind::InfectedEdie, sx);
+                    e.y = -80.0;
+                    e.vy = 260.0;
+                    // Mark as "no pattern trigger" so update skips her
+                    // from the match arms of jumping Alice behaviours.
+                    e.pattern_t = -1.0;
+                    self.obstacles.push(e);
+                    self.infected_edie_timer = rng.gen_range(3.5..6.5);
+                }
+            }
+        }
 
         self.scrolled_since_spawn += dx;
         if self.scrolled_since_spawn >= self.next_spawn_gap {

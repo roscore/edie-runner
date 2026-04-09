@@ -65,6 +65,7 @@ pub fn draw_background(
     assets: &AssetHandles,
     stage: crate::game::difficulty::Stage,
     day_phase: f32,
+    landmark: Option<&crate::game::world::Landmark>,
     cam: &Camera,
 ) {
     use crate::game::difficulty::Stage;
@@ -199,6 +200,32 @@ pub fn draw_background(
         bg_tint,
         cam,
     );
+
+    // One-shot landmark (Hanyang ERICA main gate etc.) drawn over the far
+    // layer but under the mid layer so foreground trees/benches overlap
+    // it naturally when it scrolls past.
+    if let Some(lm) = landmark {
+        use crate::game::world::LandmarkKind;
+        let tex = match lm.kind {
+            LandmarkKind::HanyangGate => &assets.ansan_gate,
+        };
+        // Draw at the far-layer row, 1.5x the source tile width so the
+        // landmark visually reads as a wider structure than a single
+        // far-layer tile.
+        let draw_w = 576.0_f32;
+        let draw_h = 120.0_f32;
+        let (sx, sy) = cam.to_screen(lm.x, 180.0);
+        draw_texture_ex(
+            tex,
+            sx,
+            sy,
+            bg_tint,
+            DrawTextureParams {
+                dest_size: Some(vec2(cam.scaled(draw_w), cam.scaled(draw_h))),
+                ..Default::default()
+            },
+        );
+    }
 
     // Mid layer: cycle through `[base, ...mid_variants]`. Extra
     // desaturation so it stays visually recessed.

@@ -71,6 +71,9 @@ pub struct Game {
     pub name_cursor: usize,
     /// Score being entered (snapshotted at GameOver transition).
     pub pending_score: u32,
+    /// Number of consecutive B presses on the Title screen -- three in a
+    /// row jumps straight to the boss intro cinematic.
+    pub title_b_presses: u32,
 }
 
 impl Game {
@@ -93,6 +96,7 @@ impl Game {
             name_buf: ['A', 'A', 'A'],
             name_cursor: 0,
             pending_score: 0,
+            title_b_presses: 0,
         }
     }
 
@@ -170,6 +174,11 @@ impl Game {
             }
             return;
         }
+        // Any non-B input on the Title screen resets the hidden
+        // triple-B debug counter so it only matches consecutive presses.
+        if matches!(self.state, GameState::Title) && !matches!(action, Action::DebugBoss) {
+            self.title_b_presses = 0;
+        }
         match (self.state, action) {
             (GameState::Title, Action::Confirm) | (GameState::Title, Action::Jump) => {
                 self.start_run(storage);
@@ -177,18 +186,35 @@ impl Game {
             (GameState::Title, Action::OpenHelp) => {
                 self.state = GameState::Help;
             }
-            (GameState::Title, Action::DebugBoss)
-            | (GameState::GameOver, Action::DebugBoss) => {
-                // Dev shortcut: skip straight to the Mungchi boss fight.
-                // This run is flagged as debug so it doesn't contribute
-                // to the score ledger (high score, best-runs, etc).
+            (GameState::Title, Action::DebugBoss) => {
+                // Dev shortcut, hidden on purpose: press B three times in
+                // a row from the Title screen to drop straight into the
+                // boss intro cinematic (not the BossFight state -- the
+                // player should see the break-in animation first).
+                self.title_b_presses += 1;
+                if self.title_b_presses >= 3 {
+                    self.title_b_presses = 0;
+                    self.seed_counter = self.seed_counter.wrapping_add(1);
+                    self.world = World::new(self.seed_counter, storage);
+                    self.state = GameState::Playing;
+                    self.countdown_remaining = 0.0;
+                    // Kick off the break-in animation. The Playing-state
+                    // update path will flip to BossFight once the intro
+                    // timer reaches zero.
+                    self.boss_intro_remaining =
+                        crate::game::boss::BOSS_INTRO_DURATION;
+                    self.debug_run = true;
+                }
+            }
+            (GameState::GameOver, Action::DebugBoss) => {
+                // From GameOver, a single B press still goes straight in
+                // (so developers can cycle attempts quickly).
                 self.seed_counter = self.seed_counter.wrapping_add(1);
                 self.world = World::new(self.seed_counter, storage);
-                // Do NOT inflate score.current -- the debug run starts at 0
-                // and never earns a real score.
-                self.state = GameState::BossFight;
-                self.boss = Some(crate::game::boss::BossWorld::new());
+                self.state = GameState::Playing;
                 self.countdown_remaining = 0.0;
+                self.boss_intro_remaining =
+                    crate::game::boss::BOSS_INTRO_DURATION;
                 self.debug_run = true;
             }
             (GameState::Title, Action::OpenStory) => {
