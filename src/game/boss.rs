@@ -49,7 +49,13 @@ pub struct Virus {
 
 impl Virus {
     pub fn hitbox(&self) -> Aabb {
-        Aabb { x: self.x + 8.0, y: self.y + 8.0, w: VIRUS_W - 16.0, h: VIRUS_H - 16.0 }
+        // Tighter than the 48x48 sprite: only the solid core counts.
+        Aabb {
+            x: self.x + 12.0,
+            y: self.y + 12.0,
+            w: VIRUS_W - 24.0,
+            h: VIRUS_H - 24.0,
+        }
     }
 }
 
@@ -594,13 +600,18 @@ impl BossWorld {
         // the hitbox float ~80 px above the rendered EDIE).
         // EDIE is drawn at y = 400 - BOSS_EDIE_H - BOSS_EDIE_BOTTOM_INSET = 336,
         // size 56x48, with the player_x being the left edge of the visual.
+        //
+        // Generous insets so only EDIE's round body collides, not the
+        // empty pixels around her. With 56x48 sprite and 14 px inset we
+        // get a 28x20 hitbox that matches the visible blob.
         let edie_top = 400.0 - BOSS_EDIE_H - BOSS_EDIE_BOTTOM_INSET;
-        let inset = 8.0;
+        let inset_x = 14.0;
+        let inset_y = 14.0;
         let player_box = Aabb {
-            x: self.player_x + inset,
-            y: edie_top + inset,
-            w: BOSS_EDIE_W - 2.0 * inset,
-            h: BOSS_EDIE_H - 2.0 * inset,
+            x: self.player_x + inset_x,
+            y: edie_top + inset_y,
+            w: BOSS_EDIE_W - 2.0 * inset_x,
+            h: BOSS_EDIE_H - 2.0 * inset_y,
         };
 
         // Virus collision

@@ -1,6 +1,6 @@
 [package]
 name = "edie_runner"
-version = "0.1.0"
+version = "0.2.0"
 edition = "2021"
 authors = ["helle"]
 description = "Endless runner starring EDIE the AeiROBOT mascot"

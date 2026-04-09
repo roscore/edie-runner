@@ -78,9 +78,10 @@ async fn main() {
         }
     };
 
-    // Skip the very first render frame after loading so the huge frame_time
-    // (which includes the load / warmup cost) doesn't pollute the accumulator.
-    let mut warmup_frames = 2u32;
+    // Skip the first many render frames after loading: the huge frame_time
+    // from asset init + first-draw GPU pipeline compilation can otherwise
+    // trip the visibility tracker and pause the game the instant it starts.
+    let mut warmup_frames = 30u32;
     // Track whether the player tapped any interactive area -- used as a
     // "confirm" on Title / GameOver / Paused when no on-screen JUMP button
     // was used.
@@ -206,21 +207,42 @@ async fn main() {
         } else {
             0.25 // fixed noon-ish daylight
         };
-        draw_background(&game.world.background, &assets, game.world.current_stage(), day_phase, &cam);
+        // During the boss intro / fight the run may have been force-started
+        // via debug (score=0). Always pin the background to the Factory so
+        // the player never sees a jarring DepartmentStore mall behind the
+        // Mungchi boss.
+        let bg_stage = if matches!(
+            game.state,
+            GameState::BossFight
+        ) || game.boss_intro_remaining > 0.0
+        {
+            edie_runner::game::difficulty::Stage::AeiRobotFactory
+        } else {
+            game.world.current_stage()
+        };
+        draw_background(&game.world.background, &assets, bg_stage, day_phase, &cam);
 
-        // Drain SFX queue and play cued sounds.
+        // Drain SFX queue and play cued sounds. Use explicit PlaySoundParams
+        // so we can set a full volume and bypass any quirks with
+        // `play_sound_once` default volume on certain browsers.
         if !game.world.effects.sfx_queue.is_empty() {
             let cues: Vec<_> = game.world.effects.sfx_queue.drain(..).collect();
             for cue in cues {
-                let sound = match cue {
-                    edie_runner::game::effects::SfxCue::Jump => &assets.sfx_jump,
-                    edie_runner::game::effects::SfxCue::Hit => &assets.sfx_hit,
-                    edie_runner::game::effects::SfxCue::Pickup => &assets.sfx_pickup,
-                    edie_runner::game::effects::SfxCue::Dash => &assets.sfx_dash,
-                    edie_runner::game::effects::SfxCue::Smash => &assets.sfx_smash,
-                    edie_runner::game::effects::SfxCue::Heart => &assets.sfx_heart,
+                let (sound, volume) = match cue {
+                    edie_runner::game::effects::SfxCue::Jump => (&assets.sfx_jump, 0.8),
+                    edie_runner::game::effects::SfxCue::Hit => (&assets.sfx_hit, 1.0),
+                    edie_runner::game::effects::SfxCue::Pickup => (&assets.sfx_pickup, 0.9),
+                    edie_runner::game::effects::SfxCue::Dash => (&assets.sfx_dash, 0.9),
+                    edie_runner::game::effects::SfxCue::Smash => (&assets.sfx_smash, 1.0),
+                    edie_runner::game::effects::SfxCue::Heart => (&assets.sfx_heart, 1.0),
                 };
-                macroquad::audio::play_sound_once(sound);
+                macroquad::audio::play_sound(
+                    sound,
+                    macroquad::audio::PlaySoundParams {
+                        looped: false,
+                        volume,
+                    },
+                );
             }
         }
         let elapsed = game.world.elapsed;

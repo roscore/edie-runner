@@ -75,7 +75,7 @@ impl ObstacleKind {
             ObstacleKind::AliceM1 => (28.0, 64.0),
             ObstacleKind::Alice3 => (25.0, 64.0),
             ObstacleKind::Alice4 => (27.0, 68.0),
-            ObstacleKind::SoccerBall => (24.0, 24.0),
+            ObstacleKind::SoccerBall => (36.0, 36.0),
         }
     }
 

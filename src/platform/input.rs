@@ -153,10 +153,17 @@ impl InputSource for MacroquadInput {
 
         if jump_now && !self.jump_was_down {
             out.push(Action::Jump);
-            out.push(Action::Confirm);
         }
         if !jump_now && self.jump_was_down {
             out.push(Action::JumpRelease);
+        }
+        // Enter key is the dedicated "confirm / commit" action -- used on
+        // Title / GameOver / NameEntry but kept strictly separate from Jump
+        // so pressing Up or Space on the NameEntry screen does not secretly
+        // commit the name in the same frame.
+        if is_key_pressed(KeyCode::Enter) {
+            out.push(Action::Confirm);
+            out.push(Action::NameCommit);
         }
         if duck_now && !self.duck_was_down {
             out.push(Action::Duck);
