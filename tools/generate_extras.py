@@ -389,32 +389,31 @@ def make_boss_virus_pumpkin() -> Image.Image:
     grin_inner = (92, 22, 12, 255)
     tooth = (238, 240, 220, 255)
 
-    # ---------- 16 chunky spike proteins (half the v0.4.0 count) ----------
-    # Fewer, thicker spikes read as a crown rather than a tangle.
-    num_spikes = 16
-    inner_r = 68
-    outer_r = 106
+    # ---------- 8 short spike proteins (matches mini-virus crown) ----------
+    # Playtest note: v0.4.2 had 16 chunky legs which still read as
+    # "too many legs, gross". Drop the count to 8 and shorten the
+    # stalks so the silhouette matches the falling mini-viruses --
+    # just a bigger version of the same crown, no more tangle.
+    num_spikes = 8
+    inner_r = 76
+    outer_r = 100
     for i in range(num_spikes):
         angle = (i / num_spikes) * math.tau
         sx1 = cx + int(math.cos(angle) * inner_r)
         sy1 = cy + int(math.sin(angle) * inner_r)
         sx2 = cx + int(math.cos(angle) * outer_r)
         sy2 = cy + int(math.sin(angle) * outer_r)
-        # Thick single stalk
-        d.line((sx1, sy1, sx2, sy2), fill=core_dark, width=9)
-        d.line((sx1, sy1, sx2, sy2), fill=core_mid, width=5)
-        # Knob at the tip
-        d.ellipse(
-            (sx2 - 12, sy2 - 12, sx2 + 12, sy2 + 12),
-            fill=core_dark, outline=out, width=2,
-        )
-        d.ellipse(
-            (sx2 - 9, sy2 - 9, sx2 + 9, sy2 + 9),
-            fill=core_mid,
-        )
-        d.ellipse(
+        # Thin single stalk, same style as mini virus
+        d.line((sx1, sy1, sx2, sy2), fill=core_dark, width=6)
+        d.line((sx1, sy1, sx2, sy2), fill=core_mid, width=3)
+        # Square-ish tip like the mini virus, just larger
+        d.rectangle(
             (sx2 - 5, sy2 - 5, sx2 + 5, sy2 + 5),
-            fill=core_lite,
+            fill=core_dark, outline=out, width=1,
+        )
+        d.rectangle(
+            (sx2 - 3, sy2 - 3, sx2 + 3, sy2 + 3),
+            fill=core_mid,
         )
 
     # ---------- Main body ----------
