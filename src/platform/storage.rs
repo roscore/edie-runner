@@ -67,6 +67,13 @@ mod js_bridge {
             out_ptr: *mut u8,
             out_cap: usize,
         ) -> i32;
+        /// Read the cached remote leaderboard JSON (fetched by JS on page
+        /// load). Returns byte count written into out_ptr, or -1 if not
+        /// yet available.
+        pub fn edie_remote_lb_get(out_ptr: *mut u8, out_cap: usize) -> i32;
+        /// Fire-and-forget PUT of the full leaderboard JSON to the remote
+        /// jsonblob endpoint. JS handles the async fetch.
+        pub fn edie_remote_lb_put(json_ptr: *const u8, json_len: usize);
     }
 }
 
@@ -133,6 +140,57 @@ impl BrowserStorage {
 impl Default for BrowserStorage {
     fn default() -> Self {
         Self::new()
+    }
+}
+
+#[cfg(feature = "graphics")]
+impl BrowserStorage {
+    /// Try to read the remote leaderboard JSON (prefetched by the JS
+    /// plugin on page load). Returns `None` if the data hasn't arrived
+    /// yet or if we're not running in wasm.
+    pub fn remote_leaderboard_json(&self) -> Option<String> {
+        Self::remote_lb_get()
+    }
+
+    /// Push the full leaderboard JSON to the remote endpoint (fire and
+    /// forget). Safe to call every time the leaderboard changes.
+    pub fn push_remote_leaderboard(&self, json: &str) {
+        Self::remote_lb_put(json);
+    }
+
+    #[cfg(target_arch = "wasm32")]
+    fn remote_lb_get() -> Option<String> {
+        let mut buf = vec![0u8; 32 * 1024];
+        let n = unsafe {
+            js_bridge::edie_remote_lb_get(buf.as_mut_ptr(), buf.len())
+        };
+        if n < 0 {
+            return None;
+        }
+        buf.truncate(n as usize);
+        String::from_utf8(buf).ok()
+    }
+
+    #[cfg(target_arch = "wasm32")]
+    fn remote_lb_put(json: &str) {
+        let bytes = json.as_bytes();
+        unsafe {
+            js_bridge::edie_remote_lb_put(bytes.as_ptr(), bytes.len());
+        }
+    }
+
+    #[cfg(not(target_arch = "wasm32"))]
+    fn remote_lb_get() -> Option<String> {
+        None
+    }
+
+    #[cfg(not(target_arch = "wasm32"))]
+    fn remote_lb_put(_json: &str) {}
+
+    /// Static variant of push so leaderboard.rs can call it without
+    /// holding a &self reference (the JS bridge is stateless).
+    pub fn push_remote_static(json: &str) {
+        Self::remote_lb_put(json);
     }
 }
 

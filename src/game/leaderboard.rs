@@ -91,6 +91,19 @@ impl Leaderboard {
         self.entries.push(entry);
         self.sort_and_trim();
         self.persist(storage);
+        // Also push to the remote endpoint so scores are visible
+        // cross-device. This is fire-and-forget — the JS plugin
+        // handles the async PUT.
+        self.push_remote(storage);
+    }
+
+    /// Push the current leaderboard to the remote endpoint if running
+    /// in wasm. Falls back to no-op on native builds.
+    pub fn push_remote<S: Storage>(&self, _storage: &S) {
+        #[cfg(feature = "graphics")]
+        if let Some(json) = self.to_json() {
+            crate::platform::storage::BrowserStorage::push_remote_static(&json);
+        }
     }
 
     pub fn persist<S: Storage>(&self, storage: &mut S) {
@@ -101,6 +114,36 @@ impl Leaderboard {
         if let Ok(json) = serde_json::to_string(&file) {
             storage.set(LEADERBOARD_KEY, &json);
         }
+    }
+
+    /// Merge entries from a remote JSON blob (fetched by the JS plugin).
+    /// New high-score entries that aren't already in the local board get
+    /// added; duplicates (same name + score) are skipped.
+    pub fn merge_remote(&mut self, json: &str) {
+        if let Ok(file) = serde_json::from_str::<LeaderboardFile>(json) {
+            if file.version != Self::CURRENT_VERSION {
+                return;
+            }
+            for remote_e in &file.entries {
+                let already = self.entries.iter().any(|e| {
+                    e.name == remote_e.name && e.score == remote_e.score
+                });
+                if !already {
+                    self.entries.push(remote_e.clone());
+                }
+            }
+            self.sort_and_trim();
+        }
+    }
+
+    /// Serialize the current leaderboard to JSON (for pushing to the
+    /// remote endpoint via the JS plugin).
+    pub fn to_json(&self) -> Option<String> {
+        let file = LeaderboardFile {
+            version: Self::CURRENT_VERSION,
+            entries: self.entries.clone(),
+        };
+        serde_json::to_string(&file).ok()
     }
 
     /// Best score currently on the board (for HUD HI display).
