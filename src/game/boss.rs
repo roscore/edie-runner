@@ -265,6 +265,7 @@ pub struct PincerWave {
     pub warn_remaining: f32,
 }
 
+#[derive(Clone)]
 pub struct BossWorld {
     pub remaining: f32,
     pub player_x: f32,
