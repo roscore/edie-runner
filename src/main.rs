@@ -260,21 +260,19 @@ async fn main() {
         // (the BGM) occasionally drops short one-shots like the jump
         // sfx. `play_sound_once` allocates a fresh voice every call and
         // plays reliably alongside the looping BGM.
-        if !game.world.effects.sfx_queue.is_empty() {
-            let cues: Vec<_> = game.world.effects.sfx_queue.drain(..).collect();
-            for cue in cues {
-                let sound = match cue {
-                    edie_runner::game::effects::SfxCue::Jump => &assets.sfx_jump,
-                    edie_runner::game::effects::SfxCue::Hit => &assets.sfx_hit,
-                    edie_runner::game::effects::SfxCue::Pickup => &assets.sfx_pickup,
-                    edie_runner::game::effects::SfxCue::Dash => &assets.sfx_dash,
-                    edie_runner::game::effects::SfxCue::Smash => &assets.sfx_smash,
-                    edie_runner::game::effects::SfxCue::Heart => &assets.sfx_heart,
-                    edie_runner::game::effects::SfxCue::Beep => &assets.sfx_beep,
-                    edie_runner::game::effects::SfxCue::Whoosh => &assets.sfx_whoosh,
-                };
-                macroquad::audio::play_sound_once(sound);
-            }
+        // Drain SFX directly — no intermediate Vec allocation.
+        for cue in game.world.effects.sfx_queue.drain(..) {
+            let sound = match cue {
+                edie_runner::game::effects::SfxCue::Jump => &assets.sfx_jump,
+                edie_runner::game::effects::SfxCue::Hit => &assets.sfx_hit,
+                edie_runner::game::effects::SfxCue::Pickup => &assets.sfx_pickup,
+                edie_runner::game::effects::SfxCue::Dash => &assets.sfx_dash,
+                edie_runner::game::effects::SfxCue::Smash => &assets.sfx_smash,
+                edie_runner::game::effects::SfxCue::Heart => &assets.sfx_heart,
+                edie_runner::game::effects::SfxCue::Beep => &assets.sfx_beep,
+                edie_runner::game::effects::SfxCue::Whoosh => &assets.sfx_whoosh,
+            };
+            macroquad::audio::play_sound_once(sound);
         }
 
         // Start BGM as soon as we leave the Title screen for the first

@@ -157,24 +157,20 @@ pub fn draw_background(
         tint: Color,
         cam: &Camera,
     ) {
-        let total = (variants.len() + 1) as i64;
-        let base_tile = (offset / tile_w).floor() as i64;
-        let start_x = -(offset - base_tile as f32 * tile_w);
-        let mut i: i64 = 0;
-        let mut x = start_x;
+        // Clean modular start: since background.rs already wraps the
+        // offset at tile_w, this is just a direct negate. No floor/
+        // i64 math that could introduce pixel-level jumps.
+        let mut x = -(offset % tile_w);
+        let total = (variants.len() + 1).max(1);
+        let mut i = 0usize;
         while x < LOGICAL_W {
             let (px, py) = cam.to_screen(x, y);
-            let absolute_idx = base_tile + i;
-            let variant_idx = absolute_idx.rem_euclid(total);
-            let tex: &macroquad::texture::Texture2D = if variant_idx == 0 {
+            let tex: &macroquad::texture::Texture2D = if total == 1 {
                 base
             } else {
-                &variants[(variant_idx - 1) as usize]
+                let vi = i % total;
+                if vi == 0 { base } else { &variants[vi - 1] }
             };
-            // Flip every other full cycle so a 5-shop mall doesn't lock
-            // into a perfectly regular 5-beat repeat.
-            let cycle = absolute_idx.div_euclid(total);
-            let flip_x = cycle.rem_euclid(2) == 1;
             draw_texture_ex(
                 tex,
                 px,
@@ -182,7 +178,6 @@ pub fn draw_background(
                 tint,
                 DrawTextureParams {
                     dest_size: Some(vec2(cam.scaled(tile_w), cam.scaled(h))),
-                    flip_x,
                     ..Default::default()
                 },
             );
