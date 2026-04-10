@@ -33,8 +33,7 @@
             var val = read_str(val_ptr, val_len);
             localStorage.setItem(key, val);
         } catch (e) {
-            // localStorage may be blocked (private mode, disabled cookies).
-            // Swallow the error so the game keeps running.
+            console.warn("[edie_storage] localStorage.setItem failed:", e);
         }
     }
 

@@ -278,37 +278,23 @@ fn draw_virus_orbit(
     elapsed: f32,
     cam: &Camera,
 ) {
+    // Lightweight: 2 orbiting dots instead of 3×3 draw_circle calls.
     let cx = ox + w * 0.5;
     let cy = oy + h * 0.5;
-    let orbit_rx = (w * 0.55 + 6.0).max(18.0);
-    let orbit_ry = (h * 0.30 + 4.0).max(10.0);
-    for i in 0..3u32 {
-        let phase = (i as f32) * (std::f32::consts::TAU / 3.0);
+    let orbit_rx = (w * 0.5 + 4.0).max(16.0);
+    let orbit_ry = (h * 0.3 + 3.0).max(8.0);
+    for i in 0..2u32 {
+        let phase = (i as f32) * std::f32::consts::PI;
         let t = elapsed * 2.0 + phase;
         let vx = cx + t.cos() * orbit_rx;
-        let vy = cy + (t * 1.3).sin() * orbit_ry - 4.0;
-        let pulse = 0.5 + 0.5 * (elapsed * 6.0 + phase).sin();
+        let vy = cy + (t * 1.3).sin() * orbit_ry - 3.0;
         let (sx, sy) = cam.to_screen(vx, vy);
-        // Soft purple outer glow
-        draw_circle(
-            sx,
-            sy,
-            cam.scaled(5.0 + pulse * 1.2),
-            Color::new(0.62, 0.30, 0.98, 0.45),
-        );
-        // Core
-        draw_circle(
-            sx,
-            sy,
-            cam.scaled(2.5),
-            Color::new(0.85, 0.55, 1.0, 0.95),
-        );
-        // Tiny highlight
-        draw_circle(
-            sx - cam.scaled(0.8),
-            sy - cam.scaled(0.8),
-            cam.scaled(0.8),
-            Color::new(1.0, 1.0, 1.0, 0.8),
+        draw_rectangle(
+            sx - cam.scaled(2.5),
+            sy - cam.scaled(2.5),
+            cam.scaled(5.0),
+            cam.scaled(5.0),
+            Color::new(0.75, 0.40, 1.0, 0.85),
         );
     }
 }

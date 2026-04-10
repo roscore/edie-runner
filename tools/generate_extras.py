@@ -343,21 +343,24 @@ def make_all_floors() -> None:
     Each stage gets a colour scheme that matches the palette of its far /
     mid layers so the horizon line still reads cohesively."""
     # (name, base, line, accent, grid, top_band)
+    # All floors use very desaturated, near-grey palettes so they
+    # recede behind the gameplay layer. The v0.4.2 floors had too
+    # much saturation (browns / oranges / reds that pulled focus).
     configs = [
-        ("bg_store_floor.png", (215, 200, 170, 255), (180, 160, 130, 255),
-         (235, 215, 155, 255), 32, (160, 140, 110, 255)),
-        ("bg_street_floor.png", (150, 150, 145, 255), (115, 115, 110, 255),
-         (180, 180, 170, 255), 32, (90, 90, 85, 255)),
-        ("bg_techpark_floor.png", (200, 205, 210, 255), (150, 158, 168, 255),
-         (225, 230, 235, 255), 32, (120, 130, 140, 255)),
-        ("bg_highway_floor.png", (70, 70, 78, 255), (40, 40, 48, 255),
-         (210, 190, 90, 255), 32, (30, 30, 36, 255)),
-        ("bg_ansan_floor.png", (175, 130, 100, 255), (130, 90, 60, 255),
-         (210, 160, 120, 255), 32, (90, 60, 40, 255)),
-        ("bg_office_floor.png", (130, 130, 140, 255), (90, 90, 100, 255),
-         (160, 160, 170, 255), 32, (60, 60, 70, 255)),
-        ("bg_factory_floor.png", (80, 82, 90, 255), (50, 52, 60, 255),
-         (160, 160, 170, 255), 32, (30, 30, 36, 255)),
+        ("bg_store_floor.png", (185, 180, 175, 255), (160, 155, 150, 255),
+         (200, 196, 192, 255), 32, (140, 136, 132, 255)),
+        ("bg_street_floor.png", (148, 148, 146, 255), (118, 118, 116, 255),
+         (168, 168, 166, 255), 32, (96, 96, 94, 255)),
+        ("bg_techpark_floor.png", (178, 180, 182, 255), (148, 150, 154, 255),
+         (194, 196, 198, 255), 32, (124, 126, 130, 255)),
+        ("bg_highway_floor.png", (82, 82, 84, 255), (56, 56, 58, 255),
+         (108, 108, 106, 255), 32, (40, 40, 42, 255)),
+        ("bg_ansan_floor.png", (152, 146, 140, 255), (122, 118, 114, 255),
+         (172, 168, 164, 255), 32, (98, 94, 90, 255)),
+        ("bg_office_floor.png", (136, 136, 138, 255), (102, 102, 104, 255),
+         (156, 156, 158, 255), 32, (76, 76, 78, 255)),
+        ("bg_factory_floor.png", (86, 86, 88, 255), (58, 58, 60, 255),
+         (108, 108, 110, 255), 32, (38, 38, 40, 255)),
     ]
     for (name, base, line, accent, grid, top_band) in configs:
         save(make_seamless_floor(base, line, accent, grid, top_band), name)
@@ -427,53 +430,46 @@ def make_boss_virus_pumpkin() -> Image.Image:
     for (dx, dy) in ((-32, 28), (28, 26), (-18, 42), (38, 10)):
         d.ellipse((cx + dx - 3, cy + dy - 3, cx + dx + 3, cy + dy + 3), fill=core_dark)
 
-    # ---------- Jack-o-lantern triangular eyes ----------
-    # Matching the Halloween-pumpkin reference: two downward-pointing
-    # triangular cutouts, not slits and not round cartoon eyes. Yellow
-    # glow inside so they read as carved + lit.
-    def pumpkin_eye(center_x: int, center_y: int) -> None:
-        # Outer jagged triangle (base at top, point at bottom).
-        outer = [
-            (center_x - 16, center_y - 13),
-            (center_x - 11, center_y - 15),
-            (center_x - 4, center_y - 13),
-            (center_x + 3, center_y - 15),
-            (center_x + 11, center_y - 13),
-            (center_x + 16, center_y - 11),
-            (center_x + 9, center_y - 2),
-            (center_x + 2, center_y + 10),
-            (center_x - 2, center_y + 10),
-            (center_x - 9, center_y - 2),
-            (center_x - 16, center_y - 11),
+    # ---------- Lightning bolt eyes ----------
+    # Each eye is a zig-zag lightning bolt shape. The left bolt points
+    # down-and-left, the right bolt mirrors it. Orange→yellow→white
+    # layered glow inside the dark socket.
+    def bolt_eye(center_x: int, center_y: int, flip: bool) -> None:
+        dx = -1 if not flip else 1
+        # Lightning bolt polygon (7 vertices, zig-zag shape).
+        pts = [
+            (center_x - 4 * dx, center_y - 16),
+            (center_x + 14 * dx, center_y - 14),
+            (center_x + 4 * dx, center_y - 4),
+            (center_x + 12 * dx, center_y - 2),
+            (center_x - 2 * dx, center_y + 14),
+            (center_x + 2 * dx, center_y + 2),
+            (center_x - 10 * dx, center_y + 4),
         ]
-        d.polygon(outer, fill=eye_dark, outline=out)
-        # Inner orange glow triangle.
-        inner1 = [
-            (center_x - 12, center_y - 10),
-            (center_x + 12, center_y - 10),
-            (center_x + 7, center_y - 2),
-            (center_x + 1, center_y + 7),
-            (center_x - 1, center_y + 7),
-            (center_x - 7, center_y - 2),
+        # Dark socket (outline)
+        d.polygon(pts, fill=eye_dark, outline=out)
+        # Inner orange glow (scaled 75%)
+        inner = [
+            (center_x + int((p[0] - center_x) * 0.7),
+             center_y + int((p[1] - center_y) * 0.7))
+            for p in pts
         ]
-        d.polygon(inner1, fill=eye_orange)
-        # Yellow inner core.
-        inner2 = [
-            (center_x - 9, center_y - 7),
-            (center_x + 9, center_y - 7),
-            (center_x + 5, center_y - 1),
-            (center_x, center_y + 4),
-            (center_x - 5, center_y - 1),
+        d.polygon(inner, fill=eye_orange)
+        # Yellow core (scaled 45%)
+        core = [
+            (center_x + int((p[0] - center_x) * 0.4),
+             center_y + int((p[1] - center_y) * 0.4))
+            for p in pts
         ]
-        d.polygon(inner2, fill=eye_yellow)
-        # Bright glow center.
+        d.polygon(core, fill=eye_yellow)
+        # White hot center dot
         d.ellipse(
-            (center_x - 3, center_y - 4, center_x + 3, center_y + 1),
+            (center_x - 2, center_y - 2, center_x + 2, center_y + 2),
             fill=eye_glow,
         )
 
-    pumpkin_eye(cx - 28, cy - 14)
-    pumpkin_eye(cx + 28, cy - 14)
+    bolt_eye(cx - 26, cy - 12, flip=False)
+    bolt_eye(cx + 26, cy - 12, flip=True)
 
     # ---------- Smaller Halloween-pumpkin grin ----------
     # Playtest complaint: the old mouth was too big, nearly spanning the

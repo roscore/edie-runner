@@ -61,7 +61,7 @@ dependencies = [
 
 [[package]]
 name = "edie_runner"
-version = "0.4.3"
+version = "0.4.4"
 dependencies = [
  "macroquad",
  "rand",
