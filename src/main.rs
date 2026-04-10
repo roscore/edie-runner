@@ -59,6 +59,13 @@ async fn main() {
     let initial_seed = (get_time() * 1000.0) as u64;
     let mut game = Game::new(initial_seed, &storage);
 
+    // Merge remote leaderboard (prefetched by JS on page load) so
+    // scores from other devices / sessions are visible immediately.
+    if let Some(json) = storage.remote_leaderboard_json() {
+        game.leaderboard.merge_remote(&json);
+    }
+    let mut remote_synced = false;
+
     let assets = match show_loading_then_load().await {
         Ok(a) => a,
         Err(msg) => {
@@ -383,6 +390,15 @@ async fn main() {
             GameState::Ending => draw_ending(&assets, wall_time, game.last_ending_true, &cam),
             GameState::NameEntry => draw_name_entry(&game, wall_time, &cam),
             _ => {}
+        }
+
+        // Lazy remote leaderboard sync: keep trying once per second
+        // until the prefetched data arrives, then stop polling.
+        if !remote_synced {
+            if let Some(json) = storage.remote_leaderboard_json() {
+                game.leaderboard.merge_remote(&json);
+                remote_synced = true;
+            }
         }
 
         next_frame().await;
