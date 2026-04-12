@@ -15,6 +15,11 @@ name = "edie_runner"
 path = "src/main.rs"
 required-features = ["graphics"]
 
+[[bin]]
+name = "edie_reverse"
+path = "src/bin/edie_reverse.rs"
+required-features = ["graphics"]
+
 [features]
 default = ["graphics"]
 graphics = ["dep:macroquad"]
