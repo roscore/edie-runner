@@ -386,13 +386,17 @@ impl BossWorld {
                 };
                 self.pattern_timer = 8.0;
             }
-            // Clear pattern-specific state at rotation boundary
+            // Clear pattern-specific state at rotation boundary.
+            // Also flush all in-flight viruses so leftover bullets
+            // from the previous pattern can't combine with the new
+            // pattern's attacks to create undodgeable combos.
             self.safe_lane = None;
             self.hunter_shots.clear();
             self.hunter_next = 0.0;
             self.hunter_fired_count = 0;
             self.pincer_wave = None;
             self.ring_next = 0.0;
+            self.viruses.clear();
         }
 
         let boss_color = if self.phase == 2 {
@@ -571,23 +575,34 @@ impl BossWorld {
             // Phase 2 exclusive patterns
             // ================================================================
             BossPattern::Crossfire => {
-                // Horizontal bullets from left and right edges at fixed
-                // lanes. Gaps between lanes let the player survive with
-                // careful left/right placement.
+                // Horizontal bullets from left and right edges.
+                //
+                // EDIE's hitbox in boss mode is y=350..370. Virus hitbox
+                // is (virus_y+12 .. virus_y+36). For a virus at lane Y
+                // to hit the player, we need virus_y+36 > 350 AND
+                // virus_y+12 < 370, i.e. Y in (314, 358).
+                //
+                // v0.4.4 had lane 330 which fell squarely in this range
+                // → guaranteed hit, no dodge possible. Fixed lanes now
+                // sit clearly ABOVE the player so they can be dodged by
+                // stepping left/right into the gaps between bullets.
+                //
+                // Bullet spacing widened from 40px to 100px so the 28px-
+                // wide player can comfortably fit between the 24px-wide
+                // virus hitboxes (gap = 100-24 = 76px > 28px).
                 self.spawn_timer -= dt;
                 if self.spawn_timer <= 0.0 {
-                    // Fire from a random vertical band near player height
-                    let lanes = [260.0, 295.0, 330.0, 360.0];
+                    let lanes = [260.0, 290.0, 310.0];
                     let lane_y = lanes[rng.gen_range(0..lanes.len())];
                     let from_left = rng.gen_bool(0.5);
-                    let count = 3u32;
+                    let count = 2u32;
                     for i in 0..count {
                         let x = if from_left {
-                            -40.0 - (i as f32) * 40.0
+                            -40.0 - (i as f32) * 100.0
                         } else {
-                            1280.0 + (i as f32) * 40.0
+                            1280.0 + (i as f32) * 100.0
                         };
-                        let vx = if from_left { 500.0 } else { -500.0 };
+                        let vx = if from_left { 420.0 } else { -420.0 };
                         self.viruses.push(Virus {
                             x,
                             y: lane_y,
