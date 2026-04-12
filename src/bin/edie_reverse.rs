@@ -66,6 +66,29 @@ async fn main() {
                         }
                     }
                 }
+                // Activate powerup with Q key
+                if is_key_pressed(KeyCode::Q) {
+                    game.activate_powerup();
+                }
+            }
+            Phase::UsingPowerup => {
+                let (mx, my) = mouse_position();
+                game.hover = screen_to_cell(mx, my);
+                if is_mouse_button_pressed(MouseButton::Left) {
+                    if let Some((r, c)) = screen_to_cell(mx, my) {
+                        game.on_cell_click(r, c);
+                    }
+                }
+                for t in touches() {
+                    if let macroquad::input::TouchPhase::Started = t.phase {
+                        if let Some((r, c)) = screen_to_cell(t.position.x, t.position.y) {
+                            game.on_cell_click(r, c);
+                        }
+                    }
+                }
+                if is_key_pressed(KeyCode::Escape) {
+                    game.cancel_powerup();
+                }
             }
             Phase::GameOver => {
                 if is_key_pressed(KeyCode::Space) || is_mouse_button_pressed(MouseButton::Left) {

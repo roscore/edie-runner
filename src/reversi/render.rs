@@ -3,7 +3,7 @@
 
 use crate::assets::AssetHandles;
 use crate::render::camera::Camera;
-use crate::reversi::board::{Board, Cell, Side, BOARD_SIZE, INITIAL_HP};
+use crate::reversi::board::{Board, Cell, Powerup, Side, BOARD_SIZE, INITIAL_HP};
 use crate::reversi::game::{FlipAnim, Phase, ReversiGame};
 use macroquad::prelude::*;
 
@@ -22,9 +22,10 @@ pub fn draw_reversi(game: &ReversiGame, assets: &AssetHandles, elapsed: f32) {
     clear_background(Color::new(0.06, 0.06, 0.10, 1.0));
     match game.phase {
         Phase::Menu => draw_menu(&cam),
-        Phase::Playing | Phase::Animating => {
+        Phase::Playing | Phase::Animating | Phase::UsingPowerup => {
             draw_board_frame(&cam);
             draw_cells(&cam);
+            draw_aurora_cells(&game.board, elapsed, &cam);
             draw_viruses(&game.board, assets, elapsed, &cam);
             draw_pieces(&game.board, assets, elapsed, &cam);
             if game.phase == Phase::Playing {
@@ -33,11 +34,18 @@ pub fn draw_reversi(game: &ReversiGame, assets: &AssetHandles, elapsed: f32) {
                     draw_hover(hr, hc, &cam);
                 }
             }
+            if game.phase == Phase::UsingPowerup {
+                draw_powerup_targets(game, elapsed, &cam);
+            }
             if let Some(anim) = &game.flip_anim {
                 draw_flip_overlay(anim, &cam);
             }
             draw_hud(&game.board, &cam);
+            draw_powerup_hud(&game.board, &cam);
             draw_turn_indicator(&game.board, elapsed, &cam);
+            if let Some((ref msg, t)) = game.toast {
+                draw_toast(msg, t, &cam);
+            }
         }
         Phase::GameOver => {
             draw_board_frame(&cam);
@@ -253,6 +261,118 @@ fn draw_game_over(board: &Board, cam: &Camera) {
     let sd = measure_text(sub, None, ss as u16, 1.0);
     let (sx, sy) = cam.to_screen(640.0, 400.0);
     draw_text(sub, sx - sd.width * 0.5, sy, ss, Color::new(0.8, 0.8, 0.8, 1.0));
+}
+
+fn draw_aurora_cells(board: &Board, elapsed: f32, cam: &Camera) {
+    for &(r, c) in &board.aurora_cells {
+        let lx = BOARD_X + c as f32 * CELL_PX;
+        let ly = BOARD_Y + r as f32 * CELL_PX;
+        let (sx, sy) = cam.to_screen(lx, ly);
+        let s = cam.scaled(CELL_PX);
+        let pulse = 0.3 + 0.3 * (elapsed * 3.0 + (r + c) as f32).sin();
+        // Orange-green gradient glow
+        let t = (0.5 + 0.5 * (elapsed * 1.5).sin()) as f32;
+        let glow = Color::new(
+            ORANGE.r + (GREEN.r - ORANGE.r) * t,
+            ORANGE.g + (GREEN.g - ORANGE.g) * t,
+            ORANGE.b + (GREEN.b - ORANGE.b) * t,
+            pulse,
+        );
+        draw_rectangle(sx, sy, s, s, glow);
+        // Diamond shape in center
+        let cx = sx + s * 0.5;
+        let cy = sy + s * 0.5;
+        let r2 = cam.scaled(12.0);
+        draw_line(cx, cy - r2, cx + r2, cy, 2.0, Color::new(1.0, 1.0, 1.0, 0.9));
+        draw_line(cx + r2, cy, cx, cy + r2, 2.0, Color::new(1.0, 1.0, 1.0, 0.9));
+        draw_line(cx, cy + r2, cx - r2, cy, 2.0, Color::new(1.0, 1.0, 1.0, 0.9));
+        draw_line(cx - r2, cy, cx, cy - r2, 2.0, Color::new(1.0, 1.0, 1.0, 0.9));
+    }
+}
+
+fn draw_powerup_targets(game: &ReversiGame, elapsed: f32, cam: &Camera) {
+    let pulse = 0.5 + 0.5 * (elapsed * 5.0).sin();
+    match game.targeting_powerup {
+        Some(Powerup::VirusCure) => {
+            for r in 0..BOARD_SIZE {
+                for c in 0..BOARD_SIZE {
+                    if game.board.cells[r][c] == Cell::Virus {
+                        let (sx, sy) = cam.to_screen(BOARD_X + c as f32 * CELL_PX, BOARD_Y + r as f32 * CELL_PX);
+                        let s = cam.scaled(CELL_PX);
+                        draw_rectangle(sx, sy, s, s, Color::new(0.2, 1.0, 0.5, pulse * 0.5));
+                        draw_rectangle_lines(sx, sy, s, s, 3.0, Color::new(0.3, 1.0, 0.6, 0.9));
+                    }
+                }
+            }
+            let hint = "TAP a virus cell to cure  |  ESC to cancel";
+            let hs = 18.0 * cam.scale;
+            let hd = measure_text(hint, None, hs as u16, 1.0);
+            let (hx, hy) = cam.to_screen(640.0, 50.0);
+            draw_text(hint, hx - hd.width * 0.5, hy, hs, GREEN);
+        }
+        Some(Powerup::ForceFlip) => {
+            let opp = game.board.turn.opponent();
+            for r in 0..BOARD_SIZE {
+                for c in 0..BOARD_SIZE {
+                    if game.board.cells[r][c] == Cell::Piece(opp) {
+                        let (sx, sy) = cam.to_screen(BOARD_X + c as f32 * CELL_PX, BOARD_Y + r as f32 * CELL_PX);
+                        let s = cam.scaled(CELL_PX);
+                        draw_rectangle(sx, sy, s, s, Color::new(1.0, 0.6, 0.2, pulse * 0.4));
+                        draw_rectangle_lines(sx, sy, s, s, 3.0, Color::new(1.0, 0.7, 0.3, 0.9));
+                    }
+                }
+            }
+            let hint = "TAP an opponent piece to flip  |  ESC to cancel";
+            let hs = 18.0 * cam.scale;
+            let hd = measure_text(hint, None, hs as u16, 1.0);
+            let (hx, hy) = cam.to_screen(640.0, 50.0);
+            draw_text(hint, hx - hd.width * 0.5, hy, hs, ORANGE);
+        }
+        _ => {}
+    }
+}
+
+fn draw_powerup_hud(board: &Board, cam: &Camera) {
+    draw_powerup_icon(30.0, 700.0, board.edie_powerup, "EDIE", true, cam);
+    draw_powerup_icon(1050.0, 700.0, board.alice_powerup, "ALICE", false, cam);
+}
+
+fn draw_powerup_icon(lx: f32, ly: f32, pw: Option<Powerup>, _label: &str, is_edie: bool, cam: &Camera) {
+    if let Some(powerup) = pw {
+        let (sx, sy) = cam.to_screen(lx, ly);
+        let bw = cam.scaled(200.0);
+        let bh = cam.scaled(22.0);
+        let bg = if is_edie {
+            Color::new(ORANGE.r, ORANGE.g, ORANGE.b, 0.3)
+        } else {
+            Color::new(0.9, 0.3, 0.35, 0.3)
+        };
+        draw_rectangle(sx, sy, bw, bh, bg);
+        draw_rectangle_lines(sx, sy, bw, bh, 1.5, Color::new(1.0, 1.0, 1.0, 0.5));
+        let name = match powerup {
+            Powerup::DoubleStrike => "2x STRIKE",
+            Powerup::VirusCure => "VIRUS CURE [Q]",
+            Powerup::ForceFlip => "FORCE FLIP [Q]",
+        };
+        let ts = 13.0 * cam.scale;
+        let td = measure_text(name, None, ts as u16, 1.0);
+        draw_text(name, sx + bw * 0.5 - td.width * 0.5, sy + bh * 0.5 + td.height * 0.3, ts, WHITE);
+    }
+}
+
+fn draw_toast(msg: &str, remaining: f32, cam: &Camera) {
+    let alpha = remaining.min(1.0);
+    let size = 28.0 * cam.scale;
+    let dim = measure_text(msg, None, size as u16, 1.0);
+    let (tx, ty) = cam.to_screen(640.0, 40.0);
+    let px = cam.scaled(16.0);
+    let py = cam.scaled(8.0);
+    draw_rectangle(
+        tx - dim.width * 0.5 - px, ty - dim.height - py,
+        dim.width + px * 2.0, dim.height + py * 2.0,
+        Color::new(0.0, 0.0, 0.0, 0.7 * alpha),
+    );
+    draw_text(msg, tx - dim.width * 0.5, ty, size, Color::new(1.0, 0.95, 0.6, alpha));
 }
 
 pub fn screen_to_cell(screen_x: f32, screen_y: f32) -> Option<(usize, usize)> {
