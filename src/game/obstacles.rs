@@ -295,7 +295,8 @@ impl ObstacleField {
     pub fn update(&mut self, dt: f32, speed: f32, score: u32, rng: &mut SmallRng) {
         use crate::game::difficulty::{stage_for_tier, Stage};
         let dx = speed * dt;
-        let mut new_spawns: Vec<Obstacle> = Vec::new();
+        // (new_spawns Vec removed — Alice3 kick was the only producer
+        // and it was disabled in v0.3.1. No per-tick allocation needed.)
         for o in &mut self.obstacles {
             o.age += dt;
             // Baseline scroll
@@ -441,8 +442,7 @@ impl ObstacleField {
                 _ => {}
             }
         }
-        self.obstacles.retain(|o| o.alive && o.x + o.kind.size().0 > -50.0);
-        self.obstacles.extend(new_spawns);
+        self.obstacles.retain(|o| o.alive && o.x > -150.0);
 
         // Infected-EDIE falling spawner. Kicks in at INFECTED_EDIE_SCORE
         // and spawns every 3.5..6.5 s in the ERICA / Office / Factory

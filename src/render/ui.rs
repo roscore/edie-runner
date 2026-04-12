@@ -677,14 +677,16 @@ pub fn draw_overlay(
                 dash_size,
                 Color::new(0.85, 0.82, 0.7, 1.0),
             );
-            let row: Vec<String> = game
-                .leaderboard
-                .entries
-                .iter()
-                .enumerate()
-                .map(|(i, e)| format!("#{} {} {:06}", i + 1, e.name, e.score))
-                .collect();
-            let joined = row.join("   ");
+            // Build leaderboard row in-place with a single String to
+            // avoid the Vec<String> + join() allocation every frame.
+            let mut joined = String::with_capacity(128);
+            for (i, e) in game.leaderboard.entries.iter().enumerate() {
+                if i > 0 {
+                    joined.push_str("   ");
+                }
+                use std::fmt::Write;
+                let _ = write!(joined, "#{} {} {:06}", i + 1, e.name, e.score);
+            }
             let row_size = 18.0 * cam.scale;
             let (rx, ry) = cam.to_screen(LOGICAL_W * 0.5, LOGICAL_H * 0.94);
             let dim_row = measure_text(&joined, None, row_size as u16, 1.0);

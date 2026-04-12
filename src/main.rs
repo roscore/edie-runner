@@ -99,6 +99,9 @@ async fn main() {
     // "confirm" on Title / GameOver / Paused when no on-screen JUMP button
     // was used.
     let mut was_touching = false;
+    // Pre-allocated buffer for touch positions — cleared each frame,
+    // never reallocated (avoids per-frame heap allocation).
+    let mut touch_points: Vec<(f32, f32)> = Vec::with_capacity(8);
 
     loop {
         let raw_frame_time = get_frame_time();
@@ -115,7 +118,7 @@ async fn main() {
 
         // Touch sampling -- works on mobile (multi-touch) and desktop mouse.
         let cam_for_touch = Camera::new(screen_width(), screen_height());
-        let mut touch_points: Vec<(f32, f32)> = Vec::new();
+        touch_points.clear();
         for t in touches() {
             touch_points.push((t.position.x, t.position.y));
         }
@@ -290,7 +293,7 @@ async fn main() {
                 &assets.sfx_bgm,
                 macroquad::audio::PlaySoundParams {
                     looped: true,
-                    volume: 0.28,
+                    volume: 0.16,
                 },
             );
             bgm_started = true;
@@ -305,17 +308,17 @@ async fn main() {
                 | edie_runner::game::difficulty::Stage::AeiRobotFactory
         );
         for o in &game.world.obstacles.obstacles {
-            if o.alive {
+            if o.alive && o.x > -100.0 && o.x < 1400.0 {
                 draw_obstacle(o, &assets, elapsed, speed_for_telegraph, infected, &cam);
             }
         }
         for s in &game.world.pickups.stones {
-            if !s.collected {
+            if !s.collected && s.x > -60.0 && s.x < 1360.0 {
                 draw_aurora(s, &assets, elapsed, &cam);
             }
         }
         for h in &game.world.pickups.hearts {
-            if !h.collected {
+            if !h.collected && h.x > -60.0 && h.x < 1360.0 {
                 draw_heart_pickup(h, &assets, elapsed, &cam);
             }
         }
