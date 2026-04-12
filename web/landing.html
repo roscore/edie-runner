@@ -62,6 +62,11 @@
             justify-content: center;
             font-size: 3rem;
         }
+        .card-banner img {
+            height: 80px;
+            image-rendering: pixelated;
+            image-rendering: crisp-edges;
+        }
         .card-banner.runner { background: linear-gradient(135deg, #1a2a1a, #0f1f2f); }
         .card-banner.reverse { background: linear-gradient(135deg, #2a1a0f, #1a1a2a); }
         .card-banner.yut { background: linear-gradient(135deg, #2a200f, #0f2a1a); }
@@ -102,12 +107,12 @@
 <body>
     <div class="header">
         <h1>EDIE MINIGAMES</h1>
-        <p>AeiROBOT 마스코트 에디와 함께하는 미니게임 컬렉션</p>
+        <p>AeiROBOT에 관심 있는 개발자가 만든 팬게임 컬렉션</p>
     </div>
 
     <div class="games">
         <a href="runner/" class="card">
-            <div class="card-banner runner">🏃</div>
+            <div class="card-banner runner"><img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAADwAAAAwCAYAAABNPhkJAAAFQUlEQVR4nMVaPW/zNhA+CfHurYCMIEYWaQwyd9JQZfRvMDwlqOf8hMwGmqnQb/AYeeDSPehILYGDwkLH7h7UIT31RN2R1IffPIAAW5Soe8j74pEBTAitde16Jo7j1v+yLK3PJ0kSjJOqjUk68yGKMAlTIPk4jjsDMRXxUZ34EkWSlJAvOA1A8lrr+rjLmvvLbeEcmEGEKVFKhhLhyA0hzKEsS0jTVGyvqkrkFUoNlFQURTVeeD+O45bgJgmz3Qcue6bIVzOxLYoiUfPEkZBewg+t92cAAFBKOe3Sh3if5yikmZZmmb1pGyETSikA4NXURQLbTVWnpHzMZH7YwP3LR6d/jvRkhF3C9VFXE5KfoODsmiPcsWFfstSGOCF8bDhNUzjuMjjuss5v2q9rsHAg3p9vnXJ3RsCHcL6aQfbb0dk5FWh+2MCf+i+4S65Z9ePw/nwL9y8fkK9msNwWrTZTm9A0aJh6eP2cRqVNu7WFIACA4y5rnNxQoEYhcZ8EhovJvQlTm8UPS4RtsXIo6Gz7qLxJumPDWuuai3HcPSSL9lqWZXNdgizAVzjEvqVExjb7Dfu/dz/X//zye6uRqiKNty4VvhRZE+/Pt2DKjHJReegsNz/65sUIGioWi0VfmUfDJG2aWFmWLcJXU3x0TIwdi/uXD8h1Bstt0Qy8TaXFXNp80YyraKuIH6XGHGgEMOUCaGvvlXmDwpUt4f3iaTla6LE47jIAI1ZTaK3rJEmCEMCuAtIs00EYG2OnAJXBtooLtda1bYZoqOFAMxsO+WoGSqnO5Qv6LO3LJovNp4R9qw9mAm+bXaVUk4KmadrKkX1IK6XArGjg+xxojJYQBkEQmHmqL2wjma9mTVgwhcBBs5HGNk5Vy7LspSUUIUC/ApnvCma9P0PxtGyRPZ1OLUcnkcasjpst6kO41RG+y5mi1roWwxLtmP6mnluy33w1g3w166g7fXe9P8NisWDVU9I4mraWZQk//fpH5xn8pqT2IQDA2+NNJyyhcLbSqSTYcluwbSgodZJ9khbqB1zPocwmrgC+RkVt5Q64ksvQ7OpHJCiSfSdJElz1KaKbcIUkH4wp2XKDTm2YQ5imKcwPm94fi+NYVGks1bhgi6cuLy75EGrD9AIAqOu6DvPVjF1i+YITamzmtd6fvepYvt/BvoqnJYQPr5+B74zQlxGSTd4l115xViKG/Zp9KKXgdDo5fQEXltb7MzR7NNxLnGembQD2NTAWDaRFh+/6+XQ6tYi4yErfPe6yLy993GWiPZovmk5GKSUKkKYpW6jvWwLqU1jgSlFUe3tXPBDfWeWwwdz6wdLtclvA/LAZV+IxZ/47yb8/3zaZF7eOP+4yeHj9DKxFPBtM1f7umaZ2y9lvmqZQVdX/hKMoqoesQOhiYLktvrXUw+1kmtXLZvFQVVWA+zp9EhHsEItotn3bSwELA1QmMyThirCzLHx7vKn7ro85u55ie8UHuBMh+RYAsJdpxxQDWpXNbQE5fHnHS5DHerRrMWMmVOzC/+3xpl7vz2Jl3wdcaEAMJU831HxWbeiZ6T3nZtrQUgpAe+8JQcn7EOc277AfGziyAMLOQ1VVAZK2ZWE+4DK1+L/CntqWrWyMJgj3Lx9fsdVimxLmh404mNZaFpIeo9ochpzTssVYCtQebnYBPM9pRVFUmxvSU4Db+JLaXaCO0XZOy7taibN9CeJjgWRtRBG9T+KhBwcA9uzFpSF5ex+yABMcLsWKJx0EE3fJdeMDTCfI/adY78+dw3A40EMOnE56NJeq/ZSJBhKWHFEf/AumMa2HXK5+qwAAAABJRU5ErkJggg==" alt="EDIE"></div>
             <div class="card-body">
                 <span class="tag ready">PLAYABLE</span>
                 <span class="tag genre">Endless Runner</span>
@@ -117,28 +122,28 @@
         </a>
 
         <a href="reverse/" class="card">
-            <div class="card-banner reverse">♟️</div>
+            <div class="card-banner reverse"><img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABkAAABACAYAAADvaNxcAAAEQUlEQVR4nMVYz2sTWRz/TOjBzEUQD40Hqxu7S3vqZdHrNrM3PcwhuCSUQCnrxXqWelb/gASXQAhIUFgDO7usF+mkggfZ/gMJbY1mKphLEbyknnx7SL/je2/ee/PGVv1AyGTe931/ve+vFwcWGEVjZlq/MFdwTOu54wqwoZmx2byzu4+3b3fxOsfwwydRaa/kpemQRKVai7UaRWPWandY3nW1n1a7w3hLKtUa43kAFu76Ejx+9FAwNyEkCLqoVGtM9rPvl2H6PYrGCQu0Qg4nE2WkBEFXp7gA2Qot8q7LyJpRNDaeybPNbcafnYqfMrqOrGF70RvMz11EvdHUKvTTj+exs7uPfv9A64VU02zyJOyFWFtd0fKy8l+r3TEKMgnIjJ+vXmN0XrpIUsGYJ3TwZMn86TNx6AZBF5svXsbBYeKjNVO1MeyFAICtXojZwhJurf8mrOsKZeIlhWG90cxUl8JeiK0jJVIz/jjQJexXqV1GIXzG6ly1sFA0MqTax78TfEdCDicTxyYJZWxs3I5dxmf/9zkTXf2xweFk4hxOJo7cBhLu4oVkcRmfI7zbAa4K68o08DkHeHf4fhnLJQ9eycPO7r6dJtQf5PeVas3YT1Q1TOblqMyTN6QpqNpXqdbYcsnD2uqKkxpdpkCgg9a1guZfT5B3XTbDayofPG1ev3lDKSTvukzXNfnzy50rXEO90cRgMMRgMBQIbZpRv3+QoBtFYzYYDOO27bTaHaYqIaqQVCEt5MNeiJl+/wBeSc2ANlEfAaau413klTwmKyXDAT77/nWO4fdffo03qDRbWCgm3KrSnrC2uuLM0AO9vHf0nTY8qBjPXSoiejVMnJFxqqdMp8zWrc8WlrC4eFYpIBXF4nVhOqFpkuZeqgaVao1ltVwAz+zZ5nZ8XfiS0UgLuU7xzHX1Tkaq//Kuy3y/jCDoCjnBWyCvyTDWrla7w6iky40IAGYLSwCSd5VMQgj37z7FMhdddMh/PLiDvQ/vU/enuovcYnIXlXQdD6MltpGzxWV4ZiGA/TXuWEKA6QGr+oatAlZCFhfPJlxifQE1CeGTbKsXYvu/j8J6sXid6ehlKAskJSCFreyWvOuyd+N/U/ODYOUuYqbSNgi6CSszCen3D4xC6fnylVPpmsqQhzYqhvy6bJVNoUwIMTGxrb4EZRjS9EegOZgvKxQcwPRc6FkV2kohqgFiY+O2wGDzxUs2P3dRoAl7IdZv3kiU/cTBV6o1the9UckWIAsApharwloZXdErceQJpWsDMLWMh0mxzFM8ucJEV280hdKvvc6pzOZ9bWq39+8+FX6f6MWUBA+HfwoKKLWxGbB1NKpQPnEhMh2gcFfm8mCBb/LfitBPVFb4fhl7H95j/vQZY7vl6QDg8aOH8VpOJgSmcf73P8/j3yRADlvfL6PeaAp0AIQZTQv6y4+md919nWjov0n+w9P9DzsivP1CgartAAAAAElFTkSuQmCC" alt="Battle Reverse"></div>
             <div class="card-body">
-                <span class="tag soon">COMING SOON</span>
+                <span class="tag soon">BETA TEST</span>
                 <span class="tag genre">Board / Othello</span>
                 <h2>EDIE Battle Reverse</h2>
-                <p>에디 vs 앨리스! 오셀로 기반 보드게임에 오로라 파워업과 몽치 바이러스 확산 메카닉이 추가됩니다.</p>
+                <p>에디 vs 앨리스! 오셀로 기반 보드게임. 오로라 파워업과 몽치 바이러스 속에서 상대 HP를 먼저 깎으세요.</p>
             </div>
         </a>
 
         <a href="yut/" class="card">
-            <div class="card-banner yut">🎲</div>
+            <div class="card-banner yut"><img src="data:image/png;base64,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" alt="EDIE Yut"></div>
             <div class="card-body">
                 <span class="tag soon">COMING SOON</span>
                 <span class="tag genre">Board / Yut Nori</span>
                 <h2>EDIE 초능력 윷놀이</h2>
-                <p>전통 윷놀이 + 16종 초능력! 강제 귀가, 밥상 뒤집기, 마이더스의 손으로 전략적 대결을 펼치세요.</p>
+                <p>한국 전통 보드게임 윷놀이에 에디의 초능력을 더한 2~4인 전략 대전. 윷을 던지고, 말을 옮기고, 초능력으로 판세를 뒤집으세요!</p>
             </div>
         </a>
     </div>
 
     <div class="footer">
-        <p>Powered by <a href="https://github.com/roscore/edie-minigames">AeiROBOT</a> · Rust + WebAssembly</p>
+        <p>AeiROBOT에 관심 있는 개발자가 만든 팬게임입니다 · Rust + WebAssembly</p>
     </div>
 </body>
 </html>

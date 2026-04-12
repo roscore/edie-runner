@@ -2100,6 +2100,47 @@ pub fn draw_touch_buttons(buttons: &[TouchButton], pressed: &[bool], cam: &Camer
     }
 }
 
+/// On-screen pause button for mobile (top-right corner).
+pub fn pause_touch_button() -> TouchButton {
+    TouchButton {
+        label: "||",
+        key_hint: "PAUSE",
+        logical_rect: (1280.0 - 80.0, 8.0, 56.0, 36.0),
+    }
+}
+
+/// On-screen touch buttons for NameEntry: [<] [UP] [DN] [>] [OK]
+pub fn name_entry_touch_buttons() -> [TouchButton; 5] {
+    let row_y = 295.0;
+    let bh = 50.0;
+    let bw = 90.0;
+    let gap = 12.0;
+    let total = bw * 5.0 + gap * 4.0;
+    let sx = (1280.0 - total) * 0.5;
+    [
+        TouchButton { label: "<",  key_hint: "PREV",  logical_rect: (sx, row_y, bw, bh) },
+        TouchButton { label: "UP", key_hint: "UP",    logical_rect: (sx + bw + gap, row_y, bw, bh) },
+        TouchButton { label: "DN", key_hint: "DOWN",  logical_rect: (sx + (bw + gap) * 2.0, row_y, bw, bh) },
+        TouchButton { label: ">",  key_hint: "NEXT",  logical_rect: (sx + (bw + gap) * 3.0, row_y, bw, bh) },
+        TouchButton { label: "OK", key_hint: "ENTER", logical_rect: (sx + (bw + gap) * 4.0, row_y, bw, bh) },
+    ]
+}
+
+/// Logical rects for the 3 NameEntry character slots (tappable to select + cycle).
+pub fn name_entry_slot_rects() -> [(f32, f32, f32, f32); 3] {
+    let slot_w: f32 = 72.0;
+    let slot_gap: f32 = 16.0;
+    let total_w = slot_w * 3.0 + slot_gap * 2.0;
+    let start_x = 1280.0 * 0.5 - total_w * 0.5;
+    let slot_y: f32 = 180.0;
+    let slot_h: f32 = 96.0;
+    [
+        (start_x, slot_y, slot_w, slot_h),
+        (start_x + slot_w + slot_gap, slot_y, slot_w, slot_h),
+        (start_x + (slot_w + slot_gap) * 2.0, slot_y, slot_w, slot_h),
+    ]
+}
+
 /// Convert a logical-coordinate rect to screen space for touch hit-testing.
 pub fn logical_rect_to_screen(
     rect: (f32, f32, f32, f32),
