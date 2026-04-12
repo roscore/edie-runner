@@ -22,6 +22,7 @@ const GRID_LINE: Color = Color::new(0.36, 0.89, 0.66, 0.22);
 pub fn draw_reversi(game: &ReversiGame, assets: &AssetHandles, elapsed: f32) {
     let cam = Camera::with_logical(REVERSE_W, REVERSE_H, screen_width(), screen_height());
     clear_background(Color::new(0.06, 0.06, 0.10, 1.0));
+    draw_background(elapsed, &cam);
     match game.phase {
         Phase::Menu => draw_menu(&cam),
         Phase::Playing | Phase::Animating | Phase::UsingPowerup => {
@@ -42,9 +43,9 @@ pub fn draw_reversi(game: &ReversiGame, assets: &AssetHandles, elapsed: f32) {
             if let Some(anim) = &game.flip_anim {
                 draw_flip_overlay(anim, &cam);
             }
-            draw_hud(&game.board, &cam);
+            draw_hud(&game.board, assets, elapsed, &cam);
             draw_powerup_hud(&game.board, &cam);
-            draw_turn_timer(game, assets, &cam);
+            draw_turn_timer(game, assets, elapsed, &cam);
             draw_turn_indicator(&game.board, elapsed, &cam);
             if let Some((ref msg, t)) = game.toast {
                 draw_toast(msg, t, &cam);
@@ -54,7 +55,7 @@ pub fn draw_reversi(game: &ReversiGame, assets: &AssetHandles, elapsed: f32) {
             draw_board_frame(&cam);
             draw_cells(&cam);
             draw_pieces(&game.board, assets, elapsed, game.mode, &cam);
-            draw_hud(&game.board, &cam);
+            draw_hud(&game.board, assets, elapsed, &cam);
             draw_game_over(game, assets, &cam);
         }
     }
@@ -201,16 +202,35 @@ fn draw_flip_overlay(anim: &FlipAnim, cam: &Camera) {
     draw_rectangle_lines(sx, sy, cam.scaled(CELL_PX), cam.scaled(CELL_PX), 4.0, Color::new(1.0, 0.9, 0.3, alpha + 0.3));
 }
 
-fn draw_hud(board: &Board, cam: &Camera) {
+fn draw_hud(board: &Board, assets: &AssetHandles, elapsed: f32, cam: &Camera) {
+    // Animated character above EDIE HP bar
+    let edie_tex = &assets.edie_run_anim;
+    let edie_fw = edie_tex.width() / 6.0; // 6-frame run animation
+    let edie_fi = ((elapsed * 8.0) as usize) % 6;
+    let (ex, ey) = cam.to_screen(30.0 + 70.0, 620.0);
+    draw_texture_ex(edie_tex, ex, ey, WHITE, DrawTextureParams {
+        dest_size: Some(vec2(cam.scaled(40.0), cam.scaled(36.0))),
+        source: Some(Rect { x: edie_fi as f32 * edie_fw, y: 0.0, w: edie_fw, h: edie_tex.height() }),
+        ..Default::default()
+    });
+    // Animated character above ALICE HP bar
+    let alice_tex = &assets.obstacle_alice3;
+    let (ax, ay) = cam.to_screen(1050.0 + 70.0, 618.0);
+    let alice_bob = (elapsed * 3.0).sin() * 3.0;
+    draw_texture_ex(alice_tex, ax, ay + cam.scaled(alice_bob), WHITE, DrawTextureParams {
+        dest_size: Some(vec2(cam.scaled(34.0), cam.scaled(42.0))),
+        ..Default::default()
+    });
+
     draw_hp_bar(30.0, 660.0, board.edie_hp, "EDIE", true, cam);
     draw_hp_bar(1050.0, 660.0, board.alice_hp, "ALICE", false, cam);
-    let size = 20.0 * cam.scale;
-    let ec = format!("{}", board.piece_count(Side::Edie));
-    let ac = format!("{}", board.piece_count(Side::Alice));
-    let (ex, ey) = cam.to_screen(130.0, 690.0);
-    draw_text(&ec, ex, ey, size, WHITE);
-    let (ax, ay) = cam.to_screen(1150.0, 690.0);
-    draw_text(&ac, ax, ay, size, WHITE);
+    let size = 18.0 * cam.scale;
+    let ec = format!("pieces: {}", board.piece_count(Side::Edie));
+    let ac = format!("pieces: {}", board.piece_count(Side::Alice));
+    let (epx, epy) = cam.to_screen(30.0, 690.0);
+    draw_text(&ec, epx, epy, size, Color::new(0.8, 0.8, 0.8, 0.8));
+    let (apx, apy) = cam.to_screen(1050.0, 690.0);
+    draw_text(&ac, apx, apy, size, Color::new(0.8, 0.8, 0.8, 0.8));
 }
 
 fn draw_hp_bar(lx: f32, ly: f32, hp: i32, label: &str, gradient: bool, cam: &Camera) {
@@ -409,8 +429,8 @@ fn draw_powerup_targets(game: &ReversiGame, elapsed: f32, cam: &Camera) {
 }
 
 fn draw_powerup_hud(board: &Board, cam: &Camera) {
-    draw_powerup_icon(30.0, 700.0, board.edie_powerup, "EDIE", true, cam);
-    draw_powerup_icon(1050.0, 700.0, board.alice_powerup, "ALICE", false, cam);
+    draw_powerup_icon(30.0, 54.0, board.edie_powerup, "EDIE", true, cam);
+    draw_powerup_icon(1050.0, 54.0, board.alice_powerup, "ALICE", false, cam);
 }
 
 fn draw_powerup_icon(lx: f32, ly: f32, pw: Option<Powerup>, _label: &str, is_edie: bool, cam: &Camera) {
@@ -436,7 +456,7 @@ fn draw_powerup_icon(lx: f32, ly: f32, pw: Option<Powerup>, _label: &str, is_edi
     }
 }
 
-fn draw_turn_timer(game: &ReversiGame, assets: &AssetHandles, cam: &Camera) {
+fn draw_turn_timer(game: &ReversiGame, assets: &AssetHandles, elapsed: f32, cam: &Camera) {
     if game.turn_timer_max <= 0.0 { return; }
     let ratio = (game.turn_timer / game.turn_timer_max).clamp(0.0, 1.0);
     let bar_w = 400.0;
@@ -444,9 +464,7 @@ fn draw_turn_timer(game: &ReversiGame, assets: &AssetHandles, cam: &Camera) {
     let lx = (REVERSE_W - bar_w) * 0.5;
     let ly = BOARD_Y - 30.0;
     let (sx, sy) = cam.to_screen(lx, ly);
-    // Background
     draw_rectangle(sx, sy, cam.scaled(bar_w), cam.scaled(bar_h), Color::new(0.1, 0.1, 0.12, 0.8));
-    // Fill (green → orange → red as time decreases)
     let fill_color = if ratio > 0.5 {
         GREEN
     } else if ratio > 0.25 {
@@ -456,16 +474,16 @@ fn draw_turn_timer(game: &ReversiGame, assets: &AssetHandles, cam: &Camera) {
     };
     draw_rectangle(sx, sy, cam.scaled(bar_w * ratio), cam.scaled(bar_h), fill_color);
     draw_rectangle_lines(sx, sy, cam.scaled(bar_w), cam.scaled(bar_h), 2.0, Color::new(0.6, 0.6, 0.55, 0.7));
-    // Car icon at the end of the timer bar (blue sportscar from Highway zone)
-    let car_x = lx + bar_w * ratio - 20.0;
-    let car_y = ly - 6.0;
+    // Avante N car icon at the end of the timer bar
+    let car_tex = &assets.avante_n;
+    let frame_w = car_tex.width() / 17.0; // 17 frames
+    let fi = ((elapsed * 10.0) as usize) % 17;
+    let car_x = lx + bar_w * ratio - 16.0;
+    let car_y = ly - 10.0;
     let (cx, cy) = cam.to_screen(car_x, car_y);
-    let car_tex = &assets.obstacle_sportscar;
-    let cw = car_tex.width().min(40.0);
-    let ch = car_tex.height().min(24.0);
     draw_texture_ex(car_tex, cx, cy, WHITE, DrawTextureParams {
-        dest_size: Some(vec2(cam.scaled(cw), cam.scaled(ch))),
-        flip_x: true,
+        dest_size: Some(vec2(cam.scaled(32.0), cam.scaled(32.0))),
+        source: Some(Rect { x: fi as f32 * frame_w, y: 0.0, w: frame_w, h: car_tex.height() }),
         ..Default::default()
     });
 }
@@ -483,6 +501,40 @@ fn draw_toast(msg: &str, remaining: f32, cam: &Camera) {
         Color::new(0.0, 0.0, 0.0, 0.7 * alpha),
     );
     draw_text(msg, tx - dim.width * 0.5, ty, size, Color::new(1.0, 0.95, 0.6, alpha));
+}
+
+fn draw_background(elapsed: f32, cam: &Camera) {
+    let (x0, y0) = cam.to_screen(0.0, 0.0);
+    let w = cam.scaled(REVERSE_W);
+    let h = cam.scaled(REVERSE_H);
+    // Subtle animated gradient background
+    let t = (elapsed * 0.3).sin() * 0.5 + 0.5;
+    let bg_top = Color::new(0.04 + 0.02 * t, 0.04, 0.08 + 0.03 * t, 1.0);
+    let bg_bot = Color::new(0.06, 0.06 + 0.02 * t, 0.04 + 0.02 * t, 1.0);
+    // Top half
+    draw_rectangle(x0, y0, w, h * 0.5, bg_top);
+    // Bottom half
+    draw_rectangle(x0, y0 + h * 0.5, w, h * 0.5, bg_bot);
+    // Subtle grid pattern
+    let grid_alpha = 0.03;
+    let grid_sp = cam.scaled(40.0);
+    let cols = (w / grid_sp) as usize + 1;
+    let rows = (h / grid_sp) as usize + 1;
+    for i in 0..cols {
+        let gx = x0 + i as f32 * grid_sp;
+        draw_line(gx, y0, gx, y0 + h, 1.0, Color::new(0.5, 0.9, 0.7, grid_alpha));
+    }
+    for j in 0..rows {
+        let gy = y0 + j as f32 * grid_sp;
+        draw_line(x0, gy, x0 + w, gy, 1.0, Color::new(0.5, 0.9, 0.7, grid_alpha));
+    }
+    // Corner decorations (subtle AeiROBOT gradient dots)
+    for corner in &[(60.0, 60.0), (REVERSE_W - 60.0, 60.0), (60.0, REVERSE_H - 60.0), (REVERSE_W - 60.0, REVERSE_H - 60.0)] {
+        let (sx, sy) = cam.to_screen(corner.0, corner.1);
+        let pulse = 0.15 + 0.1 * (elapsed * 1.5 + corner.0 * 0.01).sin();
+        draw_circle(sx, sy, cam.scaled(20.0), Color::new(0.91, 0.57, 0.23, pulse * 0.3));
+        draw_circle(sx, sy, cam.scaled(12.0), Color::new(0.36, 0.89, 0.66, pulse * 0.2));
+    }
 }
 
 pub fn screen_to_cell(screen_x: f32, screen_y: f32) -> Option<(usize, usize)> {
