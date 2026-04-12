@@ -1,6 +1,6 @@
 # EDIE Minigames
 
-AeiROBOT 마스코트 **EDIE**와 함께하는 미니게임 컬렉션. Rust + WebAssembly로 구동되며, 브라우저에서 바로 플레이할 수 있습니다.
+AeiROBOT에 관심 있는 개발자가 만든 팬게임 컬렉션. AeiROBOT 마스코트 **EDIE**와 함께하며, Rust + WebAssembly로 구동됩니다. 브라우저에서 바로 플레이할 수 있습니다.
 
 **[미니게임 포털 바로가기](https://roscore.github.io/edie-minigames/)**
 
