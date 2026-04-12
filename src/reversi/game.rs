@@ -7,9 +7,10 @@ use rand::SeedableRng;
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum GameMode {
     VsLocal,
-    VsAiEasy,
-    VsAiNormal,
-    VsAiHard,
+    VsAiEasy,    // Amy
+    VsAiNormal,  // Alice3
+    VsAiHard,    // AliceM1
+    VsAiInsane,  // Alice4
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -44,6 +45,10 @@ pub struct ReversiGame {
     pub targeting_powerup: Option<Powerup>,
     /// Toast message shown briefly after powerup events.
     pub toast: Option<(String, f32)>,
+    /// Turn timer: remaining seconds for current turn.
+    pub turn_timer: f32,
+    /// Turn timer: max seconds per turn.
+    pub turn_timer_max: f32,
 }
 
 impl ReversiGame {
@@ -58,7 +63,23 @@ impl ReversiGame {
             rng: SmallRng::seed_from_u64(seed.wrapping_add(777)),
             targeting_powerup: None,
             toast: None,
+            turn_timer: 15.0,
+            turn_timer_max: 15.0,
         }
+    }
+
+    fn turn_time_for_mode(mode: GameMode) -> f32 {
+        match mode {
+            GameMode::VsLocal => 30.0,
+            GameMode::VsAiEasy => 20.0,
+            GameMode::VsAiNormal => 15.0,
+            GameMode::VsAiHard => 12.0,
+            GameMode::VsAiInsane => 8.0,
+        }
+    }
+
+    pub fn reset_turn_timer(&mut self) {
+        self.turn_timer = self.turn_timer_max;
     }
 
     pub fn start_game(&mut self, mode: GameMode) {
@@ -71,6 +92,8 @@ impl ReversiGame {
         self.hover = None;
         self.targeting_powerup = None;
         self.toast = None;
+        self.turn_timer_max = Self::turn_time_for_mode(mode);
+        self.turn_timer = self.turn_timer_max;
     }
 
     pub fn on_cell_click(&mut self, row: usize, col: usize) {
@@ -99,6 +122,7 @@ impl ReversiGame {
             result,
         });
         self.phase = Phase::Animating;
+        self.reset_turn_timer();
     }
 
     /// Activate the current player's powerup (VirusCure or ForceFlip).
@@ -152,6 +176,34 @@ impl ReversiGame {
             *t -= dt;
             if *t <= 0.0 { self.toast = None; }
         }
+        // Turn timer: count down during Playing/UsingPowerup
+        if matches!(self.phase, Phase::Playing | Phase::UsingPowerup) {
+            self.turn_timer -= dt;
+            if self.turn_timer <= 0.0 {
+                // Time's up: play a random valid move for the current player
+                self.turn_timer = 0.0;
+                let moves = self.board.valid_moves(self.board.turn);
+                if !moves.is_empty() {
+                    use rand::Rng as _;
+                    let idx = self.rng.gen_range(0..moves.len());
+                    let (r, c) = moves[idx];
+                    self.targeting_powerup = None;
+                    let side = self.board.turn;
+                    let result = self.board.apply_move(r, c);
+                    self.toast = Some(("TIME OUT!".into(), 1.5));
+                    self.flip_anim = Some(FlipAnim {
+                        cells: result.flipped.clone(),
+                        placed: (r, c),
+                        side,
+                        elapsed: 0.0,
+                        total: 0.35,
+                        result,
+                    });
+                    self.phase = Phase::Animating;
+                    self.reset_turn_timer();
+                }
+            }
+        }
         if let Some(anim) = &mut self.flip_anim {
             anim.elapsed += dt;
             if anim.elapsed >= anim.total {
@@ -164,6 +216,7 @@ impl ReversiGame {
                     self.phase = Phase::GameOver;
                 } else {
                     self.phase = Phase::Playing;
+                    self.reset_turn_timer();
                 }
             }
         }
