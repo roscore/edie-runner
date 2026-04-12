@@ -1,6 +1,6 @@
 [package]
 name = "edie_runner"
-version = "0.5.2"
+version = "0.5.3"
 edition = "2021"
 authors = ["helle"]
 description = "Endless runner starring EDIE the AeiROBOT mascot"
@@ -13,6 +13,11 @@ path = "src/lib.rs"
 [[bin]]
 name = "edie_runner"
 path = "src/main.rs"
+required-features = ["graphics"]
+
+[[bin]]
+name = "edie_reverse"
+path = "src/bin/edie_reverse.rs"
 required-features = ["graphics"]
 
 [features]
