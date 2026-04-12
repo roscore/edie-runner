@@ -1,12 +1,9 @@
-//! EDIE Runner library entry point.
-//!
-//! The `graphics` feature (default) compiles the full game with macroquad
-//! rendering, texture bundling, and audio. The `headless` feature compiles
-//! ONLY the pure game logic needed by external bots / AI testing harnesses.
+//! EDIE Runner / Minigames library entry point.
 
 pub mod game;
 pub mod platform;
 pub mod time;
+pub mod reversi;
 
 #[cfg(feature = "graphics")]
 pub mod assets;
