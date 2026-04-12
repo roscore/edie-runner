@@ -8,3 +8,6 @@ web/edie_runner.wasm
 # PNG / WAV must never be shipped to web/ — they are embedded in the wasm
 web/*.png
 web/*.wav
+# Local-only verification / bot test harness (never pushed)
+/tests/full_run.rs
+/tests/verify_*.rs
