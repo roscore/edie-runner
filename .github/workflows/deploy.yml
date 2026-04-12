@@ -60,38 +60,29 @@ jobs:
         with:
           ref: edie-reverse
           path: reverse-src
-        continue-on-error: true
 
       - name: Build EDIE Reverse
         working-directory: reverse-src
-        continue-on-error: true
         run: |
-          if [ -f Cargo.toml ] && grep -q 'edie_reverse' Cargo.toml 2>/dev/null; then
-            python tools/generate_art.py 2>/dev/null || true
-            python tools/generate_extras.py 2>/dev/null || true
-            cargo build --release --target wasm32-unknown-unknown --bin edie_reverse
-            mkdir -p ../site/reverse
-            cp target/wasm32-unknown-unknown/release/edie_reverse.wasm ../site/reverse/edie_reverse.wasm
-            wasm-opt -Oz --strip-debug --strip-producers -o ../site/reverse/edie_reverse.wasm ../site/reverse/edie_reverse.wasm
-            cp web/reverse/index.html ../site/reverse/index.html
-          else
-            mkdir -p ../site/reverse
-            echo '<!DOCTYPE html><html><head><meta charset="utf-8"><title>EDIE Reverse</title></head><body style="background:#111;color:#5BE3A8;font-family:monospace;display:flex;align-items:center;justify-content:center;height:100vh;margin:0"><h1>EDIE Reverse - Coming Soon</h1></body></html>' > ../site/reverse/index.html
-          fi
+          echo '=== Cargo.toml check ==='
+          head -25 Cargo.toml
+          echo '=== src/reversi/ ==='
+          ls -la src/reversi/
+          echo '=== src/bin/ ==='
+          ls -la src/bin/
+          echo '=== Building ==='
+          python tools/generate_art.py
+          python tools/generate_extras.py
+          cargo build --release --target wasm32-unknown-unknown --bin edie_reverse 2>&1
+          mkdir -p ../site/reverse
+          cp target/wasm32-unknown-unknown/release/edie_reverse.wasm ../site/reverse/edie_reverse.wasm
+          wasm-opt -Oz --strip-debug --strip-producers -o ../site/reverse/edie_reverse.wasm ../site/reverse/edie_reverse.wasm
+          cp web/reverse/index.html ../site/reverse/index.html
 
-      - name: Checkout edie-yut branch
-        uses: actions/checkout@v4
-        with:
-          ref: edie-yut
-          path: yut-src
-        continue-on-error: true
-
-      - name: Build EDIE Yut
-        working-directory: yut-src
-        continue-on-error: true
+      - name: Create yut placeholder
         run: |
-          mkdir -p ../site/yut
-          echo '<!DOCTYPE html><html><head><meta charset="utf-8"><title>EDIE Yut</title></head><body style="background:#111;color:#E8923C;font-family:monospace;display:flex;align-items:center;justify-content:center;height:100vh;margin:0"><h1>EDIE Yut Nori - Coming Soon</h1></body></html>' > ../site/yut/index.html
+          mkdir -p site/yut
+          echo '<!DOCTYPE html><html><head><meta charset="utf-8"><title>EDIE Yut</title></head><body style="background:#111;color:#E8923C;font-family:monospace;display:flex;align-items:center;justify-content:center;height:100vh;margin:0"><h1>EDIE Yut Nori - Coming Soon</h1></body></html>' > site/yut/index.html
 
       - name: Checkout main for landing page
         uses: actions/checkout@v4
