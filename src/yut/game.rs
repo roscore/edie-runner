@@ -2,8 +2,9 @@
 
 use crate::yut::board::{resolve_move, is_shortcut_corner, EXITED, HOME};
 use crate::yut::throw::{throw_yut, YutResult};
+use crate::yut::powers::{Power, grant_random_power, apply_immediate, POWER_GRANT_INTERVAL, MAX_HELD_POWERS};
 use rand::rngs::SmallRng;
-use rand::SeedableRng;
+use rand::{Rng, SeedableRng};
 
 pub const MAX_PLAYERS: usize = 4;
 pub const PIECES_PER_PLAYER: usize = 4;
@@ -78,6 +79,12 @@ pub struct YutGame {
     pub bonus_turns: u32,
     pub turn_count: u32,
     pub toast: Option<(String, f32)>,
+    // Superpower system
+    pub power_cards: Vec<Vec<Power>>,
+    pub midas_active: bool,
+    pub aurora_bonus: usize,
+    pub blocked_cells: Vec<(usize, u8)>,  // (position, turns_remaining)
+    pub traps: Vec<(usize, usize)>,       // (position, owner_player)
 }
 
 impl YutGame {
@@ -95,6 +102,11 @@ impl YutGame {
             bonus_turns: 0,
             turn_count: 0,
             toast: None,
+            power_cards: Vec::new(),
+            midas_active: false,
+            aurora_bonus: 0,
+            blocked_cells: Vec::new(),
+            traps: Vec::new(),
         }
     }
 
@@ -110,18 +122,179 @@ impl YutGame {
         self.bonus_turns = 0;
         self.turn_count = 0;
         self.toast = None;
+        self.power_cards = (0..self.num_players).map(|_| Vec::new()).collect();
+        self.midas_active = false;
+        self.aurora_bonus = 0;
+        self.blocked_cells = Vec::new();
+        self.traps = Vec::new();
+    }
+
+    /// Use a power card from the current player's hand.
+    pub fn use_power(&mut self, card_idx: usize) {
+        if self.phase != Phase::Throwing && self.phase != Phase::SelectPiece { return; }
+        let pi = self.current_player;
+        if card_idx >= self.power_cards[pi].len() { return; }
+        let power = self.power_cards[pi][card_idx];
+        if apply_immediate(self, power) {
+            self.power_cards[pi].remove(card_idx);
+        } else {
+            // Powers needing target selection: simplified — apply with defaults
+            match power {
+                Power::ForceReturn => {
+                    let next = (pi + 1) % self.num_players;
+                    for i in 0..PIECES_PER_PLAYER {
+                        if self.players[next].pieces[i].is_on_board() {
+                            crate::yut::powers::apply_force_return(self, next, i);
+                            self.power_cards[pi].remove(card_idx);
+                            return;
+                        }
+                    }
+                    self.toast = Some(("대상 없음".into(), 1.0));
+                }
+                Power::Shield => {
+                    for i in 0..PIECES_PER_PLAYER {
+                        if self.players[pi].pieces[i].is_on_board() {
+                            crate::yut::powers::apply_shield(self, i);
+                            self.power_cards[pi].remove(card_idx);
+                            return;
+                        }
+                    }
+                }
+                Power::VirusTrap => {
+                    // Place trap on a random empty position
+                    let pos = self.rng.gen_range(0..crate::yut::board::NUM_POSITIONS);
+                    self.traps.push((pos, pi));
+                    self.toast = Some(("함정 설치!".into(), 1.5));
+                    self.power_cards[pi].remove(card_idx);
+                }
+                Power::MungchiBlock => {
+                    let pos = self.rng.gen_range(0..crate::yut::board::NUM_POSITIONS);
+                    self.blocked_cells.push((pos, 3));
+                    self.toast = Some(("칸 봉쇄!".into(), 1.5));
+                    self.power_cards[pi].remove(card_idx);
+                }
+                Power::Split => {
+                    let next = (pi + 1) % self.num_players;
+                    for i in 0..PIECES_PER_PLAYER {
+                        if self.players[next].pieces[i].stack > 1 {
+                            self.players[next].pieces[i].stack = 1;
+                            self.toast = Some(("분열!".into(), 1.5));
+                            self.power_cards[pi].remove(card_idx);
+                            return;
+                        }
+                    }
+                    self.toast = Some(("대상 없음".into(), 1.0));
+                }
+                Power::EnergyDrain => {
+                    let next = (pi + 1) % self.num_players;
+                    if !self.power_cards[next].is_empty() {
+                        let stolen = self.power_cards[next].remove(0);
+                        if self.power_cards[pi].len() < MAX_HELD_POWERS {
+                            self.power_cards[pi].push(stolen); // don't remove card_idx here, different card
+                        }
+                        // Remove the used EnergyDrain card
+                        if let Some(pos) = self.power_cards[pi].iter().position(|&p| p == Power::EnergyDrain) {
+                            self.power_cards[pi].remove(pos);
+                        }
+                        self.toast = Some((format!("{} 뺏기!", stolen.name()), 1.5));
+                    } else {
+                        self.toast = Some(("상대 카드 없음".into(), 1.0));
+                    }
+                }
+                Power::Teleport => {
+                    for i in 0..PIECES_PER_PLAYER {
+                        if self.players[pi].pieces[i].is_on_board() {
+                            let dest = self.rng.gen_range(0..crate::yut::board::NUM_POSITIONS);
+                            crate::yut::powers::apply_teleport(self, i, dest);
+                            self.power_cards[pi].remove(card_idx);
+                            return;
+                        }
+                    }
+                }
+                Power::BoardFlip => {
+                    let next = (pi + 1) % self.num_players;
+                    let own = (0..PIECES_PER_PLAYER).find(|&i| self.players[pi].pieces[i].is_on_board());
+                    let opp = (0..PIECES_PER_PLAYER).find(|&i| self.players[next].pieces[i].is_on_board());
+                    if let (Some(o), Some(t)) = (own, opp) {
+                        crate::yut::powers::apply_board_flip(self, o, next, t);
+                        self.power_cards[pi].remove(card_idx);
+                    } else {
+                        self.toast = Some(("대상 없음".into(), 1.0));
+                    }
+                }
+                Power::TimeRewind => {
+                    let next = (pi + 1) % self.num_players;
+                    for i in 0..PIECES_PER_PLAYER {
+                        if self.players[next].pieces[i].is_on_board() {
+                            self.players[next].pieces[i].pos = HOME;
+                            self.players[next].pieces[i].stack = 1;
+                            self.toast = Some(("시간 역행!".into(), 1.5));
+                            self.power_cards[pi].remove(card_idx);
+                            return;
+                        }
+                    }
+                }
+                Power::MergeCall => {
+                    let positions: Vec<(usize, usize)> = (0..PIECES_PER_PLAYER)
+                        .filter(|&i| self.players[pi].pieces[i].is_on_board())
+                        .map(|i| (i, self.players[pi].pieces[i].pos))
+                        .collect();
+                    if positions.len() >= 2 {
+                        let dest = positions[0].1;
+                        self.players[pi].pieces[positions[1].0].pos = dest;
+                        self.players[pi].pieces[positions[0].0].stack += self.players[pi].pieces[positions[1].0].stack;
+                        self.players[pi].pieces[positions[1].0].stack = 0;
+                        self.toast = Some(("합체!".into(), 1.5));
+                        self.power_cards[pi].remove(card_idx);
+                    }
+                }
+                Power::YutControl => {
+                    // Give a Yut (4 steps + bonus) as controlled throw
+                    self.last_throw = Some(YutResult::Yut);
+                    self.last_sticks = Some([true, true, true, true]);
+                    self.bonus_turns += 1;
+                    self.toast = Some(("윷 조작: 윷!".into(), 1.5));
+                    self.power_cards[pi].remove(card_idx);
+                    self.phase = Phase::SelectPiece;
+                }
+                _ => {}
+            }
+        }
     }
 
     /// Perform the yut throw for the current player.
     pub fn do_throw(&mut self) {
         if self.phase != Phase::Throwing { return; }
-        let (result, sticks) = throw_yut(&mut self.rng);
+        let (mut result, sticks) = throw_yut(&mut self.rng);
+        // Midas Touch: double the throw
+        if self.midas_active {
+            self.midas_active = false;
+            // Can't double beyond Mo(5), so cap at 5
+            result = match result {
+                YutResult::Do => YutResult::Gae,
+                YutResult::Gae => YutResult::Yut,
+                YutResult::Geol => YutResult::Mo, // 3*2=6 → cap at Mo(5)
+                r => r, // Yut/Mo already max
+            };
+        }
         self.last_throw = Some(result);
         self.last_sticks = Some(sticks);
         if result.grants_bonus() {
             self.bonus_turns += 1;
         }
-        self.toast = Some((format!("{}! ({}칸)", result.name_ko(), result.steps()), 1.5));
+        // Grant power card every N turns
+        let pi = self.current_player;
+        if self.turn_count > 0 && self.turn_count % POWER_GRANT_INTERVAL == 0 {
+            if self.power_cards[pi].len() < MAX_HELD_POWERS {
+                let pw = grant_random_power(&mut self.rng);
+                self.power_cards[pi].push(pw);
+                self.toast = Some((format!("{}! + 초능력: {}", result.name_ko(), pw.name()), 2.0));
+            } else {
+                self.toast = Some((format!("{}! ({}칸)", result.name_ko(), result.steps()), 1.5));
+            }
+        } else {
+            self.toast = Some((format!("{}! ({}칸)", result.name_ko(), result.steps()), 1.5));
+        }
         // Check if the player has any movable pieces
         let player = &self.players[self.current_player];
         let movable = player.movable_pieces();
@@ -174,7 +347,9 @@ impl YutGame {
             Some(i) => i,
             None => return,
         };
-        let steps = self.last_throw.map(|t| t.steps()).unwrap_or(0);
+        let base_steps = self.last_throw.map(|t| t.steps()).unwrap_or(0);
+        let steps = base_steps + self.aurora_bonus;
+        self.aurora_bonus = 0;
         let pos = self.players[self.current_player].pieces[piece_idx].pos;
         let dest = resolve_move(pos, steps, take_shortcut);
 
@@ -200,6 +375,15 @@ impl YutGame {
 
     fn resolve_landing(&mut self, dest: usize, piece_idx: usize) {
         let current = self.current_player;
+
+        // Check traps
+        if let Some(trap_idx) = self.traps.iter().position(|&(pos, owner)| pos == dest && owner != current) {
+            self.traps.remove(trap_idx);
+            self.players[current].pieces[piece_idx].pos = HOME;
+            self.players[current].pieces[piece_idx].stack = 1;
+            self.toast = Some(("함정에 걸림!".into(), 1.5));
+            return;
+        }
 
         // Check other players' pieces at this position
         for p in 0..self.num_players {
@@ -252,6 +436,11 @@ impl YutGame {
                 if piece.shield > 0 { piece.shield -= 1; }
             }
         }
+        // Decrement blocked cells
+        self.blocked_cells.retain_mut(|(_pos, turns)| {
+            *turns -= 1;
+            *turns > 0
+        });
 
         if self.bonus_turns > 0 {
             self.bonus_turns -= 1;
