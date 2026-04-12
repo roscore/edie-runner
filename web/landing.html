@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>EDIE Minigames</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            background: #0a0a0f;
+            color: #eee;
+            font-family: 'Segoe UI', sans-serif;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+        .header {
+            text-align: center;
+            padding: 48px 24px 24px;
+        }
+        .header h1 {
+            font-size: 2.4rem;
+            font-weight: 800;
+            background: linear-gradient(135deg, #E8923C, #5BE3A8);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+        .header p {
+            margin-top: 8px;
+            color: #888;
+            font-size: 1rem;
+        }
+        .games {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 28px;
+            justify-content: center;
+            padding: 40px 24px;
+            max-width: 1100px;
+        }
+        .card {
+            background: #151520;
+            border: 2px solid #222;
+            border-radius: 16px;
+            width: 300px;
+            overflow: hidden;
+            transition: transform 0.2s, border-color 0.3s;
+            cursor: pointer;
+            text-decoration: none;
+            color: inherit;
+        }
+        .card:hover {
+            transform: translateY(-6px);
+            border-color: #5BE3A8;
+        }
+        .card-banner {
+            height: 140px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 3rem;
+        }
+        .card-banner.runner { background: linear-gradient(135deg, #1a2a1a, #0f1f2f); }
+        .card-banner.reverse { background: linear-gradient(135deg, #2a1a0f, #1a1a2a); }
+        .card-banner.yut { background: linear-gradient(135deg, #2a200f, #0f2a1a); }
+        .card-body {
+            padding: 20px;
+        }
+        .card-body h2 {
+            font-size: 1.3rem;
+            margin-bottom: 8px;
+        }
+        .card-body .tag {
+            display: inline-block;
+            padding: 2px 10px;
+            border-radius: 8px;
+            font-size: 0.75rem;
+            font-weight: 600;
+            margin-right: 6px;
+            margin-bottom: 8px;
+        }
+        .tag.ready { background: #1a3a2a; color: #5BE3A8; }
+        .tag.soon { background: #3a2a1a; color: #E8923C; }
+        .tag.genre { background: #1a1a2a; color: #88a; }
+        .card-body p {
+            color: #999;
+            font-size: 0.9rem;
+            line-height: 1.5;
+        }
+        .footer {
+            margin-top: auto;
+            padding: 32px;
+            color: #444;
+            font-size: 0.8rem;
+            text-align: center;
+        }
+        .footer a { color: #5BE3A8; text-decoration: none; }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>EDIE MINIGAMES</h1>
+        <p>AeiROBOT 마스코트 에디와 함께하는 미니게임 컬렉션</p>
+    </div>
+
+    <div class="games">
+        <a href="runner/" class="card">
+            <div class="card-banner runner">🏃</div>
+            <div class="card-body">
+                <span class="tag ready">PLAYABLE</span>
+                <span class="tag genre">Endless Runner</span>
+                <h2>EDIE Runner</h2>
+                <p>판교에서 안산까지, 에디의 집 찾기 대모험. 점프, 덕, 오로라 대시로 장애물을 돌파하세요!</p>
+            </div>
+        </a>
+
+        <a href="reverse/" class="card">
+            <div class="card-banner reverse">♟️</div>
+            <div class="card-body">
+                <span class="tag soon">COMING SOON</span>
+                <span class="tag genre">Board / Othello</span>
+                <h2>EDIE Battle Reverse</h2>
+                <p>에디 vs 앨리스! 오셀로 기반 보드게임에 오로라 파워업과 몽치 바이러스 확산 메카닉이 추가됩니다.</p>
+            </div>
+        </a>
+
+        <a href="yut/" class="card">
+            <div class="card-banner yut">🎲</div>
+            <div class="card-body">
+                <span class="tag soon">COMING SOON</span>
+                <span class="tag genre">Board / Yut Nori</span>
+                <h2>EDIE 초능력 윷놀이</h2>
+                <p>전통 윷놀이 + 16종 초능력! 강제 귀가, 밥상 뒤집기, 마이더스의 손으로 전략적 대결을 펼치세요.</p>
+            </div>
+        </a>
+    </div>
+
+    <div class="footer">
+        <p>Powered by <a href="https://github.com/roscore/edie-minigames">AeiROBOT</a> · Rust + WebAssembly</p>
+    </div>
+</body>
+</html>

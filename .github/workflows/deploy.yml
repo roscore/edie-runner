@@ -1,8 +1,8 @@
-name: Deploy EDIE Runner to GitHub Pages
+name: Deploy EDIE Minigames to GitHub Pages
 
 on:
   push:
-    branches: [main]
+    branches: [main, edie-runner, edie-reverse, edie-yut]
   workflow_dispatch:
 
 permissions:
@@ -18,9 +18,6 @@ jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
       - name: Setup Python
         uses: actions/setup-python@v5
         with:
@@ -34,43 +31,118 @@ jobs:
         with:
           targets: wasm32-unknown-unknown
 
-      - name: Cache cargo
-        uses: Swatinem/rust-cache@v2
-        with:
-          target-dir: target
-
-      - name: Generate art assets
-        run: python tools/generate_art.py
-
-      - name: Generate extras (store shops, ERICA gate, BGM, beeps)
-        run: python tools/generate_extras.py
-
-      - name: Build wasm (release)
-        run: cargo build --release --target wasm32-unknown-unknown --bin edie_runner
-
-      - name: Copy wasm to web/ (assets are embedded inside the wasm binary)
-        run: |
-          mkdir -p web
-          cp target/wasm32-unknown-unknown/release/edie_runner.wasm web/edie_runner.wasm
-          # Defensive: scrub any PNG/WAV that might have leaked in
-          find web -maxdepth 1 \( -name '*.png' -o -name '*.wav' \) -delete || true
-
       - name: Install wasm-opt
         run: |
           VERSION=116
           curl -sSL https://github.com/WebAssembly/binaryen/releases/download/version_${VERSION}/binaryen-version_${VERSION}-x86_64-linux.tar.gz | tar xz
           sudo mv binaryen-version_${VERSION}/bin/wasm-opt /usr/local/bin/
 
-      - name: Optimize + strip wasm
-        run: wasm-opt -Oz --strip-debug --strip-producers -o web/edie_runner.wasm web/edie_runner.wasm
+      # ============================================================
+      # Build EDIE Runner (from edie-runner branch)
+      # ============================================================
+      - name: Checkout edie-runner branch
+        uses: actions/checkout@v4
+        with:
+          ref: edie-runner
+          path: runner-src
 
+      - name: Cache cargo (runner)
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: runner-src
+          prefix-key: runner
+
+      - name: Build EDIE Runner
+        working-directory: runner-src
+        run: |
+          python tools/generate_art.py
+          python tools/generate_extras.py
+          cargo build --release --target wasm32-unknown-unknown --bin edie_runner
+          mkdir -p ../site/runner
+          cp target/wasm32-unknown-unknown/release/edie_runner.wasm ../site/runner/edie_runner.wasm
+          wasm-opt -Oz --strip-debug --strip-producers -o ../site/runner/edie_runner.wasm ../site/runner/edie_runner.wasm
+          cp web/index.html ../site/runner/index.html
+          cp web/edie_plugin.js ../site/runner/edie_plugin.js
+
+      # ============================================================
+      # Build EDIE Reverse (from edie-reverse branch)
+      # ============================================================
+      - name: Checkout edie-reverse branch
+        uses: actions/checkout@v4
+        with:
+          ref: edie-reverse
+          path: reverse-src
+        continue-on-error: true
+
+      - name: Build EDIE Reverse
+        working-directory: reverse-src
+        continue-on-error: true
+        run: |
+          if [ -f Cargo.toml ] && grep -q 'edie_reverse' Cargo.toml 2>/dev/null; then
+            python tools/generate_art.py 2>/dev/null || true
+            python tools/generate_extras.py 2>/dev/null || true
+            cargo build --release --target wasm32-unknown-unknown --bin edie_reverse
+            mkdir -p ../site/reverse
+            cp target/wasm32-unknown-unknown/release/edie_reverse.wasm ../site/reverse/edie_reverse.wasm
+            wasm-opt -Oz --strip-debug --strip-producers -o ../site/reverse/edie_reverse.wasm ../site/reverse/edie_reverse.wasm
+            cp web/index.html ../site/reverse/index.html 2>/dev/null || true
+            cp web/edie_plugin.js ../site/reverse/edie_plugin.js 2>/dev/null || true
+          else
+            echo "edie-reverse branch not ready yet — creating placeholder"
+            mkdir -p ../site/reverse
+            echo '<!DOCTYPE html><html><head><meta charset="utf-8"><title>EDIE Reverse</title></head><body style="background:#111;color:#5BE3A8;font-family:monospace;display:flex;align-items:center;justify-content:center;height:100vh;margin:0"><h1>EDIE Reverse — Coming Soon</h1></body></html>' > ../site/reverse/index.html
+          fi
+
+      # ============================================================
+      # Build EDIE Yut (from edie-yut branch)
+      # ============================================================
+      - name: Checkout edie-yut branch
+        uses: actions/checkout@v4
+        with:
+          ref: edie-yut
+          path: yut-src
+        continue-on-error: true
+
+      - name: Build EDIE Yut
+        working-directory: yut-src
+        continue-on-error: true
+        run: |
+          if [ -f Cargo.toml ] && grep -q 'edie_yut' Cargo.toml 2>/dev/null; then
+            python tools/generate_art.py 2>/dev/null || true
+            cargo build --release --target wasm32-unknown-unknown --bin edie_yut
+            mkdir -p ../site/yut
+            cp target/wasm32-unknown-unknown/release/edie_yut.wasm ../site/yut/edie_yut.wasm
+            wasm-opt -Oz --strip-debug --strip-producers -o ../site/yut/edie_yut.wasm ../site/yut/edie_yut.wasm
+            cp web/index.html ../site/yut/index.html 2>/dev/null || true
+          else
+            echo "edie-yut branch not ready yet — creating placeholder"
+            mkdir -p ../site/yut
+            echo '<!DOCTYPE html><html><head><meta charset="utf-8"><title>EDIE Yut</title></head><body style="background:#111;color:#E8923C;font-family:monospace;display:flex;align-items:center;justify-content:center;height:100vh;margin:0"><h1>EDIE Yut Nori — Coming Soon</h1></body></html>' > ../site/yut/index.html
+          fi
+
+      # ============================================================
+      # Landing page (from main branch)
+      # ============================================================
+      - name: Checkout main for landing page
+        uses: actions/checkout@v4
+        with:
+          ref: main
+          path: main-src
+
+      - name: Copy landing page
+        run: |
+          cp main-src/web/landing.html site/index.html 2>/dev/null || echo '<meta http-equiv="refresh" content="0;url=runner/">' > site/index.html
+
+      # ============================================================
+      # Deploy combined site
+      # ============================================================
       - name: Setup Pages
         uses: actions/configure-pages@v5
 
       - name: Upload Pages artifact
         uses: actions/upload-pages-artifact@v3
         with:
-          path: web
+          path: site
 
   deploy:
     needs: build
