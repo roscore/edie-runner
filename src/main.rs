@@ -10,7 +10,8 @@ use edie_runner::render::sprites::{
     boss_touch_buttons, draw_aurora, draw_boss_intro, draw_boss_mode, draw_countdown,
     draw_effects, draw_heart_pickup, draw_hit_flash, draw_obstacle, draw_player,
     draw_stage_wipe, draw_tier_banner, draw_touch_buttons, draw_vignette,
-    logical_rect_to_screen, play_touch_buttons,
+    logical_rect_to_screen, name_entry_slot_rects, name_entry_touch_buttons,
+    pause_touch_button, play_touch_buttons,
 };
 use edie_runner::game::state::GameState;
 use edie_runner::platform::input::Action;
@@ -119,12 +120,21 @@ async fn main() {
         // Touch sampling -- works on mobile (multi-touch) and desktop mouse.
         let cam_for_touch = Camera::new(screen_width(), screen_height());
         touch_points.clear();
+        // touch_taps: only newly-started touches (for one-shot buttons).
+        let mut touch_taps: Vec<(f32, f32)> = Vec::new();
         for t in touches() {
             touch_points.push((t.position.x, t.position.y));
+            if matches!(t.phase, macroquad::input::TouchPhase::Started) {
+                touch_taps.push((t.position.x, t.position.y));
+            }
         }
         if is_mouse_button_down(MouseButton::Left) {
             let (mx, my) = mouse_position();
             touch_points.push((mx, my));
+        }
+        if is_mouse_button_pressed(MouseButton::Left) {
+            let (mx, my) = mouse_position();
+            touch_taps.push((mx, my));
         }
 
         // Touch -> button state mapping
@@ -139,6 +149,9 @@ async fn main() {
                 x >= rx && x <= rx + rw && y >= ry && y <= ry + rh
             };
 
+        // One-shot touch actions (pause, name entry)
+        let mut extra_actions: Vec<Action> = Vec::new();
+
         if matches!(game.state, GameState::BossFight) {
             let btns = boss_touch_buttons();
             for t in &touch_points {
@@ -147,6 +160,13 @@ async fn main() {
                 }
                 if hit(*t, logical_rect_to_screen(btns[1].logical_rect, &cam_for_touch)) {
                     touch_right = true;
+                }
+            }
+            // Pause button (one-shot tap)
+            let pause_btn = pause_touch_button();
+            for t in &touch_taps {
+                if hit(*t, logical_rect_to_screen(pause_btn.logical_rect, &cam_for_touch)) {
+                    extra_actions.push(Action::Pause);
                 }
             }
         } else if matches!(game.state, GameState::Playing) {
@@ -159,9 +179,36 @@ async fn main() {
                     touch_jump = true;
                 }
                 if hit(*t, logical_rect_to_screen(btns[2].logical_rect, &cam_for_touch)) {
-                    // Hold-to-extend dash: set whenever finger is down on
-                    // the dash button. The input layer edge-detects.
                     touch_dash = true;
+                }
+            }
+            // Pause button (one-shot tap)
+            let pause_btn = pause_touch_button();
+            for t in &touch_taps {
+                if hit(*t, logical_rect_to_screen(pause_btn.logical_rect, &cam_for_touch)) {
+                    extra_actions.push(Action::Pause);
+                }
+            }
+        } else if matches!(game.state, GameState::NameEntry) {
+            // NameEntry touch: buttons [<] [UP] [DN] [>] [OK]
+            let ne_btns = name_entry_touch_buttons();
+            let ne_actions = [
+                Action::NamePrev, Action::NameUp, Action::NameDown,
+                Action::NameNext, Action::NameCommit,
+            ];
+            for t in &touch_taps {
+                for (i, btn) in ne_btns.iter().enumerate() {
+                    if hit(*t, logical_rect_to_screen(btn.logical_rect, &cam_for_touch)) {
+                        extra_actions.push(ne_actions[i]);
+                    }
+                }
+                // Tap on character slot → select it + cycle letter up
+                let slots = name_entry_slot_rects();
+                for (i, slot) in slots.iter().enumerate() {
+                    if hit(*t, logical_rect_to_screen(*slot, &cam_for_touch)) {
+                        game.name_cursor = i;
+                        extra_actions.push(Action::NameUp);
+                    }
                 }
             }
         } else {
@@ -176,7 +223,8 @@ async fn main() {
         input.set_touch_buttons(touch_jump, touch_duck, touch_dash, touch_left, touch_right);
         was_touching = !touch_points.is_empty();
 
-        let actions = input.poll();
+        let mut actions = input.poll();
+        actions.extend(extra_actions);
         for a in actions {
             // Stamp story start time when entering Story state.
             let was_title_or_gameover = matches!(
@@ -362,13 +410,14 @@ async fn main() {
             if let Some(ref boss) = game.boss {
                 draw_boss_mode(boss, &assets, &cam);
             }
-            // Touch controls: left/right dodge buttons
+            // Touch controls: left/right dodge buttons + pause
             let btns = boss_touch_buttons();
             draw_touch_buttons(
                 &btns,
                 &[touch_left, touch_right],
                 &cam,
             );
+            draw_touch_buttons(&[pause_touch_button()], &[false], &cam);
         }
 
         // In-game touch buttons (only during actual Playing state)
@@ -381,6 +430,7 @@ async fn main() {
                 &[touch_duck, touch_jump, dash_armed && touch_dash],
                 &cam,
             );
+            draw_touch_buttons(&[pause_touch_button()], &[false], &cam);
         }
 
         // Help / Story / Ending / NameEntry screens drawn on top of everything
@@ -391,7 +441,12 @@ async fn main() {
                 draw_story(t, &assets, &cam);
             }
             GameState::Ending => draw_ending(&assets, wall_time, game.last_ending_true, &cam),
-            GameState::NameEntry => draw_name_entry(&game, wall_time, &cam),
+            GameState::NameEntry => {
+                draw_name_entry(&game, wall_time, &cam);
+                // Touch buttons for name entry
+                let ne_btns = name_entry_touch_buttons();
+                draw_touch_buttons(&ne_btns, &[false; 5], &cam);
+            }
             _ => {}
         }
 

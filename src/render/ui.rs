@@ -809,22 +809,19 @@ pub fn draw_name_entry(game: &Game, elapsed: f32, cam: &Camera) {
     }
 
     let help_lines = [
-        "UP / SPACE : next letter",
-        "DOWN : previous letter",
-        "RIGHT / SHIFT : next slot  (last -> submit)",
-        "LEFT : previous slot",
-        "ENTER : submit    ESC : skip",
+        "TAP slot to change letter  |  UP / DN buttons",
+        "< > to move cursor  |  OK or ENTER to submit",
     ];
-    let hinted_size = 18.0 * cam.scale;
+    let hinted_size = 16.0 * cam.scale;
     for (i, line) in help_lines.iter().enumerate() {
         let dim = measure_text(line, None, hinted_size as u16, 1.0);
-        let (lx, ly) = cam.to_screen(LOGICAL_W * 0.5, 308.0 + (i as f32) * 20.0);
+        let (lx, ly) = cam.to_screen(LOGICAL_W * 0.5, 354.0 + (i as f32) * 20.0);
         draw_text(
             line,
             lx - dim.width * 0.5,
             ly,
             hinted_size,
-            Color::new(0.9, 0.9, 0.9, 0.85),
+            Color::new(0.9, 0.9, 0.9, 0.65),
         );
     }
 }
