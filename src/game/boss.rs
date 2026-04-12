@@ -286,6 +286,7 @@ pub struct BossWorld {
     pub hunter_fired_count: u32,
     pub pincer_wave: Option<PincerWave>,
     pub ring_next: f32,
+    pub crossfire_from_left: bool,
 }
 
 impl BossWorld {
@@ -310,6 +311,7 @@ impl BossWorld {
             hunter_fired_count: 0,
             pincer_wave: None,
             ring_next: 0.0,
+            crossfire_from_left: true,
         }
     }
 
@@ -575,26 +577,20 @@ impl BossWorld {
             // Phase 2 exclusive patterns
             // ================================================================
             BossPattern::Crossfire => {
-                // Horizontal bullets from left and right edges.
+                // Horizontal bullets from alternating left/right edges.
                 //
-                // EDIE's hitbox in boss mode is y=350..370. Virus hitbox
-                // is (virus_y+12 .. virus_y+36). For a virus at lane Y
-                // to hit the player, we need virus_y+36 > 350 AND
-                // virus_y+12 < 370, i.e. Y in (314, 358).
+                // Three spread-out lanes force the player to weave
+                // vertically (jump / duck) while alternating direction
+                // adds a rhythmic dodge pattern.
                 //
-                // v0.4.4 had lane 330 which fell squarely in this range
-                // → guaranteed hit, no dodge possible. Fixed lanes now
-                // sit clearly ABOVE the player so they can be dodged by
-                // stepping left/right into the gaps between bullets.
-                //
-                // Bullet spacing widened from 40px to 100px so the 28px-
-                // wide player can comfortably fit between the 24px-wide
-                // virus hitboxes (gap = 100-24 = 76px > 28px).
+                // Bullet spacing = 100px, virus hitbox = 24px wide,
+                // gap = 76px > 28px player width → always dodgeable.
                 self.spawn_timer -= dt;
                 if self.spawn_timer <= 0.0 {
-                    let lanes = [260.0, 290.0, 310.0];
+                    let lanes = [260.0, 320.0, 340.0];
                     let lane_y = lanes[rng.gen_range(0..lanes.len())];
-                    let from_left = rng.gen_bool(0.5);
+                    let from_left = self.crossfire_from_left;
+                    self.crossfire_from_left = !self.crossfire_from_left;
                     let count = 2u32;
                     for i in 0..count {
                         let x = if from_left {
