@@ -1,116 +1,124 @@
-# EDIE Runner
+# EDIE Minigames
 
-Endless runner starring **EDIE**, the AeiROBOT mascot. Runs in Chrome via WebAssembly.
+AeiROBOT 마스코트 **EDIE**와 함께하는 미니게임 컬렉션. Rust + WebAssembly로 구동되며, 브라우저에서 바로 플레이할 수 있습니다.
 
-**Play in your browser:** <https://roscore.github.io/edie-runner/>
+**[미니게임 포털 바로가기](https://roscore.github.io/edie-minigames/)**
 
-EDIE has been left behind in a Pangyo pop-up store and must find the long way back to AeiROBOT HQ, dashing through coffee cups, traffic, balloon drones, and AeiROBOT bots along the way. Survive all the way to 50000 points and a very unwelcome guest shows up for the final boss fight.
+---
 
-## Story
+## Games
 
-1. **Pangyo Department Store** — luxury pop-up floor, marble, gold watches
-2. **Pangyo Street** — sidewalks, tech offices, early bots
-3. **Highway to Ansan** — cars charging, deer leaping, balloons drifting
-4. **Hanyang ERICA** — campus stretch, AeiROBOT bots begin
-5. **AeiROBOT Office** — home is in sight, but virus warnings flash everywhere
-6. **AeiROBOT CEO Room** — dense robot swarm, extreme difficulty
-7. **Mungchi Boss Fight** (50000+) — survive 60s of falling virus rain + laser attacks
+| Game | Genre | Status | Link |
+|------|-------|--------|------|
+| **EDIE Runner** | Endless Runner | PLAYABLE | [Play](https://roscore.github.io/edie-minigames/runner/) |
+| **EDIE Battle Reverse** | Board / Othello | IN DEV | [Play](https://roscore.github.io/edie-minigames/reverse/) |
+| **EDIE 초능력 윷놀이** | Board / Yut Nori | COMING SOON | [Play](https://roscore.github.io/edie-minigames/yut/) |
 
-## Controls
+---
 
-| Key | Action |
-|---|---|
-| **Space / ↑** | Jump (hold for higher arc) |
-| **↓** | Duck under drones |
-| **Shift** | Aurora Dash (costs 1 aurora, smashes everything) |
-| **Left / Right** or **A / D** | Dodge (boss fight only) |
-| **P** | Pause |
-| **H** | Help screen |
-| **T** | Story intro (Star Wars style) |
-| **Esc** | Back |
+### EDIE Runner
 
-## Mechanics
+판교 백화점에서 안산 AeiROBOT 본사까지, 에디의 집 찾기 대모험.
 
-- Collect **Aurora Stones** (purple/green orbs) to fuel the dash
-- Collect **Hearts** for extra lives (max 3)
-- Dash grants 400 ms of invulnerability and smashes any obstacle
-- Cross tier thresholds to unlock new obstacle pools and zones
-- Scroll speed climbs smoothly from 280 to 640+ px/s
+- 7개 스테이지 (판교 백화점 → 판교 거리 → 고속도로 → 한양대 ERICA → AeiROBOT 사무실 → 대표실 → 보스전)
+- 50000점 돌파 시 **몽치 보스전** (60초 서바이벌, 5가지 공격 패턴)
+- 오로라 스톤 수집 → **오로라 대시** (400ms 무적 + 장애물 파괴)
+- 하트 수집으로 추가 목숨 (최대 3개)
 
-## Required tooling
+**조작:**  Space/Up = 점프 | Down = 덕 | Shift = 대시 | P = 일시정지
 
-- Rust 1.84 (auto-installed via `rust-toolchain.toml`)
+### EDIE Battle Reverse
+
+에디 vs 앨리스, 오셀로 기반 전략 보드게임.
+
+- 1v1 대전 (vs AI: Easy / Normal / Hard)
+- 오로라 파워업 + 몽치 바이러스 확산 메카닉
+- HP 기반 승부 시스템
+
+### EDIE 초능력 윷놀이
+
+전통 윷놀이에 16종 초능력을 추가한 전략 대결.
+
+- 강제 귀가, 밥상 뒤집기, 마이더스의 손 등 초능력 카드
+- 온라인/로컬 멀티플레이 예정
+
+---
+
+## Build
+
+### Prerequisites
+
+- Rust 1.84+ (`rust-toolchain.toml`로 자동 설치)
 - `rustup target add wasm32-unknown-unknown`
-- Python 3 + Pillow + numpy (for art/audio regeneration)
-- Optional: `wasm-opt` (Binaryen) for `-Oz` optimization
+- Python 3 + Pillow + numpy (아트/SFX 생성)
+- Optional: `wasm-opt` (Binaryen 116+)
 
-## Build locally
+### Local build & run
 
 ```bash
-# Linux / macOS / Git Bash
+# Linux / macOS
 ./scripts/build.sh
 cd web && python -m http.server 8080
 ```
 
 ```powershell
-# Windows PowerShell
+# Windows
 ./scripts/build.ps1
 cd web; python -m http.server 8080
 ```
 
-Then open <http://localhost:8080> in Chrome.
+Then open http://localhost:8080 in Chrome.
 
-`scripts/build.sh` runs the Python art generator, builds the wasm release, copies artifacts into `web/`, and (if available) runs `wasm-opt -Oz`.
-
-## Deployment (GitHub Pages)
-
-The game auto-deploys to GitHub Pages on every push to `main` via
-`.github/workflows/deploy.yml`. The workflow:
-
-1. Installs Python + Rust + wasm32 target
-2. Runs `python tools/generate_art.py`
-3. Builds the wasm release
-4. Copies assets into `web/`
-5. Optimizes with `wasm-opt -Oz`
-6. Publishes `web/` to GitHub Pages
-
-To enable Pages for a fresh fork:
-
-1. Settings → Pages → Source: "GitHub Actions"
-2. Push to `main`
-3. Wait for the workflow to complete
-4. Open `https://<user>.github.io/<repo>/`
-
-## Unit tests
+### Tests
 
 ```bash
-cargo test --lib
+cargo test --lib    # 68+ unit tests
 ```
 
-60+ host-side tests cover physics, obstacles, dash, score, difficulty, camera,
-day/night cycle, and boss mode. All game logic is host-testable through the
-trait seams in `src/platform/`.
+Physics, obstacles, dash, score, difficulty, camera, boss patterns 등을 커버합니다.
+
+---
+
+## Deployment
+
+GitHub Actions (`deploy.yml`)가 `main` / `edie-runner` / `edie-reverse` / `edie-yut` 브랜치 push 시 자동 배포합니다.
+
+```
+site/
+  index.html       ← 랜딩 페이지 (게임 선택)
+  runner/           ← EDIE Runner (wasm)
+  reverse/          ← Battle Reverse (wasm)
+  yut/              ← 윷놀이 (placeholder)
+```
+
+Pages 활성화: Settings → Pages → Source: "GitHub Actions"
 
 ## Project structure
 
 ```
-edie-runner/
-|- src/
-|  |- main.rs            # macroquad entry, main loop
-|  |- lib.rs             # re-exports for tests
-|  |- assets.rs          # async texture/sound loader
-|  |- time.rs            # fixed-timestep accumulator
-|  |- platform/          # Storage/Input/Visibility trait seams
-|  |- game/              # pure game logic (no macroquad deps)
-|  |  |- player.rs, obstacles.rs, pickups.rs
-|  |  |- dash.rs, effects.rs, boss.rs
-|  |  |- world.rs, state.rs, difficulty.rs
-|  `- render/            # camera, sprites, UI, day/night
-|- tools/generate_art.py # procedural art + SFX generator
-|- assets/
-|  |- source/            # user-provided EDIE reference art (GIFs)
-|  `- gen/               # generator output (PNGs + WAVs)
-|- web/                  # WASM host + static files served by GitHub Pages
-|- docs/superpowers/     # design spec + implementation plans
-`- .github/workflows/    # CI deploy
+edie-minigames/
+  src/
+    main.rs              # macroquad entry point
+    game/                # pure game logic (platform-independent)
+      player.rs, obstacles.rs, boss.rs, pickups.rs,
+      dash.rs, effects.rs, world.rs, state.rs, difficulty.rs
+    render/              # camera, sprites, UI
+    platform/            # Input/Storage/Visibility trait seams
+  tools/
+    generate_art.py      # procedural sprite + SFX generator
+    generate_extras.py   # shop tiles, gate, BGM
+  web/                   # WASM host HTML + JS
+  assets/                # source art + generated assets
+  .github/workflows/     # CI/CD
 ```
+
+## Branch strategy
+
+| Branch | Purpose |
+|--------|---------|
+| `main` | Protected, release only |
+| `develop` | Integration branch |
+| `edie-runner` | Runner game source |
+| `edie-reverse` | Battle Reverse game source |
+| `edie-yut` | Yut Nori game source |
+| `fix/*`, `feat/*` | Feature/fix branches → PR to develop |
