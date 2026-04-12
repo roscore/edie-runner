@@ -7,6 +7,7 @@
 pub mod game;
 pub mod platform;
 pub mod time;
+pub mod yut;
 
 #[cfg(feature = "graphics")]
 pub mod assets;

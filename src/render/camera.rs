@@ -15,11 +15,15 @@ pub struct Camera {
 
 impl Camera {
     pub fn new(screen_w: f32, screen_h: f32) -> Self {
-        let scale_x = screen_w / LOGICAL_W;
-        let scale_y = screen_h / LOGICAL_H;
+        Self::with_logical(LOGICAL_W, LOGICAL_H, screen_w, screen_h)
+    }
+
+    pub fn with_logical(lw: f32, lh: f32, screen_w: f32, screen_h: f32) -> Self {
+        let scale_x = screen_w / lw;
+        let scale_y = screen_h / lh;
         let scale = scale_x.min(scale_y);
-        let used_w = LOGICAL_W * scale;
-        let used_h = LOGICAL_H * scale;
+        let used_w = lw * scale;
+        let used_h = lh * scale;
         let offset_x = (screen_w - used_w) * 0.5;
         let offset_y = (screen_h - used_h) * 0.5;
         Self { screen_w, screen_h, scale, offset_x, offset_y }
