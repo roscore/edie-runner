@@ -86,6 +86,7 @@ pub fn draw_yut(game: &YutGame, _assets: &AssetHandles, elapsed: f32) {
             draw_board(&cam);
             draw_all_pieces(game, elapsed, &cam);
             draw_hud(game, &cam);
+            draw_power_cards(game, &cam);
             draw_throw_result(game, &cam);
             if game.phase == Phase::SelectPiece {
                 draw_piece_selection_hint(game, elapsed, &cam);
@@ -93,6 +94,8 @@ pub fn draw_yut(game: &YutGame, _assets: &AssetHandles, elapsed: f32) {
             if game.phase == Phase::SelectPath {
                 draw_path_choice(game, &cam);
             }
+            // Draw traps and blocked cells
+            draw_traps_and_blocks(game, elapsed, &cam);
             if let Some((ref msg, t)) = game.toast {
                 draw_toast(msg, t, &cam);
             }
@@ -324,6 +327,48 @@ fn draw_game_over(game: &YutGame, cam: &Camera) {
     let sd = measure_text(sub, None, ss as u16, 1.0);
     let (sx, sy) = cam.to_screen(640.0, 460.0);
     draw_text(sub, sx - sd.width * 0.5, sy, ss, Color::new(0.7, 0.7, 0.7, 1.0));
+}
+
+fn draw_power_cards(game: &YutGame, cam: &Camera) {
+    let pi = game.current_player;
+    let cards = &game.power_cards[pi];
+    if cards.is_empty() { return; }
+    let (bx, by) = cam.to_screen(940.0, 100.0);
+    let ts = 13.0 * cam.scale;
+    let header = format!("{}'s cards:", game.current_player_name());
+    draw_text(&header, bx, by, ts, Color::new(0.8, 0.8, 0.8, 0.8));
+    for (i, card) in cards.iter().enumerate() {
+        let y = by + cam.scaled(18.0 + i as f32 * 24.0);
+        let key = if i == 0 { "[Q]" } else { "[W]" };
+        let label = format!("{} {}: {}", key, card.name(), card.desc());
+        // Card background
+        draw_rectangle(bx - cam.scaled(4.0), y - cam.scaled(12.0),
+            cam.scaled(310.0), cam.scaled(20.0),
+            Color::new(0.1, 0.1, 0.15, 0.8));
+        draw_text(&label, bx, y, ts, Color::new(1.0, 0.9, 0.5, 0.95));
+    }
+}
+
+fn draw_traps_and_blocks(game: &YutGame, elapsed: f32, cam: &Camera) {
+    let pulse = 0.5 + 0.5 * (elapsed * 4.0).sin();
+    // Draw traps (red X)
+    for &(pos, _owner) in &game.traps {
+        let (lx, ly) = cell_pos(pos);
+        let (sx, sy) = cam.to_screen(lx, ly);
+        let r = cam.scaled(10.0);
+        draw_line(sx - r, sy - r, sx + r, sy + r, 2.0, Color::new(0.9, 0.2, 0.2, pulse));
+        draw_line(sx + r, sy - r, sx - r, sy + r, 2.0, Color::new(0.9, 0.2, 0.2, pulse));
+    }
+    // Draw blocked cells (purple circle)
+    for &(pos, turns) in &game.blocked_cells {
+        let (lx, ly) = cell_pos(pos);
+        let (sx, sy) = cam.to_screen(lx, ly);
+        draw_circle(sx, sy, cam.scaled(14.0), Color::new(0.6, 0.2, 0.8, 0.4 * pulse));
+        let txt = format!("{}", turns);
+        let ts = 11.0 * cam.scale;
+        let td = measure_text(&txt, None, ts as u16, 1.0);
+        draw_text(&txt, sx - td.width * 0.5, sy + td.height * 0.3, ts, WHITE);
+    }
 }
 
 fn draw_toast(msg: &str, remaining: f32, cam: &Camera) {

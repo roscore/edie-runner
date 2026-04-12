@@ -61,6 +61,9 @@ async fn main() {
                 }
             }
             Phase::Throwing => {
+                // Q/W to use power cards before throwing
+                if is_key_pressed(KeyCode::Q) { game.use_power(0); }
+                if is_key_pressed(KeyCode::W) { game.use_power(1); }
                 // Tap or space to throw
                 let mut do_throw = is_key_pressed(KeyCode::Space);
                 if is_mouse_button_pressed(MouseButton::Left) { do_throw = true; }
