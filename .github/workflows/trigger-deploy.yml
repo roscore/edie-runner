@@ -1,0 +1,9 @@
+name: Trigger full deploy
+on:
+  push:
+    branches: [edie-runner, edie-reverse, edie-yut]
+jobs:
+  trigger:
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo 'Game branch updated — full deploy triggered via deploy.yml on main'
