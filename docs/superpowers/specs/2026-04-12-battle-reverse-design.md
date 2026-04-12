@@ -99,15 +99,24 @@ damage dealt. This rewards aggressive multi-flip plays.
 
 ## 4. Visual Design
 
-### 4.1 Board Theme
+### 4.1 Board Theme — AeiROBOT Orange+Green Gradient
 
-- **Background:** AeiROBOT lab — dark blue-grey workspace (reuse
-  `bg_office_far` / `bg_factory_far` tinted darker).
-- **Board frame:** metallic silver border with rivets, subtle LED
-  accent strip along the top edge.
-- **Cell colors:** alternating muted teal (#2a3a3f) and dark grey
-  (#1e2628), AeiROBOT corporate palette.
-- **Grid lines:** thin 1px bright teal (#3af0c8, 30% opacity).
+The AeiROBOT brand palette is **orange (#E8923C) → green (#5BE3A8)**
+gradient. This gradient anchors the entire visual identity:
+
+- **Background:** AeiROBOT lab — dark workspace with a subtle
+  orange-to-green gradient band at the top (reuse `bg_office_far` /
+  `bg_factory_far` tinted with the brand gradient).
+- **Board frame:** metallic frame with an **orange→green gradient**
+  LED accent strip along the top and bottom edges.
+- **Cell colors:** alternating muted teal-green (#1a3632) and dark
+  warm grey (#2a2420), derived from the brand gradient endpoints.
+- **Grid lines:** thin 1px AeiROBOT green (#5BE3A8, 25% opacity).
+- **HP bars:** EDIE = orange→green gradient fill, Alice = red.
+- **Turn indicator:** active player's portrait glows with the
+  orange→green gradient border.
+- **Buttons/UI accents:** all use the brand gradient for hover
+  states, selection highlights, and score text.
 
 ### 4.2 Pieces
 
