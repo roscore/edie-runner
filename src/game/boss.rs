@@ -720,7 +720,7 @@ impl BossWorld {
             v.y += v.vy * dt;
         }
         self.viruses
-            .retain(|v| v.alive && v.y < GROUND_Y + 40.0 && v.x > -80.0 && v.x < 1360.0);
+            .retain(|v| v.alive && v.y < GROUND_Y + 40.0 && v.x > -200.0 && v.x < 1480.0);
 
         // Laser update
         if let Some(laser) = &mut self.laser {
