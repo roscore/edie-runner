@@ -72,10 +72,22 @@ jobs:
           wasm-opt -Oz --strip-debug --strip-producers -o ../site/reverse/edie_reverse.wasm ../site/reverse/edie_reverse.wasm
           cp web/reverse/index.html ../site/reverse/index.html
 
-      - name: Create yut placeholder
+      - name: Checkout edie-yut branch
+        uses: actions/checkout@v4
+        with:
+          ref: edie-yut
+          path: yut-src
+
+      - name: Build EDIE Yut Nori
+        working-directory: yut-src
         run: |
-          mkdir -p site/yut
-          echo '<!DOCTYPE html><html><head><meta charset="utf-8"><title>EDIE Yut</title></head><body style="background:#111;color:#E8923C;font-family:monospace;display:flex;align-items:center;justify-content:center;height:100vh;margin:0"><h1>EDIE Yut Nori - Coming Soon</h1></body></html>' > site/yut/index.html
+          python tools/generate_art.py
+          python tools/generate_extras.py
+          cargo build --release --target wasm32-unknown-unknown --bin edie_yut
+          mkdir -p ../site/yut
+          cp target/wasm32-unknown-unknown/release/edie_yut.wasm ../site/yut/edie_yut.wasm
+          wasm-opt -Oz --strip-debug --strip-producers -o ../site/yut/edie_yut.wasm ../site/yut/edie_yut.wasm
+          cp web/yut/index.html ../site/yut/index.html
 
       - name: Checkout main for landing page
         uses: actions/checkout@v4
