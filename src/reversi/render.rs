@@ -7,9 +7,11 @@ use crate::reversi::board::{Board, Cell, Powerup, Side, BOARD_SIZE, INITIAL_HP};
 use crate::reversi::game::{FlipAnim, Phase, ReversiGame};
 use macroquad::prelude::*;
 
+const REVERSE_W: f32 = 1280.0;
+const REVERSE_H: f32 = 720.0;
 const BOARD_PX: f32 = 560.0;
 const CELL_PX: f32 = BOARD_PX / BOARD_SIZE as f32;
-const BOARD_X: f32 = (1280.0 - BOARD_PX) / 2.0;
+const BOARD_X: f32 = (REVERSE_W - BOARD_PX) / 2.0;
 const BOARD_Y: f32 = 80.0;
 const ORANGE: Color = Color::new(0.91, 0.57, 0.23, 1.0);
 const GREEN: Color = Color::new(0.36, 0.89, 0.66, 1.0);
@@ -18,7 +20,7 @@ const CELL_B: Color = Color::new(0.16, 0.14, 0.13, 1.0);
 const GRID_LINE: Color = Color::new(0.36, 0.89, 0.66, 0.22);
 
 pub fn draw_reversi(game: &ReversiGame, assets: &AssetHandles, elapsed: f32) {
-    let cam = Camera::new(screen_width(), screen_height());
+    let cam = Camera::with_logical(REVERSE_W, REVERSE_H, screen_width(), screen_height());
     clear_background(Color::new(0.06, 0.06, 0.10, 1.0));
     match game.phase {
         Phase::Menu => draw_menu(&cam),
@@ -96,23 +98,28 @@ fn draw_cells(cam: &Camera) {
 }
 
 fn draw_pieces(board: &Board, assets: &AssetHandles, elapsed: f32, cam: &Camera) {
+    let max_size = CELL_PX - 8.0; // max dimension within a cell
     for r in 0..BOARD_SIZE {
         for c in 0..BOARD_SIZE {
             if let Cell::Piece(side) = board.cells[r][c] {
-                let lx = BOARD_X + c as f32 * CELL_PX + 7.0;
-                let ly = BOARD_Y + r as f32 * CELL_PX + 3.0;
                 let bob = ((elapsed * 2.0 + (r * 3 + c) as f32 * 0.5).sin() * 2.0).round();
-                let (sx, sy) = cam.to_screen(lx, ly + bob);
-                let (pw, ph): (f32, f32) = match side {
+                let (src_w, src_h): (f32, f32) = match side {
                     Side::Edie => (56.0, 48.0),
                     Side::Alice => (50.0, 64.0),
                 };
+                // Scale proportionally to fit within max_size
+                let fit = (max_size / src_w).min(max_size / src_h);
+                let pw = src_w * fit;
+                let ph = src_h * fit;
+                let lx = BOARD_X + c as f32 * CELL_PX + (CELL_PX - pw) * 0.5;
+                let ly = BOARD_Y + r as f32 * CELL_PX + (CELL_PX - ph) * 0.5;
+                let (sx, sy) = cam.to_screen(lx, ly + bob);
                 let tex = match side {
                     Side::Edie => &assets.edie_static_run,
                     Side::Alice => &assets.obstacle_alice3,
                 };
                 draw_texture_ex(tex, sx, sy, WHITE, DrawTextureParams {
-                    dest_size: Some(vec2(cam.scaled(pw), cam.scaled(ph.min(CELL_PX - 6.0)))),
+                    dest_size: Some(vec2(cam.scaled(pw), cam.scaled(ph))),
                     ..Default::default()
                 });
             }
@@ -376,7 +383,7 @@ fn draw_toast(msg: &str, remaining: f32, cam: &Camera) {
 }
 
 pub fn screen_to_cell(screen_x: f32, screen_y: f32) -> Option<(usize, usize)> {
-    let cam = Camera::new(screen_width(), screen_height());
+    let cam = Camera::with_logical(REVERSE_W, REVERSE_H, screen_width(), screen_height());
     let lx = (screen_x - cam.offset_x) / cam.scale;
     let ly = (screen_y - cam.offset_y) / cam.scale;
     if lx < BOARD_X || lx >= BOARD_X + BOARD_PX || ly < BOARD_Y || ly >= BOARD_Y + BOARD_PX {
