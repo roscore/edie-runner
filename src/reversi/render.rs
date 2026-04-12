@@ -47,8 +47,8 @@ fn theme_texture<'a>(index: usize, assets: &'a AssetHandles) -> &'a Texture2D {
     }
 }
 
-/// Title text for easter egg menu title hit-testing.
-pub const TITLE_RECT: (f32, f32, f32, f32) = (440.0, 170.0, 400.0, 50.0);
+/// Title text for easter egg menu title hit-testing (generous area).
+pub const TITLE_RECT: (f32, f32, f32, f32) = (300.0, 120.0, 680.0, 100.0);
 
 pub fn draw_reversi(game: &ReversiGame, assets: &AssetHandles, elapsed: f32) {
     let cam = Camera::with_logical(REVERSE_W, REVERSE_H, screen_width(), screen_height());
@@ -74,7 +74,7 @@ pub fn draw_reversi(game: &ReversiGame, assets: &AssetHandles, elapsed: f32) {
             if let Some(anim) = &game.flip_anim {
                 draw_flip_overlay(anim, &cam);
             }
-            draw_hud(&game.board, assets, elapsed, game.theme_index, &cam);
+            draw_hud(&game.board, assets, elapsed, game.theme_index, game.mode, &cam);
             draw_powerup_hud(&game.board, &cam);
             draw_turn_timer(game, assets, elapsed, &cam);
             draw_turn_indicator(&game.board, elapsed, &cam);
@@ -86,8 +86,8 @@ pub fn draw_reversi(game: &ReversiGame, assets: &AssetHandles, elapsed: f32) {
             draw_board_frame(&cam);
             draw_cells(&cam);
             draw_pieces(&game.board, assets, elapsed, game.mode, game.theme_index, &cam);
-            draw_hud(&game.board, assets, elapsed, game.theme_index, &cam);
-            draw_game_over(game, assets, &cam);
+            draw_hud(&game.board, assets, elapsed, game.theme_index, game.mode, &cam);
+            draw_game_over(game, assets, elapsed, &cam);
         }
     }
 }
@@ -234,46 +234,70 @@ fn draw_flip_overlay(anim: &FlipAnim, cam: &Camera) {
     draw_rectangle_lines(sx, sy, cam.scaled(CELL_PX), cam.scaled(CELL_PX), 4.0, Color::new(1.0, 0.9, 0.3, alpha + 0.3));
 }
 
-fn draw_hud(board: &Board, assets: &AssetHandles, elapsed: f32, theme_idx: usize, cam: &Camera) {
-    // Animated player character above HP bar (changes with easter egg theme)
+fn draw_hud(board: &Board, assets: &AssetHandles, elapsed: f32, theme_idx: usize, mode: GameMode, cam: &Camera) {
+    // Left panel background
+    let (lpx, lpy) = cam.to_screen(10.0, 648.0);
+    draw_rectangle(lpx, lpy, cam.scaled(250.0), cam.scaled(68.0), Color::new(0.0, 0.0, 0.0, 0.6));
+    // Right panel background
+    let (rpx, rpy) = cam.to_screen(1020.0, 648.0);
+    draw_rectangle(rpx, rpy, cam.scaled(250.0), cam.scaled(68.0), Color::new(0.0, 0.0, 0.0, 0.6));
+
+    // Player character (left side, large)
     let player_tex = theme_texture(theme_idx, assets);
-    let (ex, ey) = cam.to_screen(30.0 + 70.0, 618.0);
-    let player_bob = (elapsed * 3.0).sin() * 3.0;
-    draw_texture_ex(player_tex, ex, ey + cam.scaled(player_bob), WHITE, DrawTextureParams {
-        dest_size: Some(vec2(cam.scaled(36.0), cam.scaled(40.0))),
-        ..Default::default()
-    });
-    // Animated character above ALICE HP bar
-    let alice_tex = &assets.obstacle_alice3;
-    let (ax, ay) = cam.to_screen(1050.0 + 70.0, 618.0);
-    let alice_bob = (elapsed * 3.0).sin() * 3.0;
-    draw_texture_ex(alice_tex, ax, ay + cam.scaled(alice_bob), WHITE, DrawTextureParams {
-        dest_size: Some(vec2(cam.scaled(34.0), cam.scaled(42.0))),
+    let player_bob = (elapsed * 3.0).sin() * 2.0;
+    let (ex, ey) = cam.to_screen(16.0, 652.0 + player_bob);
+    let psrc_w = player_tex.width();
+    let psrc_h = player_tex.height();
+    let pfit = (56.0 / psrc_w).min(56.0 / psrc_h);
+    draw_texture_ex(player_tex, ex, ey, WHITE, DrawTextureParams {
+        dest_size: Some(vec2(cam.scaled(psrc_w * pfit), cam.scaled(psrc_h * pfit))),
         ..Default::default()
     });
 
-    draw_hp_bar(30.0, 660.0, board.edie_hp, "EDIE", true, cam);
-    draw_hp_bar(1050.0, 660.0, board.alice_hp, "ALICE", false, cam);
-    let size = 18.0 * cam.scale;
-    let ec = format!("pieces: {}", board.piece_count(Side::Edie));
-    let ac = format!("pieces: {}", board.piece_count(Side::Alice));
-    let (epx, epy) = cam.to_screen(30.0, 690.0);
-    draw_text(&ec, epx, epy, size, Color::new(0.8, 0.8, 0.8, 0.8));
-    let (apx, apy) = cam.to_screen(1050.0, 690.0);
-    draw_text(&ac, apx, apy, size, Color::new(0.8, 0.8, 0.8, 0.8));
+    // Opponent character (right side, large)
+    let opp_tex = opponent_texture(assets, mode);
+    let opp_bob = (elapsed * 3.0 + 1.5).sin() * 2.0;
+    let (ax, ay) = cam.to_screen(1026.0, 652.0 + opp_bob);
+    let osrc_w = opp_tex.width();
+    let osrc_h = opp_tex.height();
+    let ofit = (56.0 / osrc_w).min(56.0 / osrc_h);
+    draw_texture_ex(opp_tex, ax, ay, WHITE, DrawTextureParams {
+        dest_size: Some(vec2(cam.scaled(osrc_w * ofit), cam.scaled(osrc_h * ofit))),
+        ..Default::default()
+    });
+
+    // HP bars (shifted right to leave room for character icons)
+    draw_hp_bar(78.0, 658.0, board.edie_hp, THEME_NAMES[theme_idx], true, cam);
+    draw_hp_bar(1090.0, 658.0, board.alice_hp, opponent_name(mode), false, cam);
+    // Piece counts
+    let size = 16.0 * cam.scale;
+    let ec = format!("{} pcs", board.piece_count(Side::Edie));
+    let ac = format!("{} pcs", board.piece_count(Side::Alice));
+    let (epx, epy) = cam.to_screen(78.0, 695.0);
+    draw_text(&ec, epx, epy, size, Color::new(1.0, 1.0, 1.0, 0.9));
+    let (apx, apy) = cam.to_screen(1090.0, 695.0);
+    draw_text(&ac, apx, apy, size, Color::new(1.0, 1.0, 1.0, 0.9));
 }
 
 fn draw_hp_bar(lx: f32, ly: f32, hp: i32, label: &str, gradient: bool, cam: &Camera) {
-    let bw = 200.0; let bh = 16.0;
+    let bw = 170.0;
+    let bh = 18.0;
     let (sx, sy) = cam.to_screen(lx, ly);
-    draw_text(label, sx, sy - cam.scaled(4.0), 16.0 * cam.scale, Color::new(0.9, 0.9, 0.85, 1.0));
-    draw_rectangle(sx, sy, cam.scaled(bw), cam.scaled(bh), Color::new(0.1, 0.1, 0.12, 1.0));
+    // Label with shadow for readability
+    let label_size = 18.0 * cam.scale;
+    draw_text(label, sx + 1.0, sy - cam.scaled(3.0) + 1.0, label_size, Color::new(0.0, 0.0, 0.0, 0.5));
+    draw_text(label, sx, sy - cam.scaled(3.0), label_size, WHITE);
+    // Bar background
+    draw_rectangle(sx, sy, cam.scaled(bw), cam.scaled(bh), Color::new(0.15, 0.15, 0.18, 1.0));
     let ratio = (hp as f32 / INITIAL_HP as f32).clamp(0.0, 1.0);
     let fw = bw * ratio;
     if gradient {
         for i in 0..20 {
             let t = i as f32 / 19.0;
-            let c = Color::new(ORANGE.r + (GREEN.r - ORANGE.r) * t, ORANGE.g + (GREEN.g - ORANGE.g) * t, ORANGE.b + (GREEN.b - ORANGE.b) * t, 1.0);
+            let c = Color::new(
+                ORANGE.r + (GREEN.r - ORANGE.r) * t,
+                ORANGE.g + (GREEN.g - ORANGE.g) * t,
+                ORANGE.b + (GREEN.b - ORANGE.b) * t, 1.0);
             let step = fw / 20.0;
             let (bx, _) = cam.to_screen(lx + i as f32 * step, ly);
             draw_rectangle(bx, sy, cam.scaled(step + 0.5), cam.scaled(bh), c);
@@ -281,20 +305,29 @@ fn draw_hp_bar(lx: f32, ly: f32, hp: i32, label: &str, gradient: bool, cam: &Cam
     } else {
         draw_rectangle(sx, sy, cam.scaled(fw), cam.scaled(bh), Color::new(0.9, 0.3, 0.35, 1.0));
     }
-    draw_rectangle_lines(sx, sy, cam.scaled(bw), cam.scaled(bh), 2.0, Color::new(0.6, 0.6, 0.55, 0.9));
-    let txt = format!("{}/{}", hp.max(0), INITIAL_HP);
-    let ts = 12.0 * cam.scale;
+    draw_rectangle_lines(sx, sy, cam.scaled(bw), cam.scaled(bh), 2.0, Color::new(0.7, 0.7, 0.65, 0.9));
+    // HP text with shadow
+    let txt = format!("{}", hp.max(0));
+    let ts = 14.0 * cam.scale;
     let td = measure_text(&txt, None, ts as u16, 1.0);
-    draw_text(&txt, sx + cam.scaled(bw * 0.5) - td.width * 0.5, sy + cam.scaled(bh * 0.5) + td.height * 0.3, ts, WHITE);
+    draw_text(&txt, sx + cam.scaled(bw * 0.5) - td.width * 0.5 + 1.0,
+        sy + cam.scaled(bh * 0.5) + td.height * 0.3 + 1.0, ts, Color::new(0.0, 0.0, 0.0, 0.6));
+    draw_text(&txt, sx + cam.scaled(bw * 0.5) - td.width * 0.5,
+        sy + cam.scaled(bh * 0.5) + td.height * 0.3, ts, WHITE);
 }
 
 fn draw_turn_indicator(board: &Board, elapsed: f32, cam: &Camera) {
-    let label = match board.turn { Side::Edie => "EDIE'S TURN", Side::Alice => "ALICE'S TURN" };
+    let label = match board.turn { Side::Edie => "YOUR TURN", Side::Alice => "OPPONENT'S TURN" };
     let bounce = ((elapsed * 3.0).sin() * 4.0).abs();
-    let size = 24.0 * cam.scale;
+    let size = 26.0 * cam.scale;
     let dim = measure_text(label, None, size as u16, 1.0);
     let (tx, ty) = cam.to_screen(640.0, BOARD_Y + BOARD_PX + 30.0 + bounce);
     let col = match board.turn { Side::Edie => ORANGE, Side::Alice => Color::new(0.9, 0.3, 0.35, 1.0) };
+    // Background pill for readability
+    draw_rectangle(tx - dim.width * 0.5 - cam.scaled(10.0), ty - dim.height - cam.scaled(4.0),
+        dim.width + cam.scaled(20.0), dim.height + cam.scaled(8.0),
+        Color::new(0.0, 0.0, 0.0, 0.5));
+    draw_text(label, tx - dim.width * 0.5 + 1.0, ty + 1.0, size, Color::new(0.0, 0.0, 0.0, 0.5));
     draw_text(label, tx - dim.width * 0.5, ty, size, col);
 }
 
@@ -314,11 +347,11 @@ fn draw_menu(theme_idx: usize, cam: &Camera) {
         draw_text(&sub, sx - sd.width * 0.5, sy, ss, title_color);
     }
     let opts = [
-        ("1. VS LOCAL (2P)", 290.0),
-        ("2. VS AMY - EASY", 340.0),
-        ("3. VS ALICE - NORMAL", 390.0),
-        ("4. VS ALICE M1 - HARD", 440.0),
-        ("5. VS ALICE 4 - INSANE", 490.0),
+        ("1. LOCAL 2P", 290.0),
+        ("2. EASY", 340.0),
+        ("3. NORMAL", 390.0),
+        ("4. HARD", 440.0),
+        ("5. INSANE", 490.0),
     ];
     let os = 24.0 * cam.scale;
     for (l, y) in &opts {
@@ -333,28 +366,54 @@ fn draw_menu(theme_idx: usize, cam: &Camera) {
     draw_text(hint, hx - hd.width * 0.5, hy, hs, Color::new(0.6, 0.6, 0.6, 1.0));
 }
 
-fn draw_game_over(game: &ReversiGame, assets: &AssetHandles, cam: &Camera) {
+fn draw_game_over(game: &ReversiGame, assets: &AssetHandles, elapsed: f32, cam: &Camera) {
     let board = &game.board;
     let (x0, y0) = cam.to_screen(0.0, 0.0);
-    draw_rectangle(x0, y0, cam.scaled(REVERSE_W), cam.scaled(REVERSE_H), Color::new(0.0, 0.0, 0.0, 0.65));
+    draw_rectangle(x0, y0, cam.scaled(REVERSE_W), cam.scaled(REVERSE_H), Color::new(0.0, 0.0, 0.0, 0.7));
+
+    let is_edie_win = board.winner() == Some(Side::Edie);
+    let is_alice_win = board.winner() == Some(Side::Alice);
     let opp_name = opponent_name(game.mode);
-    let (title, color) = match board.winner() {
-        Some(Side::Edie) => ("EDIE WINS!", ORANGE),
-        Some(Side::Alice) => (opp_name, Color::new(0.9, 0.3, 0.35, 1.0)),
-        None => ("DRAW!", Color::new(0.8, 0.8, 0.8, 1.0)),
-    };
+
+    // Victory banner with glow effect
+    if is_edie_win || is_alice_win {
+        let color = if is_edie_win { ORANGE } else { Color::new(0.9, 0.3, 0.35, 1.0) };
+        // Pulsing glow behind winner text
+        let glow_pulse = 0.3 + 0.2 * (elapsed * 4.0).sin();
+        let (gx, gy) = cam.to_screen(640.0, 220.0);
+        draw_circle(gx, gy, cam.scaled(120.0), Color::new(color.r, color.g, color.b, glow_pulse * 0.3));
+        draw_circle(gx, gy, cam.scaled(80.0), Color::new(color.r, color.g, color.b, glow_pulse * 0.2));
+    }
+
     // Winner title
-    let win_label = if board.winner() == Some(Side::Alice) {
-        format!("{} WINS!", opp_name)
-    } else {
-        title.to_string()
+    let win_label = match board.winner() {
+        Some(Side::Edie) => "VICTORY!".to_string(),
+        Some(Side::Alice) => "DEFEATED...".to_string(),
+        None => "DRAW!".to_string(),
     };
-    let size = 56.0 * cam.scale;
+    let color = match board.winner() {
+        Some(Side::Edie) => Color::new(1.0, 0.85, 0.2, 1.0),
+        Some(Side::Alice) => Color::new(0.5, 0.5, 0.6, 1.0),
+        None => Color::new(0.8, 0.8, 0.8, 1.0),
+    };
+    let size = 60.0 * cam.scale;
     let dim = measure_text(&win_label, None, size as u16, 1.0);
-    let (tx, ty) = cam.to_screen(640.0, 280.0);
-    draw_text(&win_label, tx - dim.width * 0.5 + 4.0, ty + 4.0, size, Color::new(0.0, 0.0, 0.0, 0.7));
+    let (tx, ty) = cam.to_screen(640.0, 200.0);
+    draw_text(&win_label, tx - dim.width * 0.5 + 4.0, ty + 4.0, size, Color::new(0.0, 0.0, 0.0, 0.8));
     draw_text(&win_label, tx - dim.width * 0.5, ty, size, color);
-    // Winner character (left) and loser character (right)
+
+    // Winner subtitle
+    let sub_label = match board.winner() {
+        Some(Side::Edie) => format!("{} wins!", THEME_NAMES[game.theme_index]),
+        Some(Side::Alice) => format!("{} wins...", opp_name),
+        None => "Nobody wins".to_string(),
+    };
+    let sub_size = 24.0 * cam.scale;
+    let sub_dim = measure_text(&sub_label, None, sub_size as u16, 1.0);
+    let (stx, sty) = cam.to_screen(640.0, 240.0);
+    draw_text(&sub_label, stx - sub_dim.width * 0.5, sty, sub_size, Color::new(0.9, 0.9, 0.9, 0.9));
+
+    // Winner character (large, celebratory) and loser (small, sad)
     let winner_tex = match board.winner() {
         Some(Side::Edie) => &assets.edie_cheer_anim,
         Some(Side::Alice) => opponent_texture(assets, game.mode),
@@ -365,36 +424,46 @@ fn draw_game_over(game: &ReversiGame, assets: &AssetHandles, cam: &Camera) {
         Some(Side::Alice) => &assets.edie_sad_alt,
         None => opponent_texture(assets, game.mode),
     };
-    // Draw winner (large, left of center)
-    let ww = 100.0;
-    let wh = (winner_tex.height() / winner_tex.width()) * ww;
-    let (wx, wy) = cam.to_screen(440.0, 320.0);
+
+    // Winner: large, bouncing
+    let bounce = ((elapsed * 5.0).sin() * 8.0).abs();
+    let ww = 120.0;
+    let wh = (winner_tex.height() / winner_tex.width().max(1.0)) * ww;
+    let (wx, wy) = cam.to_screen(400.0, 290.0 - bounce);
     draw_texture_ex(winner_tex, wx, wy, WHITE, DrawTextureParams {
-        dest_size: Some(vec2(cam.scaled(ww), cam.scaled(wh))),
+        dest_size: Some(vec2(cam.scaled(ww), cam.scaled(wh.min(140.0)))),
         ..Default::default()
     });
-    // Draw loser (smaller, right of center, desaturated)
-    let lw = 70.0;
-    let lh = (loser_tex.height() / loser_tex.width()) * lw;
-    let (lxp, lyp) = cam.to_screen(770.0, 340.0);
-    draw_texture_ex(loser_tex, lxp, lyp, Color::new(0.6, 0.6, 0.6, 0.8), DrawTextureParams {
-        dest_size: Some(vec2(cam.scaled(lw), cam.scaled(lh))),
+
+    // Loser: small, tilted, desaturated
+    let lw = 60.0;
+    let lh = (loser_tex.height() / loser_tex.width().max(1.0)) * lw;
+    let (lxp, lyp) = cam.to_screen(780.0, 340.0);
+    draw_texture_ex(loser_tex, lxp, lyp, Color::new(0.4, 0.4, 0.5, 0.7), DrawTextureParams {
+        dest_size: Some(vec2(cam.scaled(lw), cam.scaled(lh.min(80.0)))),
         ..Default::default()
     });
-    // Score summary
-    let score_txt = format!("EDIE {} : {} {}    |    HP {} : {}",
-        board.piece_count(Side::Edie), board.piece_count(Side::Alice), opp_name,
-        board.edie_hp.max(0), board.alice_hp.max(0));
-    let ss = 18.0 * cam.scale;
+
+    // Score summary with better formatting
+    let score_txt = format!("{} vs {}  —  HP {} : {}  —  Pieces {} : {}",
+        THEME_NAMES[game.theme_index], opp_name,
+        board.edie_hp.max(0), board.alice_hp.max(0),
+        board.piece_count(Side::Edie), board.piece_count(Side::Alice));
+    let ss = 16.0 * cam.scale;
     let sd = measure_text(&score_txt, None, ss as u16, 1.0);
-    let (sxp, syp) = cam.to_screen(640.0, 470.0);
-    draw_text(&score_txt, sxp - sd.width * 0.5, syp, ss, Color::new(0.9, 0.9, 0.9, 1.0));
+    let (sxp, syp) = cam.to_screen(640.0, 480.0);
+    // Score bg panel
+    draw_rectangle(sxp - sd.width * 0.5 - cam.scaled(12.0), syp - sd.height - cam.scaled(6.0),
+        sd.width + cam.scaled(24.0), sd.height + cam.scaled(12.0),
+        Color::new(0.0, 0.0, 0.0, 0.5));
+    draw_text(&score_txt, sxp - sd.width * 0.5, syp, ss, Color::new(1.0, 1.0, 1.0, 0.95));
+
     // Restart hint
     let sub = "TAP or SPACE to play again";
     let hs = 20.0 * cam.scale;
     let hd = measure_text(sub, None, hs as u16, 1.0);
-    let (hx, hy) = cam.to_screen(640.0, 520.0);
-    draw_text(sub, hx - hd.width * 0.5, hy, hs, Color::new(0.7, 0.7, 0.7, 1.0));
+    let (hx, hy) = cam.to_screen(640.0, 540.0);
+    draw_text(sub, hx - hd.width * 0.5, hy, hs, Color::new(0.8, 0.8, 0.8, 0.9));
 }
 
 fn draw_aurora_cells(board: &Board, elapsed: f32, cam: &Camera) {
