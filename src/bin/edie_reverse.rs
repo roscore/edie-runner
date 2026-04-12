@@ -54,13 +54,30 @@ async fn main() {
                     else if ly > 470.0 && ly < 515.0 { Some(GameMode::VsAiInsane) }
                     else { None }
                 };
+                // Easter egg: click title to cycle character theme
+                let title_hit = |mx: f32, my: f32| -> bool {
+                    let cam = edie_runner::render::camera::Camera::with_logical(
+                        1280.0, 720.0, screen_width(), screen_height());
+                    let lx = (mx - cam.offset_x) / cam.scale;
+                    let ly = (my - cam.offset_y) / cam.scale;
+                    let (rx, ry, rw, rh) = edie_runner::reversi::render::TITLE_RECT;
+                    lx >= rx && lx <= rx + rw && ly >= ry && ly <= ry + rh
+                };
                 if is_mouse_button_pressed(MouseButton::Left) {
-                    let (_mx, my) = mouse_position();
-                    if let Some(mode) = menu_click(my) { game.start_game(mode); }
+                    let (mx, my) = mouse_position();
+                    if title_hit(mx, my) {
+                        game.theme_index = (game.theme_index + 1) % edie_runner::reversi::render::THEME_COUNT;
+                    } else if let Some(mode) = menu_click(my) {
+                        game.start_game(mode);
+                    }
                 }
                 for t in touches() {
                     if let macroquad::input::TouchPhase::Started = t.phase {
-                        if let Some(mode) = menu_click(t.position.y) { game.start_game(mode); }
+                        if title_hit(t.position.x, t.position.y) {
+                            game.theme_index = (game.theme_index + 1) % edie_runner::reversi::render::THEME_COUNT;
+                        } else if let Some(mode) = menu_click(t.position.y) {
+                            game.start_game(mode);
+                        }
                     }
                 }
             }

@@ -49,6 +49,8 @@ pub struct ReversiGame {
     pub turn_timer: f32,
     /// Turn timer: max seconds per turn.
     pub turn_timer_max: f32,
+    /// Easter egg: theme index (0=EDIE, 1=Amy, 2=AliceM1, 3=Alice3, 4=Alice4).
+    pub theme_index: usize,
 }
 
 impl ReversiGame {
@@ -65,6 +67,7 @@ impl ReversiGame {
             toast: None,
             turn_timer: 15.0,
             turn_timer_max: 15.0,
+            theme_index: 0,
         }
     }
 

@@ -19,18 +19,49 @@ const CELL_A: Color = Color::new(0.10, 0.21, 0.20, 1.0);
 const CELL_B: Color = Color::new(0.16, 0.14, 0.13, 1.0);
 const GRID_LINE: Color = Color::new(0.36, 0.89, 0.66, 0.22);
 
+/// Theme names for the easter egg.
+pub const THEME_NAMES: [&str; 5] = ["EDIE", "AMY", "ALICE M1", "ALICE 3", "ALICE 4"];
+pub const THEME_COUNT: usize = 5;
+
+/// Player-side theme color based on theme_index.
+fn theme_color(index: usize) -> Color {
+    match index {
+        0 => ORANGE,                                     // EDIE — orange
+        1 => Color::new(0.61, 0.44, 0.83, 1.0),         // Amy — purple
+        2 => Color::new(0.95, 0.55, 0.70, 1.0),         // AliceM1 — pink
+        3 => Color::new(0.90, 0.30, 0.35, 1.0),         // Alice3 — red
+        4 => Color::new(0.31, 0.76, 0.97, 1.0),         // Alice4 — cyan
+        _ => ORANGE,
+    }
+}
+
+/// Player-side texture based on theme_index.
+fn theme_texture<'a>(index: usize, assets: &'a AssetHandles) -> &'a Texture2D {
+    match index {
+        0 => &assets.edie_static_run,
+        1 => &assets.obstacle_amy,
+        2 => &assets.obstacle_alicem1,
+        3 => &assets.obstacle_alice3,
+        4 => &assets.obstacle_alice4,
+        _ => &assets.edie_static_run,
+    }
+}
+
+/// Title text for easter egg menu title hit-testing.
+pub const TITLE_RECT: (f32, f32, f32, f32) = (440.0, 170.0, 400.0, 50.0);
+
 pub fn draw_reversi(game: &ReversiGame, assets: &AssetHandles, elapsed: f32) {
     let cam = Camera::with_logical(REVERSE_W, REVERSE_H, screen_width(), screen_height());
     clear_background(Color::new(0.06, 0.06, 0.10, 1.0));
     draw_background(elapsed, &cam);
     match game.phase {
-        Phase::Menu => draw_menu(&cam),
+        Phase::Menu => draw_menu(game.theme_index, &cam),
         Phase::Playing | Phase::Animating | Phase::UsingPowerup => {
             draw_board_frame(&cam);
             draw_cells(&cam);
             draw_aurora_cells(&game.board, elapsed, &cam);
             draw_viruses(&game.board, assets, elapsed, &cam);
-            draw_pieces(&game.board, assets, elapsed, game.mode, &cam);
+            draw_pieces(&game.board, assets, elapsed, game.mode, game.theme_index, &cam);
             if game.phase == Phase::Playing {
                 draw_valid_moves(&game.board, elapsed, &cam);
                 if let Some((hr, hc)) = game.hover {
@@ -43,7 +74,7 @@ pub fn draw_reversi(game: &ReversiGame, assets: &AssetHandles, elapsed: f32) {
             if let Some(anim) = &game.flip_anim {
                 draw_flip_overlay(anim, &cam);
             }
-            draw_hud(&game.board, assets, elapsed, &cam);
+            draw_hud(&game.board, assets, elapsed, game.theme_index, &cam);
             draw_powerup_hud(&game.board, &cam);
             draw_turn_timer(game, assets, elapsed, &cam);
             draw_turn_indicator(&game.board, elapsed, &cam);
@@ -54,8 +85,8 @@ pub fn draw_reversi(game: &ReversiGame, assets: &AssetHandles, elapsed: f32) {
         Phase::GameOver => {
             draw_board_frame(&cam);
             draw_cells(&cam);
-            draw_pieces(&game.board, assets, elapsed, game.mode, &cam);
-            draw_hud(&game.board, assets, elapsed, &cam);
+            draw_pieces(&game.board, assets, elapsed, game.mode, game.theme_index, &cam);
+            draw_hud(&game.board, assets, elapsed, game.theme_index, &cam);
             draw_game_over(game, assets, &cam);
         }
     }
@@ -119,15 +150,16 @@ fn opponent_name(mode: GameMode) -> &'static str {
     }
 }
 
-fn draw_pieces(board: &Board, assets: &AssetHandles, elapsed: f32, mode: GameMode, cam: &Camera) {
+fn draw_pieces(board: &Board, assets: &AssetHandles, elapsed: f32, mode: GameMode, theme_idx: usize, cam: &Camera) {
     let max_size = CELL_PX - 8.0;
     let opp_tex = opponent_texture(assets, mode);
+    let player_tex = theme_texture(theme_idx, assets);
     for r in 0..BOARD_SIZE {
         for c in 0..BOARD_SIZE {
             if let Cell::Piece(side) = board.cells[r][c] {
                 let bob = ((elapsed * 2.0 + (r * 3 + c) as f32 * 0.5).sin() * 2.0).round();
                 let tex = match side {
-                    Side::Edie => &assets.edie_static_run,
+                    Side::Edie => player_tex,
                     Side::Alice => opp_tex,
                 };
                 let src_w = tex.width();
@@ -202,15 +234,13 @@ fn draw_flip_overlay(anim: &FlipAnim, cam: &Camera) {
     draw_rectangle_lines(sx, sy, cam.scaled(CELL_PX), cam.scaled(CELL_PX), 4.0, Color::new(1.0, 0.9, 0.3, alpha + 0.3));
 }
 
-fn draw_hud(board: &Board, assets: &AssetHandles, elapsed: f32, cam: &Camera) {
-    // Animated character above EDIE HP bar
-    let edie_tex = &assets.edie_run_anim;
-    let edie_fw = edie_tex.width() / 6.0; // 6-frame run animation
-    let edie_fi = ((elapsed * 8.0) as usize) % 6;
-    let (ex, ey) = cam.to_screen(30.0 + 70.0, 620.0);
-    draw_texture_ex(edie_tex, ex, ey, WHITE, DrawTextureParams {
-        dest_size: Some(vec2(cam.scaled(40.0), cam.scaled(36.0))),
-        source: Some(Rect { x: edie_fi as f32 * edie_fw, y: 0.0, w: edie_fw, h: edie_tex.height() }),
+fn draw_hud(board: &Board, assets: &AssetHandles, elapsed: f32, theme_idx: usize, cam: &Camera) {
+    // Animated player character above HP bar (changes with easter egg theme)
+    let player_tex = theme_texture(theme_idx, assets);
+    let (ex, ey) = cam.to_screen(30.0 + 70.0, 618.0);
+    let player_bob = (elapsed * 3.0).sin() * 3.0;
+    draw_texture_ex(player_tex, ex, ey + cam.scaled(player_bob), WHITE, DrawTextureParams {
+        dest_size: Some(vec2(cam.scaled(36.0), cam.scaled(40.0))),
         ..Default::default()
     });
     // Animated character above ALICE HP bar
@@ -268,13 +298,21 @@ fn draw_turn_indicator(board: &Board, elapsed: f32, cam: &Camera) {
     draw_text(label, tx - dim.width * 0.5, ty, size, col);
 }
 
-fn draw_menu(cam: &Camera) {
+fn draw_menu(theme_idx: usize, cam: &Camera) {
     let title = "EDIE BATTLE REVERSE";
     let size = 48.0 * cam.scale;
     let dim = measure_text(title, None, size as u16, 1.0);
     let (tx, ty) = cam.to_screen(640.0, 180.0);
+    let title_color = theme_color(theme_idx);
     draw_text(title, tx - dim.width * 0.5 + 3.0, ty + 3.0, size, Color::new(0.0, 0.0, 0.0, 0.5));
-    draw_text(title, tx - dim.width * 0.5, ty, size, ORANGE);
+    draw_text(title, tx - dim.width * 0.5, ty, size, title_color);
+    if theme_idx > 0 {
+        let sub = format!("Playing as {}", THEME_NAMES[theme_idx]);
+        let ss = 16.0 * cam.scale;
+        let sd = measure_text(&sub, None, ss as u16, 1.0);
+        let (sx, sy) = cam.to_screen(640.0, 210.0);
+        draw_text(&sub, sx - sd.width * 0.5, sy, ss, title_color);
+    }
     let opts = [
         ("1. VS LOCAL (2P)", 290.0),
         ("2. VS AMY - EASY", 340.0),
