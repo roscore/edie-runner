@@ -30,16 +30,15 @@ pub struct Leaderboard {
 impl Leaderboard {
     const CURRENT_VERSION: u32 = 3;
 
-    /// Load from storage. Seeds with the default SHP 51000 entry if the
-    /// stored data is missing or unreadable.
+    /// Load from storage. Always preserves existing scores regardless of
+    /// the stored version — version bumps must never erase player data.
     pub fn load<S: Storage>(storage: &S) -> Self {
         let mut lb = Self::default();
         let raw = storage.get(LEADERBOARD_KEY);
         if let Some(json) = raw {
             if let Ok(file) = serde_json::from_str::<LeaderboardFile>(&json) {
-                if file.version == Self::CURRENT_VERSION {
-                    lb.entries = file.entries;
-                }
+                // Accept entries from any version — scores are always valid.
+                lb.entries = file.entries;
             }
         }
         lb.ensure_seed();
@@ -121,9 +120,7 @@ impl Leaderboard {
     /// added; duplicates (same name + score) are skipped.
     pub fn merge_remote(&mut self, json: &str) {
         if let Ok(file) = serde_json::from_str::<LeaderboardFile>(json) {
-            if file.version != Self::CURRENT_VERSION {
-                return;
-            }
+            // Accept entries from any version — never discard remote scores.
             for remote_e in &file.entries {
                 let already = self.entries.iter().any(|e| {
                     e.name == remote_e.name && e.score == remote_e.score
