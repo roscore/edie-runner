@@ -13,8 +13,25 @@
         canvas:focus { outline: none; }
     </style>
 </head>
-<body>
+<body oncontextmenu="return false;" onselectstart="return false;" ondragstart="return false;">
     <canvas id="glcanvas" tabindex="1"></canvas>
+    <script>
+      (function () {
+        document.addEventListener('contextmenu', function (e) { e.preventDefault(); }, true);
+        document.addEventListener('selectstart', function (e) { e.preventDefault(); }, true);
+        document.addEventListener('keydown', function (e) {
+          var k = e.key || '';
+          var K = k.toUpperCase();
+          if (k === 'F12') { e.preventDefault(); return false; }
+          if ((e.ctrlKey || e.metaKey) && e.shiftKey && (K === 'I' || K === 'J' || K === 'C')) {
+            e.preventDefault(); return false;
+          }
+          if ((e.ctrlKey || e.metaKey) && (K === 'U' || K === 'S')) {
+            e.preventDefault(); return false;
+          }
+        }, true);
+      })();
+    </script>
     <script src="https://not-fl3.github.io/miniquad-samples/mq_js_bundle.js"></script>
     <script>load("edie_reverse.wasm");</script>
 </body>
