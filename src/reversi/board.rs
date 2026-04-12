@@ -34,6 +34,17 @@ impl Side {
     }
 }
 
+/// Aurora powerup types.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Powerup {
+    /// Next regular move deals 2× HP damage (auto-applied).
+    DoubleStrike,
+    /// Remove one virus cell from the board (click to target).
+    VirusCure,
+    /// Flip any one opponent piece to yours (click to target, costs turn).
+    ForceFlip,
+}
+
 /// Result of applying a move to the board.
 #[derive(Debug, Clone)]
 pub struct MoveResult {
@@ -45,6 +56,8 @@ pub struct MoveResult {
     pub mungchi_alert: bool,
     /// True if the game ended because opponent HP hit 0.
     pub knockout: bool,
+    /// Powerup granted (if move landed on an Aurora cell).
+    pub powerup_gained: Option<Powerup>,
 }
 
 // ====================================================================
@@ -56,6 +69,7 @@ pub const INITIAL_HP: i32 = 10_000;
 pub const NUM_VIRUSES: usize = 5;
 pub const MUNGCHI_THRESHOLD: usize = 6;
 pub const MUNGCHI_BONUS: i32 = 500;
+pub const AURORA_INTERVAL: u32 = 5;
 
 const DIRS: [(i32, i32); 8] = [
     (-1, -1), (-1, 0), (-1, 1),
@@ -74,6 +88,11 @@ pub struct Board {
     pub edie_hp: i32,
     pub alice_hp: i32,
     pub turn_count: u32,
+    /// Cells currently holding an Aurora Stone.
+    pub aurora_cells: Vec<(usize, usize)>,
+    /// Held powerup per side (max 1 each).
+    pub edie_powerup: Option<Powerup>,
+    pub alice_powerup: Option<Powerup>,
 }
 
 impl Board {
@@ -84,6 +103,9 @@ impl Board {
             edie_hp: INITIAL_HP,
             alice_hp: INITIAL_HP,
             turn_count: 0,
+            aurora_cells: Vec::new(),
+            edie_powerup: None,
+            alice_powerup: None,
         };
         board.cells[3][3] = Cell::Piece(Side::Alice);
         board.cells[3][4] = Cell::Piece(Side::Edie);
@@ -168,11 +190,32 @@ impl Board {
     pub fn apply_move(&mut self, row: usize, col: usize) -> MoveResult {
         let side = self.turn;
         assert!(self.is_valid_move(row, col, side), "invalid move ({}, {}) for {:?}", row, col, side);
+        // Check if landing on an Aurora cell
+        let powerup_gained = if self.aurora_cells.contains(&(row, col)) {
+            self.aurora_cells.retain(|&pos| pos != (row, col));
+            let existing = self.powerup(side);
+            if existing.is_none() {
+                let choices = [Powerup::DoubleStrike, Powerup::VirusCure, Powerup::ForceFlip];
+                let idx = ((row * 7 + col * 13 + self.turn_count as usize) % choices.len()) as usize;
+                let pw = choices[idx];
+                self.set_powerup(side, Some(pw));
+                Some(pw)
+            } else {
+                None // already holding a powerup
+            }
+        } else {
+            None
+        };
         self.cells[row][col] = Cell::Piece(side);
         let flipped = self.flips_for_move(row, col, side);
         for &(fr, fc) in &flipped { self.cells[fr][fc] = Cell::Piece(side); }
         let n = flipped.len() as u32;
-        let damage = damage_for_flips(n);
+        let mut damage = damage_for_flips(n);
+        // Double Strike: consume the powerup and double damage
+        if self.powerup(side) == Some(Powerup::DoubleStrike) && damage > 0 {
+            damage *= 2;
+            self.set_powerup(side, None);
+        }
         let mungchi_alert = flipped.len() >= MUNGCHI_THRESHOLD;
         match side {
             Side::Edie => self.alice_hp -= damage,
@@ -190,7 +233,56 @@ impl Board {
         if !knockout && self.valid_moves(self.turn).is_empty() {
             self.turn = side;
         }
-        MoveResult { flipped, damage, mungchi_alert, knockout }
+        MoveResult { flipped, damage, mungchi_alert, knockout, powerup_gained }
+    }
+
+    pub fn powerup(&self, side: Side) -> Option<Powerup> {
+        match side { Side::Edie => self.edie_powerup, Side::Alice => self.alice_powerup }
+    }
+
+    pub fn set_powerup(&mut self, side: Side, pw: Option<Powerup>) {
+        match side { Side::Edie => self.edie_powerup = pw, Side::Alice => self.alice_powerup = pw }
+    }
+
+    /// Spawn an Aurora stone on a random empty cell. Called by the game layer.
+    pub fn spawn_aurora(&mut self, rng: &mut SmallRng) {
+        let mut empties: Vec<(usize, usize)> = Vec::new();
+        for r in 0..BOARD_SIZE {
+            for c in 0..BOARD_SIZE {
+                if self.cells[r][c] == Cell::Empty && !self.aurora_cells.contains(&(r, c)) {
+                    empties.push((r, c));
+                }
+            }
+        }
+        if let Some(&pos) = empties.get(rng.gen_range(0..empties.len().max(1))) {
+            self.aurora_cells.push(pos);
+        }
+    }
+
+    /// Use Virus Cure powerup: remove one virus cell.
+    pub fn use_virus_cure(&mut self, row: usize, col: usize) -> bool {
+        if self.cells[row][col] != Cell::Virus { return false; }
+        let side = self.turn;
+        if self.powerup(side) != Some(Powerup::VirusCure) { return false; }
+        self.cells[row][col] = Cell::Empty;
+        self.set_powerup(side, None);
+        true
+    }
+
+    /// Use Force Flip powerup: flip one opponent piece.
+    pub fn use_force_flip(&mut self, row: usize, col: usize) -> bool {
+        let side = self.turn;
+        if self.powerup(side) != Some(Powerup::ForceFlip) { return false; }
+        if self.cells[row][col] != Cell::Piece(side.opponent()) { return false; }
+        self.cells[row][col] = Cell::Piece(side);
+        self.set_powerup(side, None);
+        // Force flip costs the turn
+        self.turn_count += 1;
+        self.turn = side.opponent();
+        if self.valid_moves(self.turn).is_empty() {
+            self.turn = side;
+        }
+        true
     }
 
     pub fn is_game_over(&self) -> bool {
@@ -292,7 +384,7 @@ mod tests {
 
     #[test]
     fn mungchi_alert_at_threshold() {
-        let mut b = Board { cells: [[Cell::Empty; 8]; 8], turn: Side::Edie, edie_hp: INITIAL_HP, alice_hp: INITIAL_HP, turn_count: 0 };
+        let mut b = Board { cells: [[Cell::Empty; 8]; 8], turn: Side::Edie, edie_hp: INITIAL_HP, alice_hp: INITIAL_HP, turn_count: 0, aurora_cells: Vec::new(), edie_powerup: None, alice_powerup: None };
         for c in 1..7 { b.cells[3][c] = Cell::Piece(Side::Alice); }
         b.cells[3][7] = Cell::Piece(Side::Edie);
         let result = b.apply_move(3, 0);

@@ -41,14 +41,27 @@ async fn main() {
                 else if is_key_pressed(KeyCode::Key2) { game.start_game(GameMode::VsAiEasy); }
                 else if is_key_pressed(KeyCode::Key3) { game.start_game(GameMode::VsAiNormal); }
                 else if is_key_pressed(KeyCode::Key4) { game.start_game(GameMode::VsAiHard); }
+                else if is_key_pressed(KeyCode::Key5) { game.start_game(GameMode::VsAiInsane); }
+                // Mouse/touch menu selection
+                let menu_click = |my: f32| -> Option<GameMode> {
+                    let cam = edie_runner::render::camera::Camera::with_logical(
+                        1280.0, 720.0, screen_width(), screen_height());
+                    let ly = (my - cam.offset_y) / cam.scale;
+                    if ly > 270.0 && ly < 315.0 { Some(GameMode::VsLocal) }
+                    else if ly > 320.0 && ly < 365.0 { Some(GameMode::VsAiEasy) }
+                    else if ly > 370.0 && ly < 415.0 { Some(GameMode::VsAiNormal) }
+                    else if ly > 420.0 && ly < 465.0 { Some(GameMode::VsAiHard) }
+                    else if ly > 470.0 && ly < 515.0 { Some(GameMode::VsAiInsane) }
+                    else { None }
+                };
                 if is_mouse_button_pressed(MouseButton::Left) {
                     let (_mx, my) = mouse_position();
-                    let cam = edie_runner::render::camera::Camera::new(screen_width(), screen_height());
-                    let ly = (my - cam.offset_y) / cam.scale;
-                    if ly > 300.0 && ly < 350.0 { game.start_game(GameMode::VsLocal); }
-                    else if ly > 350.0 && ly < 400.0 { game.start_game(GameMode::VsAiEasy); }
-                    else if ly > 400.0 && ly < 450.0 { game.start_game(GameMode::VsAiNormal); }
-                    else if ly > 450.0 && ly < 500.0 { game.start_game(GameMode::VsAiHard); }
+                    if let Some(mode) = menu_click(my) { game.start_game(mode); }
+                }
+                for t in touches() {
+                    if let macroquad::input::TouchPhase::Started = t.phase {
+                        if let Some(mode) = menu_click(t.position.y) { game.start_game(mode); }
+                    }
                 }
             }
             Phase::Playing => {
@@ -66,10 +79,38 @@ async fn main() {
                         }
                     }
                 }
+                // Activate powerup with Q key
+                if is_key_pressed(KeyCode::Q) {
+                    game.activate_powerup();
+                }
+            }
+            Phase::UsingPowerup => {
+                let (mx, my) = mouse_position();
+                game.hover = screen_to_cell(mx, my);
+                if is_mouse_button_pressed(MouseButton::Left) {
+                    if let Some((r, c)) = screen_to_cell(mx, my) {
+                        game.on_cell_click(r, c);
+                    }
+                }
+                for t in touches() {
+                    if let macroquad::input::TouchPhase::Started = t.phase {
+                        if let Some((r, c)) = screen_to_cell(t.position.x, t.position.y) {
+                            game.on_cell_click(r, c);
+                        }
+                    }
+                }
+                if is_key_pressed(KeyCode::Escape) {
+                    game.cancel_powerup();
+                }
             }
             Phase::GameOver => {
                 if is_key_pressed(KeyCode::Space) || is_mouse_button_pressed(MouseButton::Left) {
                     game.phase = Phase::Menu;
+                }
+                for t in touches() {
+                    if let macroquad::input::TouchPhase::Started = t.phase {
+                        game.phase = Phase::Menu;
+                    }
                 }
             }
             Phase::Animating => {}
@@ -79,7 +120,7 @@ async fn main() {
 
         if game.phase == Phase::Playing {
             let is_ai_turn = match game.mode {
-                GameMode::VsAiEasy | GameMode::VsAiNormal | GameMode::VsAiHard => {
+                GameMode::VsAiEasy | GameMode::VsAiNormal | GameMode::VsAiHard | GameMode::VsAiInsane => {
                     game.board.turn == edie_runner::reversi::board::Side::Alice
                 }
                 _ => false,

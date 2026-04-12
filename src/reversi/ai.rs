@@ -51,6 +51,18 @@ pub fn pick_move(board: &Board, mode: GameMode, seed: u64) -> Option<(usize, usi
             }
             Some(best_move)
         }
+        GameMode::VsAiInsane => {
+            let depth = 6; // deeper search for insane difficulty
+            let mut best_move = moves[0];
+            let mut best_score = i32::MIN;
+            for &(r, c) in &moves {
+                let mut clone = board.clone();
+                clone.apply_move(r, c);
+                let score = minimax(&clone, depth - 1, i32::MIN, i32::MAX, false, board.turn);
+                if score > best_score { best_score = score; best_move = (r, c); }
+            }
+            Some(best_move)
+        }
         GameMode::VsLocal => None,
     }
 }
