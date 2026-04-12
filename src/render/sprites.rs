@@ -13,20 +13,10 @@ const AURORA_FRAME_W: f32 = 48.0;
 const AURORA_FRAME_H: f32 = 48.0;
 const AURORA_FPS: f32 = 8.0;
 
-const DRONE_FRAMES: usize = 4;
-const DRONE_FRAME_W: f32 = 56.0;
-const DRONE_FRAME_H: f32 = 32.0;
-const DRONE_FPS: f32 = 16.0;
-
 const SPARK_FRAMES: usize = 4;
 const SPARK_FRAME_W: f32 = 24.0;
 const SPARK_FRAME_H: f32 = 24.0;
 const SPARK_FPS: f32 = 12.0;
-
-const DOCK_FRAMES: usize = 2;
-const DOCK_FRAME_W: f32 = 32.0;
-const DOCK_FRAME_H: f32 = 64.0;
-const DOCK_FPS: f32 = 2.0;
 
 // GIF-based EDIE animation frame counts (match generate_art.py)
 pub const EDIE_RUN_FRAMES: usize = 7;

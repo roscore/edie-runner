@@ -272,34 +272,43 @@ impl World {
         }
 
         let player_box = self.player.hitbox();
-        let collected = self.pickups.collisions_with(&player_box);
-        for &i in &collected {
-            self.pickups.stones[i].collected = true;
-            self.dash.add_aurora(1);
-            self.score.add(50);
-        }
 
-        // Score popup spawns for collected auroras
-        for &i in &collected {
-            let s = &self.pickups.stones[i];
-            self.effects.score_popup(s.x, s.y, 50, (0.62, 0.42, 1.00));
+        // Aurora stone pickups — inline iteration avoids Vec allocation.
+        let mut any_aurora = false;
+        for i in 0..self.pickups.stones.len() {
+            if !self.pickups.stones[i].collected
+                && self.pickups.stones[i].hitbox().intersects(&player_box)
+            {
+                self.pickups.stones[i].collected = true;
+                self.dash.add_aurora(1);
+                self.score.add(50);
+                let s = &self.pickups.stones[i];
+                self.effects.score_popup(s.x, s.y, 50, (0.62, 0.42, 1.00));
+                any_aurora = true;
+            }
         }
-        if !collected.is_empty() {
+        if any_aurora {
             self.effects.sfx(SfxCue::Pickup);
         }
 
-        // Heart pickups
-        let heart_indices = self.pickups.heart_collisions_with(&player_box);
-        for &i in &heart_indices {
-            let h = self.pickups.hearts[i].clone();
-            self.pickups.hearts[i].collected = true;
-            if self.hp < MAX_HP {
-                self.hp += 1;
+        // Heart pickups — same inline pattern.
+        let mut any_heart = false;
+        for i in 0..self.pickups.hearts.len() {
+            if !self.pickups.hearts[i].collected
+                && self.pickups.hearts[i].hitbox().intersects(&player_box)
+            {
+                let hx = self.pickups.hearts[i].x;
+                let hy = self.pickups.hearts[i].y;
+                self.pickups.hearts[i].collected = true;
+                if self.hp < MAX_HP {
+                    self.hp += 1;
+                }
+                self.score.add(75);
+                self.effects.score_popup(hx, hy, 75, (0.95, 0.3, 0.35));
+                any_heart = true;
             }
-            self.score.add(75);
-            self.effects.score_popup(h.x, h.y, 75, (0.95, 0.3, 0.35));
         }
-        if !heart_indices.is_empty() {
+        if any_heart {
             self.effects.sfx(SfxCue::Heart);
         }
 
